@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}{{ community.name }} - BSES{% endblock %}
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+    <div class="card mb-4" style="padding: 2rem;">
+        <div class="d-flex justify-between align-center mb-4" style="flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h1 style="margin-bottom: 0.5rem;">{{ community.name }}</h1>
+                <p class="text-muted">Created by <a href="{% url 'profile' community.creator.profile.username_display %}" style="color: inherit;">{{ community.creator.profile.username_display }}</a> on {{ community.created_at|date }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'upload_photo' %}?community={{ community.id }}" class="btn btn-primary"><i class="fas fa-upload"></i> Upload Photo</a>
+            </div>
+        </div>
+        
+        <p style="font-size: 1.1rem; margin-bottom: 2rem;">{{ community.description }}</p>
+        
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+        
+        <div class="d-flex gap-4" style="flex-wrap: wrap;">
+            <div style="flex: 2; min-width: 300px;">
+                <h3 class="mb-4">Community Photos</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                    {% for photo in photos %}
+                        <a href="{% url 'photo_detail' photo.id %}" class="card" style="display: block; height: 200px;">
+                            <img src="{{ photo.image.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </a>
+                    {% empty %}
+                        <div class="card text-center" style="grid-column: 1 / -1; padding: 2rem;">
+                            <p class="text-muted">No photos in this community yet.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div style="flex: 1; min-width: 250px;">
+                <h3 class="mb-4">Members ({{ members.count }})</h3>
+                
+                <div class="card mb-4" style="padding: 1rem;">
+                    <form action="{% url 'invite_member' community.id %}" method="post" class="d-flex gap-2">
+                        {% csrf_token %}
+                        <input type="text" name="username" class="form-control" placeholder="Username to invite..." required style="padding: 0.5rem;">
+                        <button type="submit" class="btn btn-primary btn-sm">Invite</button>
+                    </form>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 400px; overflow-y: auto;">
+                    {% for membership in members %}
+                        <div class="d-flex align-center gap-2">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                                {% if membership.user.profile.profile_picture %}
+                                    <img src="{{ membership.user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary); font-size: 0.8rem;">
+                                        {{ membership.user.profile.first_name|first|upper }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <a href="{% url 'profile' membership.user.profile.username_display %}" style="text-decoration: none; color: inherit; font-weight: 500;">
+                                    {{ membership.user.profile.username_display }}
+                                </a>
+                                {% if membership.role == 'creator' %}
+                                    <span class="text-muted" style="font-size: 0.75rem; margin-left: 0.25rem;">(Creator)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign Up - BSES{% endblock %}
+
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto;" class="card">
+    <div style="padding: 2rem;">
+        <h2 class="text-center mb-4">Create an Account</h2>
+        <form method="post" action="{% url 'signup' %}">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="toast toast-error mb-4" style="position: static; transform: none; animation: none;">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div style="color: var(--danger); font-size: 0.875rem; margin-top: 0.25rem;">
+                            {{ field.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Sign Up</button>
+        </form>
+        <div class="text-center mt-4">
+            <p>Already have an account? <a href="{% url 'login' %}">Login</a></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Add form-control class to all inputs
+    document.querySelectorAll('input').forEach(input => {
+        if (input.type !== 'submit' && input.type !== 'hidden') {
+            input.classList.add('form-control');
+        }
+    });
+</script>
+{% endblock %}

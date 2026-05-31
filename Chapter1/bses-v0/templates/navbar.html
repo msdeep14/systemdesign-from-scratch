@@ -1,0 +1,39 @@
+<nav class="navbar">
+    <div class="navbar-container">
+        <a href="{% url 'newsfeed' %}" class="navbar-brand">BSES</a>
+        
+        <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <div class="navbar-links" id="navbar-links">
+            {% if user.is_authenticated %}
+                <form action="{% url 'search_users' %}" method="get" class="search-form">
+                    <input type="text" name="q" placeholder="Search users..." class="search-input" required>
+                    <button type="submit" class="search-btn"><i class="fas fa-search"></i></button>
+                </form>
+                
+                <a href="{% url 'newsfeed' %}" class="nav-link"><i class="fas fa-home"></i> Feed</a>
+                <a href="{% url 'upload_photo' %}" class="nav-link"><i class="fas fa-plus-square"></i> Upload</a>
+                <a href="{% url 'list_communities' %}" class="nav-link"><i class="fas fa-users"></i> Communities</a>
+                
+                <a href="{% url 'notification_list' %}" class="nav-link">
+                    <i class="fas fa-bell"></i> Notifications
+                    {% if unread_count > 0 %}
+                        <span class="notification-badge" style="background: var(--primary); color: white; border-radius: 50%; padding: 0.1rem 0.4rem; font-size: 0.75rem; margin-left: 0.25rem;">{{ unread_count }}</span>
+                    {% endif %}
+                </a>
+                
+                <a href="{% url 'profile' username=user.profile.username_display %}" class="nav-link"><i class="fas fa-user"></i> Profile</a>
+                
+                <form action="{% url 'logout' %}" method="post" class="inline-form">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="nav-link">Login</a>
+                <a href="{% url 'signup' %}" class="nav-link">Sign Up</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>

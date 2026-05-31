@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Create Community - BSES{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; padding: 2rem;">
+    <h2 class="mb-4">Create a New Community</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div style="color: var(--danger); font-size: 0.875rem; margin-top: 0.25rem;">
+                        {{ field.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create Community</button>
+            <a href="{% url 'list_communities' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+<script>
+    document.querySelectorAll('input, textarea').forEach(input => {
+        input.classList.add('form-control');
+    });
+</script>
+{% endblock %}
