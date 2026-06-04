@@ -181,3 +181,37 @@ This document records the actions taken, decisions made, thought processes, and 
 - Modified `bses/settings.py` to allow all hosts.
 
 ---
+
+## 6. Vercel Deployment Support
+
+### Task: Vercel Configuration & Serverless Compatibility
+**Context:** The application needs to be deployable on Vercel, a serverless platform. Vercel imposes restrictions such as an ephemeral filesystem and requires explicit WSGI handlers and build scripts.
+**Decision:** Configured `vercel.json` to route all traffic to the WSGI application and handle static files via a custom `build.sh` script. Integrated `django-storages` for AWS S3 to support persistent media storage on Vercel.
+**Actions Taken:**
+- Created `vercel.json` to configure the `@vercel/python` builder and route requests.
+- Created `build.sh` to install requirements, collect static files, and run database migrations during the Vercel build phase.
+- Modified `bses/wsgi.py` to expose `app = application` to satisfy Vercel's Python runtime expectations.
+- Modified `bses/settings.py` to add `.vercel.app` to `ALLOWED_HOSTS`.
+- Modified `bses/settings.py` to conditionally load `django-storages` and `boto3` configurations if `AWS_STORAGE_BUCKET_NAME` is detected in the environment.
+- Added `django-storages` and `boto3` to `requirements.txt`.
+
+### Task: Docker Compose Security Refactor
+**Context:** The `docker-compose.yml` file contained hardcoded PostgreSQL credentials, presenting a severe security risk if the repository was cloned to an EC2 instance or made public.
+**Decision:** Extracted the hardcoded secrets from `docker-compose.yml` into a `.env` file to ensure they are excluded from version control.
+**Actions Taken:**
+- Modified `docker-compose.yml` to read `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` from environment variables.
+- Generated a local `.env` file with the default connection credentials.
+- Verified that `.env` was already ignored in `.gitignore`.
+
+### Task: Vercel Python Runtime Alignment
+**Context:** The `vercel.json` was initially configured for Python 3.10, but the local development environment relies on Python 3.12.
+**Decision:** Updated the Vercel runtime configuration to match the local environment to prevent unexpected syntax or dependency mismatches in production.
+**Actions Taken:**
+- Modified `vercel.json` to specify `"runtime": "python3.12"`.
+
+### Task: Vercel Architecture Diagram
+**Context:** The project included an EC2 architecture diagram, but lacked visual documentation for the new serverless architecture.
+**Decision:** Created a Mermaid-based architecture diagram to clearly illustrate the decoupled nature of Vercel Serverless Functions, AWS S3, and the remote PostgreSQL database.
+**Actions Taken:**
+- Authored `docs/vercel_architecture.md` containing a Mermaid flowchart.
+- Rendered an AI-generated graphical architecture diagram, complete with a "nano banana", saved at `docs/vercel_architecture_diagram.png`.

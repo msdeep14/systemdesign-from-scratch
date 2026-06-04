@@ -456,3 +456,18 @@ Vanilla JS — no frameworks. Handles:
 - Verify mark-as-read and mark-all-as-read work
 - Verify photo compression: upload a >2MB image, confirm it's compressed and stored correctly
 - Verify `docker-compose up` runs the full stack
+
+---
+
+## Deployment Strategy: Vercel
+
+### Architecture Additions
+Vercel is a serverless environment, meaning local file storage is ephemeral and databases are not hosted on the platform.
+
+### Vercel Configuration
+- `vercel.json` controls the build and routing. It specifies the `@vercel/python` builder for `wsgi.py` and a `@vercel/static-build` builder for static files (handled by `build.sh`).
+- `build.sh` runs `pip install`, `collectstatic`, and `migrate` during the Vercel build step.
+- `wsgi.py` exposes the `app` variable (which Vercel looks for natively).
+
+### Media Storage
+- If `AWS_STORAGE_BUCKET_NAME` is provided in environment variables, the system uses `django-storages` with `boto3` to offload user uploads to AWS S3. Otherwise, it falls back to the local `media/` folder (useful for local development, but volatile on Vercel).
