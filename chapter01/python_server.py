@@ -1,8 +1,9 @@
 """
 python_server.py — A Bare-Bones HTTP Server Built From Raw Sockets
 
-This script strips away all frameworks (Django, Flask, etc.) and shows
-exactly what happens when you type http://localhost:9000 in your browser.
+Built with help of Claude Opus 4.6 (Thinking)
+
+This script shows what happens when you type http://localhost:9000 in your browser.
 
 The journey:
   1. Create a socket          → like picking up a phone
@@ -29,7 +30,7 @@ import socket
 # STEP 1: Create a socket
 # ──────────────────────────────────────────────────────────────────────
 # AF_INET    = use IPv4 addresses (like 127.0.0.1)
-# SOCK_STREAM = use TCP (reliable, ordered delivery — as opposed to UDP)
+# SOCK_STREAM = use TCP (reliable, ordered delivery)
 #
 # At this point, the socket exists in memory but is not connected to
 # anything. It's like a brand-new phone with no number assigned yet.
@@ -262,3 +263,90 @@ while True:
         server_socket.close()
         print("Server socket closed. Goodbye!")
         break
+
+
+"""
+Sample Terminal Output
+
+
+➜  systemdesignfromscratch git:(main) ✗ python3 chapter01/python_server.py
+[Step 1] Socket created (AF_INET + SOCK_STREAM = IPv4 TCP)
+[Step 2] Socket bound to 127.0.0.1:9000
+[Step 3] Listening with backlog=5
+
+============================================================
+  Server is running at http://127.0.0.1:9000
+  Open this URL in your browser. Press Ctrl+C to stop.
+============================================================
+
+Waiting for a connection...
+
+────────────────────────────────────────────────────────────
+[Step 4] Request #1
+  Connection accepted from 127.0.0.1:49401
+  TCP 3-way handshake completed ✓
+  New client socket created (fd=4)
+
+[Step 5] Received HTTP request:
+  Method: GET
+  Path:   /
+  Raw first line: GET / HTTP/1.1
+  Headers received:
+    Host: localhost:9000
+    Connection: keep-alive
+    sec-ch-ua: "Chromium";v="148", "Brave";v="148", "Not/A)Brand";v="99"
+    sec-ch-ua-mobile: ?0
+    sec-ch-ua-platform: "macOS"
+    Upgrade-Insecure-Requests: 1
+    User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+    Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8
+    Sec-GPC: 1
+    Accept-Language: en-GB,en;q=0.9
+    Sec-Fetch-Site: none
+    Sec-Fetch-Mode: navigate
+    Sec-Fetch-User: ?1
+    Sec-Fetch-Dest: document
+    Accept-Encoding: gzip, deflate, br, zstd
+    Cookie: csrftoken=xxxxxxxx; sessionid=xxxxxxxxxx
+
+[Step 6] HTTP response sent (2351 bytes of HTML)
+[Step 7] Connection closed
+────────────────────────────────────────────────────────────
+
+Waiting for a connection...
+
+────────────────────────────────────────────────────────────
+[Step 4] Request #2
+  Connection accepted from 127.0.0.1:49403
+  TCP 3-way handshake completed ✓
+  New client socket created (fd=4)
+
+[Step 5] Received HTTP request:
+  Method: GET
+  Path:   /favicon.ico
+  Raw first line: GET /favicon.ico HTTP/1.1
+  Headers received:
+    Host: localhost:9000
+    Connection: keep-alive
+    sec-ch-ua-platform: "macOS"
+    User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36
+    sec-ch-ua: "Chromium";v="148", "Brave";v="148", "Not/A)Brand";v="99"
+    sec-ch-ua-mobile: ?0
+    Accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8
+    Sec-GPC: 1
+    Accept-Language: en-GB,en;q=0.9
+    Sec-Fetch-Site: same-origin
+    Sec-Fetch-Mode: no-cors
+    Sec-Fetch-Dest: image
+    Referer: http://localhost:9000/
+    Accept-Encoding: gzip, deflate, br, zstd
+    Cookie: csrftoken=xxxxxxx; sessionid=xxxxxxxx
+
+[Step 6] HTTP response sent (2362 bytes of HTML)
+[Step 7] Connection closed
+────────────────────────────────────────────────────────────
+
+Waiting for a connection...
+
+
+"""
