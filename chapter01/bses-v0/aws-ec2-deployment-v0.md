@@ -54,13 +54,48 @@ cat ~/.ssh/id_ed25519.pub
 ```
 *Action:* Copy the printed key and add it to your GitHub repository's **"Deploy Keys"** (Settings -> Deploy keys -> Add deploy key).
 
-### C. Clone and Run the Application
+### C. Clone the Repository
 ```bash
 # Clone the repository
 git clone git@github.com:msdeep14/bses-v0.git
 cd bses-v0
+```
 
-# Start the production cluster (Database + Django/Gunicorn via Port 80)
+### D. Provision Amazon S3 Storage (Media Files)
+To decouple media storage from the EC2 instance's local EBS volume, create an S3 bucket:
+1. Go to the **Amazon S3 Console** and click **Create bucket**.
+2. **Bucket Name**: Choose a globally unique name (e.g., `bses-media-storage-v1`).
+3. **AWS Region**: Select your preferred region (e.g., `ap-south-1`).
+4. **Object Ownership**: ACLs disabled (recommended).
+5. **Block Public Access settings**: **Uncheck** "Block all public access" (users need to be able to see photos on the web).
+6. Create the bucket.
+7. Go to the **AWS IAM Console**, create a new IAM User with `AmazonS3FullAccess` (or a custom scoped policy for this bucket), and generate an **Access Key ID** and **Secret Access Key**.
+
+### E. Configure Environment Variables (.env)
+Create the `.env` file on the EC2 machine to securely pass database and AWS credentials to Docker Compose:
+```bash
+nano .env
+```
+Paste the following configuration into the file, replacing the placeholder values with your actual AWS keys and database passwords:
+```env
+# Database Configuration
+POSTGRES_DB=bses
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+
+# S3 Media Storage Configuration
+USE_S3=True
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_STORAGE_BUCKET_NAME=your_bucket_name
+AWS_S3_REGION_NAME=ap-south-1
+```
+Save and exit nano (`Ctrl+O`, `Enter`, `Ctrl+X`).
+
+### F. Build and Launch the Application
+Start the production cluster. The `--build` flag is critical to ensure Docker installs the `django-storages` and `boto3` libraries.
+```bash
+# Build the image and start the cluster in detached mode
 docker-compose up -d --build
 ```
 
