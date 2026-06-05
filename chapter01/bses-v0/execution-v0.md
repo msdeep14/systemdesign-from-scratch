@@ -181,3 +181,14 @@ This document records the actions taken, decisions made, thought processes, and 
 - Modified `bses/settings.py` to allow all hosts.
 
 ---
+
+## 7. Flexible Media Storage Architecture
+
+### Task: Decoupling Media Storage (EBS vs S3)
+**Context:** The architecture required the flexibility to operate purely on local block storage (EBS) for POC deployments, while retaining the capability to scale out to Amazon S3 for production deployments without modifying code.
+**Decision:** Implemented an environment-driven toggle (`USE_S3`) that switches Django's underlying `DEFAULT_FILE_STORAGE` backend dynamically. Set `ap-south-1` as the default AWS region.
+**Actions Taken:**
+- Added `django-storages` and `boto3` to `requirements.txt`.
+- Modified `bses/settings.py` to conditionally configure S3 parameters when `USE_S3 == 'True'`.
+- Modified `docker-compose.yml` to securely inject AWS credentials and the `USE_S3` flag into the `web` container environment.
+- Appended the architectural strategy to `implementation-v0.md`.

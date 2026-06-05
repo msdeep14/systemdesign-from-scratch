@@ -456,3 +456,19 @@ Vanilla JS — no frameworks. Handles:
 - Verify mark-as-read and mark-all-as-read work
 - Verify photo compression: upload a >2MB image, confirm it's compressed and stored correctly
 - Verify `docker-compose up` runs the full stack
+
+---
+
+## Architecture Enhancement: Flexible Media Storage (EBS vs S3)
+
+To facilitate both local Proof-of-Concept testing and scalable production deployments, the media storage layer has been decoupled.
+
+### Storage Strategy
+The system reads a `USE_S3` environment variable flag.
+- **Local / EBS Mode (`USE_S3=False` or absent)**: Django defaults to writing media (e.g., photos) to the local filesystem (`MEDIA_ROOT`). This simulates an attached EBS volume in an EC2 deployment.
+- **Production / S3 Mode (`USE_S3=True`)**: Django utilizes `django-storages` and `boto3` to bypass the local disk and write directly to an Amazon S3 bucket.
+
+### Component Changes
+- **Dependencies**: `django-storages` and `boto3` are explicitly required.
+- **Settings**: `bses/settings.py` dynamically overrides `DEFAULT_FILE_STORAGE` and `MEDIA_URL` when `USE_S3` is true. It expects standard AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_STORAGE_BUCKET_NAME`, etc.). The default region is `ap-south-1`.
+- **Environment Passthrough**: `docker-compose.yml` has been updated to inject `USE_S3` and AWS variables from the local environment into the `web` container.
