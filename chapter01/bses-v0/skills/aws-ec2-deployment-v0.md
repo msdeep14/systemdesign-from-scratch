@@ -57,8 +57,8 @@ cat ~/.ssh/id_ed25519.pub
 ### C. Clone the Repository
 ```bash
 # Clone the repository
-git clone git@github.com:msdeep14/bses-v0.git
-cd bses-v0
+git git@github.com:msdeep14/systemdesign-from-scratch.git
+cd systemdesign-from-scratch/chapter01/bses-v0
 ```
 
 ### D. Provision Amazon S3 Storage (Media Files)
@@ -74,7 +74,7 @@ To decouple media storage from the EC2 instance's local EBS volume, create an S3
 ### E. Configure Environment Variables (.env)
 Create the `.env` file on the EC2 machine to securely pass database and AWS credentials to Docker Compose:
 ```bash
-nano .env
+vi .env
 ```
 Paste the following configuration into the file, replacing the placeholder values with your actual AWS keys and database passwords:
 ```env
@@ -89,8 +89,14 @@ AWS_ACCESS_KEY_ID=your_access_key_id
 AWS_SECRET_ACCESS_KEY=your_secret_access_key
 AWS_STORAGE_BUCKET_NAME=your_bucket_name
 AWS_S3_REGION_NAME=ap-south-1
+SECRET_KEY="<generate-a-long-random-secret-key-here>"
 ```
-Save and exit nano (`Ctrl+O`, `Enter`, `Ctrl+X`).
+
+You can generate a secret key using (make sure python is installed or activate the venv; and install the dependencies): 
+
+```bash
+python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
 
 ### F. Build and Launch the Application
 Start the production cluster. The `--build` flag is critical to ensure Docker installs the `django-storages` and `boto3` libraries.

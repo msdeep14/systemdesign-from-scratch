@@ -192,3 +192,29 @@ This document records the actions taken, decisions made, thought processes, and 
 - Modified `bses/settings.py` to conditionally configure S3 parameters when `USE_S3 == 'True'`.
 - Modified `docker-compose.yml` to securely inject AWS credentials and the `USE_S3` flag into the `web` container environment.
 - Appended the architectural strategy to `implementation-v0.md`.
+
+
+## Phase: Fixing unsaved .env file
+
+*   **Analysis:** The user changed `DEBUG_MODE` to `False` but the container still reported `True`. Verified that the `.env` file on disk still contained `DEBUG_MODE=True`. This confirms the user edited the file in their editor but did not save it before running `docker-compose up -d --build`.
+*   **Actions:**
+    *   Updated `.env` to `DEBUG_MODE=False` on disk.
+    *   Restarted the container via `docker-compose up -d`.
+    *   Verified output correctly returned `DEBUG_MODE=False`.
+*   **Edge cases/Errors:** Container builds and restarts read strictly from the files saved to the hard drive, completely ignoring any unsaved editor buffers.
+
+## Phase: Fixing broken S3 images in UI
+
+*   **Analysis:** Images were successfully uploaded to S3 but were broken in the UI. Testing showed the S3 bucket objects were private (returning 403 Forbidden). `django-storages` generates presigned URLs for private objects by default, but this feature is disabled if `AWS_S3_CUSTOM_DOMAIN` is set because it assumes a CDN is used.
+*   **Actions:**
+    *   Removed `AWS_S3_CUSTOM_DOMAIN` and the hardcoded `MEDIA_URL` from `settings.py`.
+    *   Restarted the `web` container.
+*   **Edge cases/Errors:** By default S3 buckets block public access. Setting `AWS_S3_CUSTOM_DOMAIN` forces `django-storages` to output plain URLs without the required authentication signatures, leading to `403 Forbidden` errors on the frontend. Removing the custom domain restores the default behavior of generating secure, presigned URLs.
+
+## Phase: Fixing S3 SignatureDoesNotMatch error
+
+*   **Analysis:** After removing the custom domain, images still failed to load. A curl test of the generated URL showed a `307 Temporary Redirect` to the `ap-south-1` endpoint, followed by a `403 Forbidden` with a `SignatureDoesNotMatch` error. This occurs because boto3 generated the presigned URL for the global endpoint (`s3.amazonaws.com`), but after the redirect, the `host` header changed to `s3.ap-south-1.amazonaws.com`. S3 Signature V4 verification strictly checks the `host` header, causing the mismatch.
+*   **Actions:**
+    *   Added `AWS_S3_ENDPOINT_URL = f'https://s3.{AWS_S3_REGION_NAME}.amazonaws.com'` to `settings.py`.
+    *   Restarted the `web` container.
+*   **Edge cases/Errors:** When using non-US AWS regions (like `ap-south-1`), `django-storages`/boto3 must be explicitly told to use the regional endpoint URL. Without it, the client follows a redirect that invalidates the AWS V4 signature due to the changed `host` header.

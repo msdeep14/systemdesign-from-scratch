@@ -23,15 +23,9 @@ services:
       - static_volume:/app/staticfiles
     ports:
       - "80:8000"
+    env_file:
+      - .env
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - USE_S3=${USE_S3:-False}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
-      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME:-ap-south-1}
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
     depends_on:

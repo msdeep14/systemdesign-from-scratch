@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -26,10 +25,10 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)xo1owcjqdje#3t4bd5#ru!(fvo@464+d*u2k+d#bbg6b3or!0'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)xo1owcjqdje#3t4bd5#ru!(fvo@464+d*u2k+d#bbg6b3or!0')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG_MODE', 'False') == 'True'
 
 ALLOWED_HOSTS = ['*']
 
@@ -149,7 +148,7 @@ if USE_S3:
     AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'ap-south-1')
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+    AWS_S3_ENDPOINT_URL = f'https://s3.{AWS_S3_REGION_NAME}.amazonaws.com'
     
     STORAGES = {
         "default": {
@@ -159,7 +158,6 @@ if USE_S3:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
 else:
     MEDIA_URL = 'media/'
     MEDIA_ROOT = BASE_DIR / 'media'
