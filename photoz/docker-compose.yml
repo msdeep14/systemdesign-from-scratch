@@ -15,17 +15,18 @@ services:
   web:
     build: .
     command: >
-      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 5 bses.wsgi:application"
+      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 2 bses.wsgi:application"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
     expose:
       - "8000"
     deploy:
+      replicas: 3
       resources:
         limits:
-          cpus: '2.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 200M
     env_file:
       - .env
     environment:

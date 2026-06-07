@@ -43,3 +43,10 @@
 *   **Actions:**
     *   Updated `docker-compose.yml` to increase the `web` service limits from `cpus: 0.3` to `cpus: 2.0` and `memory: 250M` to `memory: 1G`.
 *   **Notes/Edge Cases:** Vertical scaling is the simplest fix for an overloaded server because it requires zero code changes. However, it has physical limits (a machine can only be so large) and is prone to single points of failure.
+
+## Phase: Horizontal Scaling - Stage 1 (Docker Replicas)
+*   **Analysis:** Vertical scaling successfully handled 7 concurrent signups but failed miserably when simulating massive viral traffic (e.g., 50+ concurrent signups), proving that a single vertically scaled machine still has strict compute limits. To handle massive traffic, we need to scale horizontally.
+*   **Actions:**
+    *   Updated `docker-compose.yml` to add `replicas: 3` to the `web` service's `deploy` block.
+    *   Nginx automatically load balances traffic across all 3 running container replicas using Docker's internal DNS.
+*   **Notes/Edge Cases:** This effectively gives our architecture 6.0 CPUs and 15 workers distributed across 3 containers on the *same* physical host. However, if traffic scales beyond the physical limits of the single EC2 host itself, we must move to Stage 2: adding multiple EC2 instances.

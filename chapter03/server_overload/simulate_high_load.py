@@ -33,7 +33,7 @@ def make_request(base_url):
     except requests.exceptions.RequestException:
         return "FAILED"
 
-def simulate_load(host, port=80, concurrent_users=200):
+def simulate_load(host, port=80, concurrent_users=50):
     base_url = f"http://{host}:{port}"
     print(f"Starting heavy CPU load simulation (concurrent signups) against {base_url} with {concurrent_users} workers...")
     
