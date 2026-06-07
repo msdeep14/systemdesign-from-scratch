@@ -58,13 +58,23 @@ def slow_upload(host, port=80, path='/photos/upload/'):
         boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
         body_start = (
             f"--{boundary}\r\n"
-            f'Content-Disposition: form-data; name="photo"; filename="fake_photo.jpg"\r\n'
-            f'Content-Type: image/jpeg\r\n\r\n'
+            f'Content-Disposition: form-data; name="csrfmiddlewaretoken"\r\n\r\n'
+            f'{new_csrftoken}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="caption"\r\n\r\n'
+            f'Slow real image upload test\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="image"; filename="sdoa-book-cover-image.png"\r\n'
+            f'Content-Type: image/png\r\n\r\n'
         )
         body_end = f"\r\n--{boundary}--\r\n"
         
-        # 1.9MB of dummy data (staying under the 2MB architecture limit)
-        dummy_data_size = int(1.9 * 1024 * 1024)
+        # Read actual image from disk
+        image_path = os.path.join(os.path.dirname(__file__), 'sdoa-book-cover-image.png')
+        with open(image_path, 'rb') as f:
+            real_image = f.read()
+            
+        dummy_data_size = len(real_image)
         content_length = len(body_start) + dummy_data_size + len(body_end)
         
         headers = (
@@ -86,7 +96,7 @@ def slow_upload(host, port=80, path='/photos/upload/'):
         bytes_sent = 0
         
         while bytes_sent < dummy_data_size:
-            chunk = b'0' * min(chunk_size, dummy_data_size - bytes_sent)
+            chunk = real_image[bytes_sent:bytes_sent+chunk_size]
             s.sendall(chunk)
             bytes_sent += len(chunk)
             print(f"Uploaded {bytes_sent}/{dummy_data_size} bytes...")

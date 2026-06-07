@@ -17,7 +17,7 @@ To permanently fix this, we implemented **Nginx** as a buffering reverse proxy. 
 
 ### The Role of the Reverse Proxy
 1. **Isolation:** Gunicorn is no longer exposed to the internet. It only listens on the internal Docker network.
-2. **Buffering (The Magic):** We configured Nginx to absorb the slow upload. Nginx reads the incoming data byte-by-byte at whatever slow speed the client dictates, buffering it into memory or temporary files. Gunicorn is completely unaware this is happening.
+2. **Buffering:** We configured Nginx to absorb the slow upload. Nginx reads the incoming data byte-by-byte at whatever slow speed the client dictates, buffering it into memory or temporary files. Gunicorn is completely unaware this is happening.
 3. **Lightning Fast Handoff:** Only when Nginx receives the *absolute final byte* of the 1.9MB upload does it forward the complete payload to Gunicorn over the internal network in a fraction of a millisecond. The Python worker processes the upload and is freed instantly.
 
 ### Code Changes Implemented
@@ -48,62 +48,3 @@ We used two scripts to prove the architecture:
 - **Slow Client Result:** Because Nginx was handling the connections, the 30-second Gunicorn timeout never triggered (since Gunicorn hadn't even seen the requests yet). The slow uploads successfully trickled data for over 4 minutes until they reached `1,992,294 bytes`. Once complete, Nginx handed them to Gunicorn in milliseconds, and the slow clients successfully received a `200 OK` HTML response!
 
 **Conclusion:** Nginx successfully protected the synchronous Python workers, guaranteeing 100% uptime for normal users while safely and successfully accommodating users on terrible network connections!
-
----
-
-## Appendix: Detailed HTTP Request/Response Logs
-
-If you want to dive deeper into exactly what `test_responsiveness.py` and `simulate_slow_upload.py` are sending and receiving under the hood, here are the exact HTTP headers and response snippets from the tests.
-
-<details>
-<summary><b>Click to expand Request/Response Logs</b></summary>
-
-### 1. Authenticated Newsfeed Request (Fast Client via Nginx)
-```http
-GET / HTTP/1.1
-Host: 127.0.0.1
-User-Agent: python-requests/2.34.2
-Accept-Encoding: gzip, deflate
-Accept: */*
-Connection: keep-alive
-Cookie: csrftoken=gkarR4mDwLmeN5xwMZLHAeCSeeOXr1GR; sessionid=49hkdbyoeqhc28h3gow91p747ray372e
-
-HTTP/1.1 200 OK
-Server: nginx/1.31.1
-Date: Sun, 07 Jun 2026 06:41:11 GMT
-Content-Type: text/html; charset=utf-8
-Content-Length: 4590
-Connection: keep-alive
-X-Frame-Options: DENY
-Vary: Cookie
-X-Content-Type-Options: nosniff
-Referrer-Policy: same-origin
-Cross-Origin-Opener-Policy: same-origin
-Set-Cookie: csrftoken=gkarR4mDwLmeN5xwMZLHAeCSeeOXr1GR; expires=Sun, 06 Jun 2027 06:41:11 GMT; Max-Age=31449600; Path=/; SameSite=Lax
-```
-
-### 2. The Slow Upload Attack Request (Slow Client via Nginx)
-```http
-POST /photos/upload/ HTTP/1.1
-Host: 127.0.0.1
-Cookie: csrftoken=CuqgygHhoKugpMLTNoKtNxaehjb5e9xE; sessionid=...
-X-CSRFToken: CuqgygHhoKugpMLTNoKtNxaehjb5e9xE
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Length: 1992534
-Connection: keep-alive
-
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="image"; filename="dummy_0.jpg"
-Content-Type: image/jpeg
-
-[... 1.9MB of byte data sent at 8KB/s over several minutes ...]
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-HTTP/1.1 200 OK
-Server: nginx/1.31.1
-Date: Sun, 07 Jun 2026 06:43:38 GMT
-Content-Type: text/html; charset=utf-8
-Content-Length: 4085
-Connection: keep-alive
-```
-</details>

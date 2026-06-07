@@ -25,4 +25,6 @@
     *   Created `photoz/nginx/Dockerfile` and `photoz/nginx/nginx.conf`.
     *   Updated `docker-compose.yml` to include the new `nginx` service mapped to port `80`, routing traffic to the internal `web:8000` upstream.
     *   Rebuilt and restarted the Docker Compose cluster.
-*   **Notes/Edge Cases:** None. Nginx successfully isolates Gunicorn from network latency.
+*   **Notes/Edge Cases:** 
+    *   Nginx successfully isolates Gunicorn from network latency.
+    *   **EC2 Docker Bug:** During testing on Ubuntu EC2, running `docker-compose down` occasionally threw a `permission denied` error preventing containers from stopping. This is a known AppArmor bug with snap-installed Docker. Resolved by restarting the daemon: `sudo systemctl restart snap.docker.dockerd`.
