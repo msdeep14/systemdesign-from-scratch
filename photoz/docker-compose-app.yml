@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: >
+      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 5 bses.wsgi:application"
+    volumes:
+      - .:/app
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"  # Expose to host so Load Balancer can route to it
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    env_file:
+      - .env

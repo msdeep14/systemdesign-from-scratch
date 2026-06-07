@@ -50,3 +50,12 @@
     *   Updated `docker-compose.yml` to add `replicas: 3` to the `web` service's `deploy` block.
     *   Nginx automatically load balances traffic across all 3 running container replicas using Docker's internal DNS.
 *   **Notes/Edge Cases:** This effectively gives our architecture 6.0 CPUs and 15 workers distributed across 3 containers on the *same* physical host. However, if traffic scales beyond the physical limits of the single EC2 host itself, we must move to Stage 2: adding multiple EC2 instances.
+
+## Phase: Horizontal Scaling - Stage 2 (Decoupled Database & 3-Tier Architecture)
+*   **Analysis:** To truly scale horizontally and avoid physical host lockups, the architecture must be split into isolated tiers. We decoupled the Database to its own EC2 instance, the App layer to its own EC2 instances, and the Load Balancer to its own EC2 instance.
+*   **Actions:**
+    *   Shattered the monolithic `docker-compose.yml` into three role-specific files: `docker-compose-db.yml`, `docker-compose-app.yml`, and `docker-compose-lb.yml`.
+    *   Updated `photoz/.env` with a `POSTGRES_HOST` placeholder so the App instances can dynamically point to the remote DB instance.
+    *   Updated `photoz/nginx/nginx.conf` with `upstream` placeholders so the Load Balancer can route traffic across multiple App Instance IPs.
+    *   Since static and media files were already decoupled via S3 (`USE_S3=True`), the Load Balancer (Nginx) no longer needed a local volume mount for `/static/`, making the decoupling process seamless.
+*   **Notes/Edge Cases:** This completes the transition to a production-grade 3-tier architecture. The App tier can now be scaled horizontally infinitely just by spinning up more EC2 instances and adding their IPs to the Nginx upstream.
