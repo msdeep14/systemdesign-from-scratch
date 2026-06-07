@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}Notifications - BSES{% endblock %}
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div class="d-flex justify-between align-center mb-4">
+        <h2>Notifications</h2>
+        {% if unread_count > 0 %}
+            <button id="mark-all-read" class="btn btn-outline btn-sm">Mark all as read</button>
+        {% endif %}
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for notification in page_obj %}
+            <div class="card notification-item {% if not notification.is_read %}unread{% endif %}" data-id="{{ notification.id }}" style="padding: 1.5rem; display: flex; gap: 1rem; align-items: center; border-left: 4px solid {% if not notification.is_read %}var(--primary){% else %}transparent{% endif %};">
+                
+                <div style="width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background-color: var(--border); flex-shrink: 0;">
+                    {% if notification.sender.profile.profile_picture %}
+                        <img src="{{ notification.sender.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    {% else %}
+                        <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary);">
+                            {{ notification.sender.profile.first_name|first|upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div style="flex: 1;">
+                    <p style="margin-bottom: 0.25rem;">{{ notification.message }}</p>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ notification.created_at|timesince }} ago</div>
+                </div>
+                
+                <div class="d-flex gap-2 align-center">
+                    {% if notification.type == 'community_invite' and notification.membership.status == 'pending' %}
+                        <form action="{% url 'respond_invitation' notification.membership.id %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="accept">
+                            <button type="submit" class="btn btn-primary btn-sm">Accept</button>
+                        </form>
+                        <form action="{% url 'respond_invitation' notification.membership.id %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="reject">
+                            <button type="submit" class="btn btn-outline btn-sm">Reject</button>
+                        </form>
+                    {% elif notification.type == 'photo_like' or notification.type == 'photo_comment' %}
+                        {% if notification.photo %}
+                            <a href="{% url 'photo_detail' notification.photo.id %}" class="btn btn-outline btn-sm">View Photo</a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if not notification.is_read %}
+                        <button class="btn btn-sm mark-read-btn" style="background: none; border: none; color: var(--text-muted);" title="Mark as read">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="card text-center" style="padding: 3rem;">
+                <i class="fas fa-bell-slash mb-4" style="font-size: 3rem; color: var(--text-muted);"></i>
+                <p class="text-muted">You have no notifications yet.</p>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+        <div class="pagination d-flex justify-center mt-4 gap-2">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline">&laquo; Prev</a>
+            {% endif %}
+            
+            <span class="btn" style="pointer-events: none;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline">Next &raquo;</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Mark single notification as read
+    document.querySelectorAll('.mark-read-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const item = e.target.closest('.notification-item');
+            const id = item.dataset.id;
+            
+            fetch(`/notifications/${id}/read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    item.classList.remove('unread');
+                    item.style.borderLeftColor = 'transparent';
+                    btn.remove();
+                }
+            });
+        });
+    });
+    
+    // Mark all as read
+    const markAllBtn = document.getElementById('mark-all-read');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', () => {
+            fetch(`/notifications/read-all/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    document.querySelectorAll('.notification-item.unread').forEach(item => {
+                        item.classList.remove('unread');
+                        item.style.borderLeftColor = 'transparent';
+                        const btn = item.querySelector('.mark-read-btn');
+                        if(btn) btn.remove();
+                    });
+                    markAllBtn.remove();
+                    
+                    const badge = document.querySelector('.notification-badge');
+                    if(badge) badge.remove();
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

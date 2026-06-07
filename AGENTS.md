@@ -22,10 +22,11 @@ This document contains guidelines on AI agent response generation, coding standa
 - **Ask for Clarification**: Do not make blind assumptions. If the user's request is ambiguous or underspecified, stop and ask for clarification.
 
 ## LLM Response Generation
-* LLM should respond in a human like manner. 
+* LLM should respond in a human like manner, but just directly come to the point always.
 * LLM should not respond with a very long text. It should respond with a concise text.
-* Avoid saying 'this is great question' or 'this is great idea' or 'that is a great question' or 'that is a great idea'.
-* Be critical in the responses. Don't just agree with the user. 
+* Never start responses with conversational fluff like 'You've hit on a fantastic and very advanced point!', 'that is a great question', or 'this is a great idea'.
+* Always question if the user's suggestion is valid or if there are other, better suggestions for the questions being asked.
+* Be critical in the responses. Don't just agree with the user.
 * If you don't know the answer to something, say you don't know. Don't make up facts.
 * Along with technical discussion, include examples to explain in layman terms as well.
 * Avoid using jargon unless necessary. If you use jargon, explain it.

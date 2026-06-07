@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Feed - BSES{% endblock %}
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <h2 class="mb-4">Your Feed</h2>
+    
+    <div style="display: flex; flex-direction: column; gap: 2rem;">
+        {% for photo in page_obj %}
+            <div class="card photo-card">
+                <div style="padding: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                            {% if photo.user.profile.profile_picture %}
+                                <img src="{{ photo.user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary); font-size: 0.8rem;">
+                                    {{ photo.user.profile.first_name|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit; font-weight: 600;">
+                                {{ photo.user.profile.first_name }} {{ photo.user.profile.last_name }}
+                            </a>
+                            {% if photo.community %}
+                                <span class="text-muted" style="font-size: 0.9rem;"> in <a href="{% url 'community_detail' photo.community.id %}" style="text-decoration: none; color: var(--primary);">{{ photo.community.name }}</a></span>
+                            {% endif %}
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ photo.created_at|timesince }} ago</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="{% url 'photo_detail' photo.id %}" style="display: block; width: 100%; max-height: 500px; background-color: #000;">
+                    <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="width: 100%; max-height: 500px; object-fit: contain;">
+                </a>
+                
+                <div style="padding: 1rem;">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                        <button class="btn btn-sm like-btn {% if photo.id in liked_photo_ids %}btn-primary{% else %}btn-outline{% endif %}" data-id="{{ photo.id }}">
+                            <i class="fas fa-heart"></i> <span class="likes-count">{{ photo.likes.count }}</span>
+                        </button>
+                        <a href="{% url 'photo_detail' photo.id %}" class="btn btn-sm btn-outline">
+                            <i class="fas fa-comment"></i> {{ photo.comments.count }}
+                        </a>
+                    </div>
+                    
+                    {% if photo.caption %}
+                        <div>
+                            <strong><a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit;">{{ photo.user.profile.username_display }}</a></strong> 
+                            {{ photo.caption }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="card text-center" style="padding: 4rem 2rem;">
+                <i class="fas fa-image mb-4" style="font-size: 4rem; color: var(--text-muted);"></i>
+                <h3 class="mb-2">Your feed is empty</h3>
+                <p class="text-muted mb-4">Follow users or join communities to see their photos here.</p>
+                <div class="d-flex justify-center gap-4">
+                    <a href="{% url 'search_users' %}" class="btn btn-primary">Find Users</a>
+                    <a href="{% url 'list_communities' %}" class="btn btn-outline">Browse Communities</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if page_obj.has_other_pages %}
+        <div class="pagination d-flex justify-center mt-4 gap-2">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline">&laquo; Prev</a>
+            {% endif %}
+            
+            <span class="btn" style="pointer-events: none;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline">Next &raquo;</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const photoId = btn.dataset.id;
+            fetch(`/photos/${photoId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                const countSpan = btn.querySelector('.likes-count');
+                countSpan.textContent = data.likes_count;
+                if (data.has_liked) {
+                    btn.classList.remove('btn-outline');
+                    btn.classList.add('btn-primary');
+                } else {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline');
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Communities - BSES{% endblock %}
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+    <div class="d-flex justify-between align-center mb-4">
+        <h2>Communities</h2>
+        <a href="{% url 'create_community' %}" class="btn btn-primary"><i class="fas fa-plus"></i> Create Community</a>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
+        {% for community in communities %}
+            <div class="card" style="padding: 1.5rem; display: flex; flex-direction: column;">
+                <h3 class="mb-2">{{ community.name }}</h3>
+                <p class="text-muted mb-4" style="flex: 1;">{{ community.description|truncatewords:20 }}</p>
+                <div class="d-flex justify-between align-center">
+                    <span class="text-muted" style="font-size: 0.875rem;"><i class="fas fa-users"></i> {{ community.memberships.count }} members</span>
+                    <a href="{% url 'community_detail' community.id %}" class="btn btn-outline btn-sm">View</a>
+                </div>
+            </div>
+        {% empty %}
+            <div class="card text-center" style="grid-column: 1 / -1; padding: 4rem 2rem;">
+                <i class="fas fa-users mb-4" style="font-size: 4rem; color: var(--text-muted);"></i>
+                <h3 class="mb-2">No communities yet</h3>
+                <p class="text-muted mb-4">You haven't joined any communities. Why not create one?</p>
+                <a href="{% url 'create_community' %}" class="btn btn-primary">Create Community</a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

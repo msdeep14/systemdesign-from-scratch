@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Profile - BSES{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto; padding: 2rem;">
+    <h2 class="mb-4">Edit Profile</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                    <div style="color: var(--danger); font-size: 0.875rem; margin-top: 0.25rem;">
+                        {{ field.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+        <div class="d-flex justify-between mt-4">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{% url 'profile' profile.username_display %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+    
+    <hr style="margin: 2rem 0; border: 0; border-top: 1px solid var(--border);">
+    
+    <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius); padding: 1.5rem;">
+        <h3 style="color: var(--danger); margin-bottom: 0.5rem;">Danger Zone</h3>
+        <p style="margin-bottom: 1rem;">Once you delete your account, there is no going back. Please be certain.</p>
+        <form method="post" action="{% url 'delete_account' profile.username_display %}" onsubmit="return confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete Account</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('input:not([type="file"]), textarea').forEach(input => {
+        input.classList.add('form-control');
+    });
+</script>
+{% endblock %}

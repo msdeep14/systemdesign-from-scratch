@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ profile.first_name }} (@{{ profile.username_display }}) - BSES{% endblock %}
+
+{% block content %}
+<div class="profile-header card mb-4" style="padding: 2rem;">
+    <div class="d-flex align-center gap-4" style="flex-wrap: wrap;">
+        <div class="profile-avatar" style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+            {% if profile.profile_picture %}
+                <img src="{{ profile.profile_picture.url }}" alt="{{ profile.username_display }}" style="width: 100%; height: 100%; object-fit: cover;">
+            {% else %}
+                <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; font-size: 3rem; color: white; background-color: var(--primary);">
+                    {{ profile.first_name|first|upper }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div style="flex: 1;">
+            <div class="d-flex justify-between align-center mb-2" style="flex-wrap: wrap; gap: 1rem;">
+                <h1 style="margin: 0;">{{ profile.first_name }} {{ profile.last_name }}</h1>
+                
+                <div>
+                    {% if user.is_authenticated %}
+                        {% if user == profile.user %}
+                            <a href="{% url 'edit_profile' profile.username_display %}" class="btn btn-outline">Edit Profile</a>
+                        {% else %}
+                            <button id="follow-btn" class="btn {% if is_following %}btn-outline{% else %}btn-primary{% endif %}" data-username="{{ profile.username_display }}">
+                                {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                            </button>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 1rem;">@{{ profile.username_display }}</p>
+            
+            <div class="d-flex gap-4 mb-2">
+                <div><strong>{{ photos|length }}</strong> photos</div>
+                <div><strong id="followers-count">{{ followers_count }}</strong> followers</div>
+                <div><strong>{{ following_count }}</strong> following</div>
+            </div>
+            
+            {% if profile.bio %}
+                <div class="mt-2" style="max-width: 600px;">
+                    <p>{{ profile.bio }}</p>
+                </div>
+            {% endif %}
+            
+            {% if profile.interests %}
+                <div class="mt-2 text-muted" style="font-size: 0.9rem;">
+                    <i class="fas fa-star"></i> {{ profile.interests }}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="photo-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+    {% for photo in photos %}
+        <a href="{% url 'photo_detail' photo.id %}" class="card" style="display: block; text-decoration: none; color: inherit; height: 300px;">
+            <div style="width: 100%; height: 100%; position: relative;">
+                <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="width: 100%; height: 100%; object-fit: cover;">
+            </div>
+        </a>
+    {% empty %}
+        <div class="card" style="grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--text-muted);">
+            <i class="fas fa-camera mb-2" style="font-size: 3rem;"></i>
+            <h3>No photos yet</h3>
+            {% if user == profile.user %}
+                <p class="mt-2">Upload your first photo to share with your followers.</p>
+                <a href="{% url 'upload_photo' %}" class="btn btn-primary mt-4">Upload Photo</a>
+            {% endif %}
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const followBtn = document.getElementById('follow-btn');
+    if (followBtn) {
+        followBtn.addEventListener('click', () => {
+            const username = followBtn.dataset.username;
+            fetch(`/users/${username}/follow/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    document.getElementById('followers-count').textContent = data.followers_count;
+                    if (data.is_following) {
+                        followBtn.textContent = 'Unfollow';
+                        followBtn.classList.remove('btn-primary');
+                        followBtn.classList.add('btn-outline');
+                    } else {
+                        followBtn.textContent = 'Follow';
+                        followBtn.classList.remove('btn-outline');
+                        followBtn.classList.add('btn-primary');
+                    }
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+});
+</script>
+{% endblock %}

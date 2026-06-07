@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Photo by {{ photo.user.profile.username_display }} - BSES{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div style="padding: 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                {% if photo.user.profile.profile_picture %}
+                    <img src="{{ photo.user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary);">
+                        {{ photo.user.profile.first_name|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <div>
+                <a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit; font-weight: 600;">
+                    {{ photo.user.profile.first_name }} {{ photo.user.profile.last_name }}
+                </a>
+                {% if photo.community %}
+                    <span class="text-muted"> in <a href="{% url 'community_detail' photo.community.id %}" style="text-decoration: none; color: var(--primary);">{{ photo.community.name }}</a></span>
+                {% endif %}
+                <div style="font-size: 0.8rem; color: var(--text-muted);">{{ photo.created_at|timesince }} ago</div>
+            </div>
+        </div>
+        
+        {% if user == photo.user %}
+            <form action="{% url 'delete_photo' photo.id %}" method="post" onsubmit="return confirm('Delete this photo?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+            </form>
+        {% endif %}
+    </div>
+    
+    <div style="width: 100%; max-height: 600px; background-color: #000; display: flex; align-items: center; justify-content: center;">
+        <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="max-width: 100%; max-height: 600px; object-fit: contain;">
+    </div>
+    
+    <div style="padding: 1.5rem;">
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+            <button id="like-btn" class="btn {% if has_liked %}btn-primary{% else %}btn-outline{% endif %}" data-id="{{ photo.id }}">
+                <i class="fas fa-heart"></i> <span id="likes-count">{{ likes_count }}</span>
+            </button>
+        </div>
+        
+        {% if photo.caption %}
+            <div class="mb-4">
+                <strong>{{ photo.user.profile.username_display }}</strong> {{ photo.caption }}
+            </div>
+        {% endif %}
+        
+        <div class="comments-section">
+            <h4 class="mb-2">Comments (<span id="comments-count">{{ comments.count }}</span>)</h4>
+            <div id="comments-list" style="margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for comment in comments %}
+                    <div>
+                        <strong><a href="{% url 'profile' comment.user.profile.username_display %}" style="text-decoration: none; color: inherit;">{{ comment.user.profile.username_display }}</a></strong>
+                        <span style="color: var(--text-main);">{{ comment.text }}</span>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">{{ comment.created_at|timesince }} ago</div>
+                    </div>
+                {% empty %}
+                    <div id="no-comments" class="text-muted text-center py-2">No comments yet. Be the first to comment!</div>
+                {% endfor %}
+            </div>
+            
+            {% if user.is_authenticated %}
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="comment-input" class="form-control" placeholder="Add a comment..." style="flex: 1;">
+                    <button id="post-comment-btn" class="btn btn-primary">Post</button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const likeBtn = document.getElementById('like-btn');
+    if (likeBtn) {
+        likeBtn.addEventListener('click', () => {
+            const photoId = likeBtn.dataset.id;
+            fetch(`/photos/${photoId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('likes-count').textContent = data.likes_count;
+                if (data.has_liked) {
+                    likeBtn.classList.remove('btn-outline');
+                    likeBtn.classList.add('btn-primary');
+                } else {
+                    likeBtn.classList.remove('btn-primary');
+                    likeBtn.classList.add('btn-outline');
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+
+    const postCommentBtn = document.getElementById('post-comment-btn');
+    const commentInput = document.getElementById('comment-input');
+    
+    if (postCommentBtn && commentInput) {
+        postCommentBtn.addEventListener('click', () => {
+            const text = commentInput.value.trim();
+            if (!text) return;
+            
+            const photoId = likeBtn.dataset.id;
+            fetch(`/photos/${photoId}/comment/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    const noComments = document.getElementById('no-comments');
+                    if (noComments) noComments.remove();
+                    
+                    const commentsList = document.getElementById('comments-list');
+                    const commentDiv = document.createElement('div');
+                    commentDiv.innerHTML = `
+                        <strong><a href="/users/${data.username_display}/" style="text-decoration: none; color: inherit;">${data.username_display}</a></strong>
+                        <span style="color: var(--text-main);">${data.text}</span>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">just now</div>
+                    `;
+                    commentsList.appendChild(commentDiv);
+                    
+                    const countSpan = document.getElementById('comments-count');
+                    countSpan.textContent = parseInt(countSpan.textContent) + 1;
+                    
+                    commentInput.value = '';
+                    commentsList.scrollTop = commentsList.scrollHeight;
+                }
+            })
+            .catch(err => console.error(err));
+        });
+        
+        commentInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                postCommentBtn.click();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
