@@ -65,14 +65,22 @@ For detailed deployment strategies and architectural decisions, refer to the ful
    - **HTTP (Port 80)**: Open to `0.0.0.0/0` (Anywhere IPv4).
 
 ### 2. Connect and Prepare Environment
-SSH into your instance and install Docker:
+SSH into your instance and pull the repository. Then, install Docker using the provided script:
 ```bash
 ssh -i /path/to/your-key.pem ubuntu@<your-ec2-public-ip>
 
-sudo apt update
-sudo apt install -y docker.io
-sudo snap install docker
-sudo usermod -aG docker ubuntu
+# Generate an SSH deploy key and add it to your GitHub to pull the code
+ssh-keygen -t ed25519
+cat ~/.ssh/id_ed25519.pub
+
+git clone git@github.com:msdeep14/systemdesign-from-scratch.git
+cd systemdesign-from-scratch/photoz
+
+# Run the Docker installation script
+chmod +x install_docker.sh
+bash install_docker.sh
+
+# Apply the docker group changes to your current session
 newgrp docker
 ```
 
@@ -114,9 +122,9 @@ AWS_S3_REGION_NAME=ap-south-1
 ### 5. Launch the Application Cluster
 Start the production cluster using Gunicorn and PostgreSQL:
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-If you update any env variables in .env, you should restart the cluster by running `docker-compose down` and `docker-compose up -d --build` again.
+If you update any env variables in .env, you should restart the cluster by running `docker compose down` and `docker compose up -d --build` again.
 
 Once running, you can access the application by navigating to your EC2 instance's Public IPv4 Address (`http://<your-ec2-public-ip>`) in your web browser. No port specification is required as it binds directly to Port 80.
