@@ -16,5 +16,12 @@ services:
         limits:
           cpus: '2.0'
           memory: 1G
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION}"
+        awslogs-group: "photoz-app-logs"
+        awslogs-stream: "{{.Hostname}}"
+        awslogs-create-group: "true"
     env_file:
       - .env

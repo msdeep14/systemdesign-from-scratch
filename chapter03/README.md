@@ -49,3 +49,12 @@ Located in `server_overload/`, these scripts demonstrate how to exhaust a server
    ```
 
 **For full details on the Vertical Scaling thresholds, the Single-Node Horizontal Scaling lockup, and Stage 2 planning, read:** [server_overload/TESTING.md](server_overload/TESTING.md)
+
+---
+
+## Part 3: Decoupled Architecture (Production 3-Tier)
+
+Located in `decoupled_architecture/`, this section outlines the steps required to transition the monolithic application into a true production-grade, 3-tier horizontally scalable architecture across multiple EC2 instances.
+
+**For full details on deploying the Database, App Servers, and Load Balancer independently on AWS, read:**
+[decoupled_architecture/aws-deployment-guide.md](decoupled_architecture/aws-deployment-guide.md)

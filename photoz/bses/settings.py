@@ -171,7 +171,7 @@ BSES_PAGE_SIZE = 20
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Logging configuration
+# Logging configuration (CloudWatch / Docker Native)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -186,15 +186,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': os.path.join(LOGS_DIR, 'bses.log'),
-            'when': 'H',
-            'interval': 1,
-            'backupCount': 24 * 7, # Keep a week of logs
-            'formatter': 'verbose',
-        },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
@@ -203,12 +194,12 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True,
         },
         'bses': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },

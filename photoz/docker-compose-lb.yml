@@ -7,3 +7,10 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION}"
+        awslogs-group: "photoz-lb-logs"
+        awslogs-stream: "nginx-proxy"
+        awslogs-create-group: "true"

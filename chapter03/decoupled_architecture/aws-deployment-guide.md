@@ -13,8 +13,9 @@ To transition from a single-node deployment to a true horizontally scalable arch
 
 ### Prerequisites
 1. Provision the EC2 instances in your AWS Console (e.g., Ubuntu 26.04, `t3.micro`).
-2. Ensure they are in the same VPC so they can communicate via Private IPv4 addresses.
-3. Install Docker and Docker Compose on all instances using the `install_docker.sh` script provided in this repository.
+2. **IAM Role (Crucial):** Create an IAM Role with `CloudWatchLogsFullAccess` and attach it to your App Server and Load Balancer EC2 instances. Docker requires this to stream logs to AWS.
+3. Ensure they are in the same VPC so they can communicate via Private IPv4 addresses.
+4. Install Docker and Docker Compose on all instances using the `install_docker.sh` script provided in this repository.
 
 ### Step 1: Configure Security Groups
 Proper network isolation is the most critical part of a decoupled architecture.

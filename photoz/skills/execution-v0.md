@@ -59,3 +59,12 @@
     *   Updated `photoz/nginx/nginx.conf` with `upstream` placeholders so the Load Balancer can route traffic across multiple App Instance IPs.
     *   Since static and media files were already decoupled via S3 (`USE_S3=True`), the Load Balancer (Nginx) no longer needed a local volume mount for `/static/`, making the decoupling process seamless.
 *   **Notes/Edge Cases:** This completes the transition to a production-grade 3-tier architecture. The App tier can now be scaled horizontally infinitely just by spinning up more EC2 instances and adding their IPs to the Nginx upstream.
+
+## Phase: Distributed Logging (AWS CloudWatch)
+*   **Analysis:** Transitioning to a horizontally scaled architecture introduces a massive observability issue: logs are scattered across multiple isolated EC2 instances. To debug effectively, we must centralize them.
+*   **Actions:**
+    *   Updated `docker-compose-app.yml` and `docker-compose-lb.yml` to utilize Docker's native `awslogs` driver.
+    *   Configured the driver to stream logs to `photoz-app-logs` and `photoz-lb-logs` CloudWatch groups in the `ap-south-1` region.
+    *   Configured the log stream name to map to `{{.Hostname}}` so logs can be traced back to the specific App Server EC2 instance.
+    *   Updated `aws-deployment-guide.md` to instruct the user to attach an IAM Role with `CloudWatchLogsFullAccess` to their EC2 instances before deploying.
+*   **Notes/Edge Cases:** This enables a single, searchable pane of glass for all distributed server logs, effectively mimicking enterprise observability without the overhead of maintaining a self-hosted ELK stack.
