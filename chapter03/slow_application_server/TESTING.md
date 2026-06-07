@@ -1,63 +1,109 @@
-# Slow Application Server Testing Guide
+# Server Responsiveness & Reverse Proxy Analysis
 
-This directory contains scripts designed to simulate and test the behavior of a synchronous web server (like Gunicorn) under the load of "slow clients." 
+This directory contains scripts and documentation demonstrating the vulnerability of synchronous web servers (like Gunicorn) to "slow client" attacks, and how to permanently mitigate the issue using a buffering reverse proxy (Nginx).
 
-Specifically, it demonstrates how a few users uploading photos on a very slow internet connection (e.g., a bad 3G network) can completely paralyze a server that relies on synchronous workers.
+## 1. The Problem: Synchronous Workers
+By default, Gunicorn uses `sync` workers. If configured with `--workers 3`, the server can only handle exactly 3 concurrent requests. 
+When a client on a slow network (e.g., bad 3G) uploads a 1.9MB file at a painfully slow speed (like 8KB/sec), it takes several minutes to finish. Because the worker is synchronous, it must sit idle and wait for every single byte to arrive over the network before it can process the request. 
+If 3 slow users upload photos at the same time, **100% of the server's workers are paralyzed**. Any new, fast requests (like loading the newsfeed) will hang indefinitely and eventually time out.
 
-## Prerequisites
+## 2. Exploring Gunicorn Alternatives (Async & Threads)
+Before jumping to a reverse proxy, we explored native Gunicorn solutions:
+*   **Threads (`--threads 10`):** Adds multi-threading to each worker, allowing 3 workers to handle 30 requests. This delays the paralysis but doesn't solve it (an attacker just needs 30 slow connections instead of 3).
+*   **Async Workers (`gevent` / `eventlet`):** Changes the worker class to use non-blocking I/O. When a connection is waiting on slow network data, the worker yields and serves other requests. While this prevents the immediate lockup, it forces the Python application to hold thousands of sockets and memory buffers open, exposing it to memory exhaustion. Gunicorn's official documentation strongly advises against facing the open internet directly.
 
-1. Ensure the `photoz` application is running (e.g., via `docker-compose up -d --build`).
-2. Ensure you have the `requests` library installed in your local Python environment:
-   ```bash
-   pip install requests
-   ```
+## 3. The Solution: Nginx Reverse Proxy
+To permanently fix this, we implemented **Nginx** as a buffering reverse proxy. Nginx is built in C with an asynchronous, event-driven architecture capable of handling tens of thousands of connections effortlessly.
 
-## How to Test
+### The Role of the Reverse Proxy
+1. **Isolation:** Gunicorn is no longer exposed to the internet. It only listens on the internal Docker network.
+2. **Buffering (The Magic):** We configured Nginx to absorb the slow upload. Nginx reads the incoming data byte-by-byte at whatever slow speed the client dictates, buffering it into memory or temporary files. Gunicorn is completely unaware this is happening.
+3. **Lightning Fast Handoff:** Only when Nginx receives the *absolute final byte* of the 1.9MB upload does it forward the complete payload to Gunicorn over the internal network in a fraction of a millisecond. The Python worker processes the upload and is freed instantly.
 
-### 1. Test Normal Responsiveness
-First, verify that the server is responding quickly under normal conditions. 
-Run the responsiveness script, providing your server's IP address (use your EC2 Public IP if testing remotely, or `127.0.0.1` for local testing):
-
-```bash
-python test_responsiveness.py <SERVER_IP>
-```
-*Expected Result:* You should see a `SUCCESS` message indicating the response took a fraction of a second.
-
-### 2. Launch the Slow Client Attack
-Gunicorn is currently configured with exactly 3 workers (`gunicorn --workers 3`). To tie up all workers, you need to spawn 3 slow uploads simultaneously.
-
-Open **three separate terminal windows**, navigate to this directory, and run the following command in each one:
-```bash
-python simulate_slow_upload.py <SERVER_IP>
-```
-*What happens:* The script registers a dummy user, grabs a valid session, and starts uploading a 1.9MB photo at an agonizingly slow speed of 8KB/sec.
-
-### 3. Verify Server Paralysis
-While the three slow uploads are running in the background, open a **fourth terminal** and run the responsiveness test again:
-```bash
-python test_responsiveness.py <SERVER_IP>
-```
-*Expected Result:* The request will hang and eventually time out. All 3 Gunicorn workers are blocked reading the slow uploads, leaving no workers available to handle your fast request.
+### Code Changes Implemented
+To achieve this architecture, the following code changes were made:
+1. **Isolated Gunicorn:** Removed the `ports: ["80:8000"]` mapping from the `web` container in `docker-compose.yml`.
+2. **Added Nginx Container:** Created an `nginx` service in Docker Compose bound to port `80`, routing traffic to the internal `web:8000` upstream.
+3. **Nginx Configuration (`nginx.conf`):** 
+   - Added `client_max_body_size 20M;` to allow large uploads without throwing a 413 error.
+   - Added `client_body_buffer_size 20M;` to explicitly force Nginx to buffer the entire body into memory before passing it to the upstream.
+4. **Static Files:** Nginx is vastly superior at serving static files. We removed the `whitenoise` Python library from `requirements.txt` and `settings.py`, and configured Nginx to serve the `/app/staticfiles/` directory directly.
 
 ---
 
-## Test Results Log
+## 4. Testing & Results
 
-*Log your actual test results below after running the scenario.*
+We used two scripts to prove the architecture:
+*   `simulate_slow_upload.py`: Authenticates and uploads a 1.9MB photo byte-by-byte at an agonizing 8KB/sec.
+*   `test_responsiveness.py`: Authenticates, uploads 3 tiny photos instantly, and measures how fast the newsfeed loads.
 
-### Test Date: `[YYYY-MM-DD]`
-**Environment:** `[Local / EC2 t3.micro]`
-**Server IP:** `[IP Address]`
+### Phase 1: Without Nginx (Direct Gunicorn)
+- **Action:** We launched 3 slow uploads simultaneously.
+- **Slow Client Result:** Gunicorn's default 30-second timeout kicked in. After ~33 seconds (at 270,336 bytes), Gunicorn assassinated the frozen workers, resulting in a `[Errno 32] Broken pipe` error for the slow clients.
+- **Fast Client Result:** While the 3 uploads were running, the fast client completely failed to connect: `Read timed out. (read timeout=5)`. The server was totally paralyzed.
 
-#### Baseline Responsiveness
-- **Time Taken:** `[e.g., 0.142 seconds]`
-- **Status:** `[e.g., 200 OK]`
+### Phase 2: With Nginx Reverse Proxy
+- **Action:** We launched the exact same 3 slow uploads against Nginx.
+- **Fast Client Result:** While the slow uploads were trickling in, the fast client was run. It received a `200 OK` response in **0.008 seconds**. The server was completely unfazed.
+- **Slow Client Result:** Because Nginx was handling the connections, the 30-second Gunicorn timeout never triggered (since Gunicorn hadn't even seen the requests yet). The slow uploads successfully trickled data for over 4 minutes until they reached `1,992,294 bytes`. Once complete, Nginx handed them to Gunicorn in milliseconds, and the slow clients successfully received a `200 OK` HTML response!
 
-#### Under Load (3 Slow Uploads)
-- **Slow Upload 1 Status:** `[e.g., Uploading at 8192 bytes/sec]`
-- **Slow Upload 2 Status:** `[e.g., Uploading at 8192 bytes/sec]`
-- **Slow Upload 3 Status:** `[e.g., Uploading at 8192 bytes/sec]`
-- **Responsiveness Test Result:** `[e.g., ERROR: Request timed out after 5.000 seconds! The server is blocked.]`
+**Conclusion:** Nginx successfully protected the synchronous Python workers, guaranteeing 100% uptime for normal users while safely and successfully accommodating users on terrible network connections!
 
-#### Observations & Conclusion
-`[Add any notes about server CPU/Memory usage or application behavior during the test.]`
+---
+
+## Appendix: Detailed HTTP Request/Response Logs
+
+If you want to dive deeper into exactly what `test_responsiveness.py` and `simulate_slow_upload.py` are sending and receiving under the hood, here are the exact HTTP headers and response snippets from the tests.
+
+<details>
+<summary><b>Click to expand Request/Response Logs</b></summary>
+
+### 1. Authenticated Newsfeed Request (Fast Client via Nginx)
+```http
+GET / HTTP/1.1
+Host: 127.0.0.1
+User-Agent: python-requests/2.34.2
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Cookie: csrftoken=gkarR4mDwLmeN5xwMZLHAeCSeeOXr1GR; sessionid=49hkdbyoeqhc28h3gow91p747ray372e
+
+HTTP/1.1 200 OK
+Server: nginx/1.31.1
+Date: Sun, 07 Jun 2026 06:41:11 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 4590
+Connection: keep-alive
+X-Frame-Options: DENY
+Vary: Cookie
+X-Content-Type-Options: nosniff
+Referrer-Policy: same-origin
+Cross-Origin-Opener-Policy: same-origin
+Set-Cookie: csrftoken=gkarR4mDwLmeN5xwMZLHAeCSeeOXr1GR; expires=Sun, 06 Jun 2027 06:41:11 GMT; Max-Age=31449600; Path=/; SameSite=Lax
+```
+
+### 2. The Slow Upload Attack Request (Slow Client via Nginx)
+```http
+POST /photos/upload/ HTTP/1.1
+Host: 127.0.0.1
+Cookie: csrftoken=CuqgygHhoKugpMLTNoKtNxaehjb5e9xE; sessionid=...
+X-CSRFToken: CuqgygHhoKugpMLTNoKtNxaehjb5e9xE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Length: 1992534
+Connection: keep-alive
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="image"; filename="dummy_0.jpg"
+Content-Type: image/jpeg
+
+[... 1.9MB of byte data sent at 8KB/s over several minutes ...]
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+HTTP/1.1 200 OK
+Server: nginx/1.31.1
+Date: Sun, 07 Jun 2026 06:43:38 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 4085
+Connection: keep-alive
+```
+</details>
