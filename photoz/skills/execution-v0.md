@@ -67,4 +67,13 @@
     *   Configured the driver to stream logs to `photoz-app-logs` and `photoz-lb-logs` CloudWatch groups in the `ap-south-1` region.
     *   Configured the log stream name to map to `{{.Hostname}}` so logs can be traced back to the specific App Server EC2 instance.
     *   Updated `aws-deployment-guide.md` to instruct the user to attach an IAM Role with `CloudWatchLogsFullAccess` to their EC2 instances before deploying.
-*   **Notes/Edge Cases:** This enables a single, searchable pane of glass for all distributed server logs, effectively mimicking enterprise observability without the overhead of maintaining a self-hosted ELK stack.
+*   **Notes/Edge Cases:** This enables a single, searchable pane of glass for all distributed server logs, effectively mimicking enterprise observability without the overhead of maintaining a selfhosted ELK stack.
+
+## Phase: Static File Serving (Decoupled Nginx)
+*   **Analysis:** In the monolithic architecture, Nginx served static files from a shared Docker volume. In the decoupled architecture, Nginx and Django are on different EC2 instances, breaking the volume mount and causing Django to throw 404s for static files.
+*   **Actions:**
+    *   Leveraged the fact that the entire repository is cloned onto the Load Balancer EC2 instance.
+    *   Updated `photoz/docker-compose-lb.yml` to mount the local `./static` directory into the Nginx container as a read-only volume.
+    *   Restored the `location /static/` block in `photoz/nginx/nginx.conf` with an `alias` directive to serve the CSS/JS directly from the local disk.
+    *   Updated `photoz/nginx/Dockerfile` to copy the custom `502.html` Bad Gateway error page.
+*   **Notes/Edge Cases:** This fixes the UI without requiring an external CDN for basic static files, while still bypassing Django for static asset requests.

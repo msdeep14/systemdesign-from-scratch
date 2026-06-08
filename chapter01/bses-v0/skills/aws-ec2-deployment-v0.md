@@ -57,7 +57,7 @@ cat ~/.ssh/id_ed25519.pub
 ### C. Clone the Repository
 ```bash
 # Clone the repository
-git git@github.com:msdeep14/systemdesign-from-scratch.git
+git clone git@github.com:msdeep14/systemdesign-from-scratch.git
 cd systemdesign-from-scratch/chapter01/bses-v0
 ```
 

@@ -84,47 +84,11 @@ bash install_docker.sh
 newgrp docker
 ```
 
-Generate an SSH deploy key (`ssh-keygen -t ed25519`) and add it to your GitHub repository to securely pull the code:
-```bash
-git git@github.com:msdeep14/systemdesign-from-scratch.git
-cd systemdesign-from-scratch/chapter01/bses-v0
-```
+### 3. Deploying the 3-Tier Architecture
+Photoz has been upgraded to a production-grade decoupled architecture! The monolithic `docker-compose.yml` has been shattered into three role-specific files:
+1. `docker-compose-db.yml` (Postgres only)
+2. `docker-compose-app.yml` (Django workers only)
+3. `docker-compose-lb.yml` (Nginx Load Balancer only)
 
-### 3. S3 Media Storage (Optional but Recommended)
-To prevent media files from filling up your local EC2 disk, set up an Amazon S3 Bucket:
-- Create an S3 bucket with **Block Public Access disabled**.
-- Create an IAM User with S3 permissions and generate an Access Key pair.
-
-### 4. Configure Environment Variables
-Create a `.env` file on your server to securely pass secrets to Docker:
-```bash
-vi .env
-```
-Populate it with your credentials:
-```env
-# Database Configuration
-POSTGRES_DB=bses
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password
-
-# Django Security
-SECRET_KEY="<generate-a-long-random-secret-key-here>"
-
-# S3 Configuration (Set USE_S3=False to use local EC2 storage instead)
-USE_S3=True
-AWS_ACCESS_KEY_ID=your_access_key_id
-AWS_SECRET_ACCESS_KEY=your_secret_access_key
-AWS_STORAGE_BUCKET_NAME=your_bucket_name
-AWS_S3_REGION_NAME=ap-south-1
-```
-*(Tip: Generate a secure Django key using `python3 -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`)*
-
-### 5. Launch the Application Cluster
-Start the production cluster using Gunicorn and PostgreSQL:
-```bash
-docker compose up -d --build
-```
-
-If you update any env variables in .env, you should restart the cluster by running `docker compose down` and `docker compose up -d --build` again.
-
-Once running, you can access the application by navigating to your EC2 instance's Public IPv4 Address (`http://<your-ec2-public-ip>`) in your web browser. No port specification is required as it binds directly to Port 80.
+**For complete step-by-step instructions on deploying this architecture across multiple EC2 instances, please read:**
+👉 [../chapter03/decoupled_architecture/aws-deployment-guide.md](../chapter03/decoupled_architecture/aws-deployment-guide.md)

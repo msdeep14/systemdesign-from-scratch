@@ -10,7 +10,7 @@ services:
     expose:
       - "8000"
     ports:
-      - "8000:8000"  # Expose to host so Load Balancer can route to it
+      - "8000:8000" # Expose to host so Load Balancer can route to it
     deploy:
       resources:
         limits:
