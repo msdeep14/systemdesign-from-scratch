@@ -85,3 +85,23 @@
     *   Update `docker-compose-app.yml` to use `awslogs-stream: "app-node-${NODE_IP}"` for perfectly readable stream names without relying on Docker's template parser (tried couple of combinations but didn't work as expected).
     *   Update Django's `LOGGING` formatter to automatically prefix every log payload with `[app-node-${NODE_IP}]`.
 *   **Notes/Edge Cases:** NA
+
+## Phase: Terraform IaC Automation
+*   **Analysis:** The manual deployment steps described in `aws-deployment-guide.md` were too labor-intensive. We required a modular, infrastructure-as-code solution to automate VPC/Subnet provisioning, strict decoupled security group rules (DB <- App <- LB <- World), and automated application bootstrapping.
+*   **Actions:**
+    *   Created `chapter03/iaac/terraform/` directory containing modular Terraform scripts.
+    *   Added conditional resource creation toggles (`create_vpc`, `create_iam_role`) to support reusing existing infrastructure.
+    *   Implemented `http` data source to dynamically fetch the deploying user's public IP (`ipv4.icanhazip.com/32`) and restrict Port 22 (SSH) strictly to that IP.
+    *   Orchestrated complete EC2 bootstrapping via `user_data`: passing the dynamically generated DB private IP into the App nodes' `.env` files, and passing the App node IPs into the LB's `nginx.conf` upstream block.
+    *   Created `destroy.sh` wrapper script using `terraform state rm` to allow targeted tearing down of compute resources without destroying the VPC or IAM foundations.
+    *   Added `*.tfvars` to a local `.gitignore` to prevent secret leakage.
+*   **Notes/Edge Cases:** The use of `user_data` completely eliminated the need for manual SSH configuration. The dynamic IP fetching required an external HTTP provider but resulted in a significantly more secure default SSH posture.
+
+## Phase: Terraform IaC - Database Persistence & Automated Backups
+*   **Analysis:** The user requested the ability to skip destroying the database instance during infrastructure teardown, re-use the preserved database instance in future launches, and back up the database data.
+*   **Decisions:** 
+    *   Introduce `--skip-db` to `destroy.sh` which executes `terraform state rm 'aws_instance.db_node[0]'` to leave the DB running and untracked.
+    *   Introduce `create_db_node` and `existing_db_private_ip` variables to `variables.tf`.
+    *   Conditionally provision the DB node in `main.tf` and dynamically feed `existing_db_private_ip` to the App nodes if `create_db_node` is `false`.
+    *   Inject a daily `cron` script into the DB node's `user_data` that runs `pg_dump` and uploads the snapshot to the existing S3 bucket using the IAM profile.
+    *   Attach `AmazonS3FullAccess` to the EC2 IAM Role to allow the DB node to execute `aws s3 cp`.
