@@ -77,8 +77,8 @@ git clone git@github.com:msdeep14/systemdesign-from-scratch.git
 cd systemdesign-from-scratch/photoz
 
 # Run the Docker installation script
-chmod +x install_docker.sh
-bash install_docker.sh
+chmod +x configure_dependencies.sh
+bash configure_dependencies.sh
 
 # Apply the docker group changes to your current session
 newgrp docker

@@ -21,7 +21,7 @@ services:
       options:
         awslogs-region: "${AWS_REGION}"
         awslogs-group: "photoz-app-logs"
-        awslogs-stream: "{{.Hostname}}"
+        awslogs-stream: "app-node-${NODE_IP}"
         awslogs-create-group: "true"
     env_file:
       - .env

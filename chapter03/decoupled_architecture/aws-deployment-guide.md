@@ -15,7 +15,7 @@ To transition from a single-node deployment to a true horizontally scalable arch
 1. Provision the EC2 instances in your AWS Console (e.g., Ubuntu 26.04, `t3.micro`).
 2. **IAM Role (Crucial):** Create an IAM Role with `CloudWatchLogsFullAccess` and attach it to your App Server and Load Balancer EC2 instances. Docker requires this to stream logs to AWS.
 3. Ensure they are in the same VPC so they can communicate via Private IPv4 addresses.
-4. Install Docker and Docker Compose on all instances using the `install_docker.sh` script provided in this repository.
+4. Install Docker and Docker Compose on all instances using the `configure_dependencies.sh` script provided in this repository. This script will also automatically generate a template `.env` file in your directory.
 
 ### Step 1: Configure Security Groups
 Proper network isolation is the most critical part of a decoupled architecture.
@@ -26,7 +26,7 @@ Proper network isolation is the most critical part of a decoupled architecture.
 ### Step 2: Deploy the Database
 1. SSH into the Database EC2 instance.
 2. Clone or copy the repository.
-3. Ensure your `.env` file is present in the `photoz/` directory with `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` populated.
+3. Edit the auto-generated `.env` file in the `photoz/` directory and populate the placeholders for `POSTGRES_PASSWORD`.
 4. Run the database container:
    ```bash
    docker compose -f docker-compose-db.yml up -d
@@ -36,7 +36,7 @@ Proper network isolation is the most critical part of a decoupled architecture.
 ### Step 3: Deploy the App Servers
 1. SSH into your first App Server EC2 instance.
 2. Clone or copy the repository.
-3. Edit the `.env` file in the `photoz/` directory. Replace the `<INSERT_DATABASE_EC2_PRIVATE_IP>` placeholder for `POSTGRES_HOST` with the Private IP from Step 2.
+3. Edit the auto-generated `.env` file in the `photoz/` directory. Populate all required secrets and replace the `<INSERT_DATABASE_EC2_PRIVATE_IP>` placeholder for `POSTGRES_HOST` with the Private IP from Step 2.
 4. Run the app container:
    ```bash
    docker compose -f docker-compose-app.yml up -d --build

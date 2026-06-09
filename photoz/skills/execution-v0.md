@@ -77,3 +77,11 @@
     *   Restored the `location /static/` block in `photoz/nginx/nginx.conf` with an `alias` directive to serve the CSS/JS directly from the local disk.
     *   Updated `photoz/nginx/Dockerfile` to copy the custom `502.html` Bad Gateway error page.
 *   **Notes/Edge Cases:** This fixes the UI without requiring an external CDN for basic static files, while still bypassing Django for static asset requests.
+
+## Phase: Distributed Logging Optimization & Node Observability (Analysis)
+*   **Analysis:** During load testing, two observability issues were discovered with the initial CloudWatch configuration. First, `docker-compose`'s handling of the `awslogs-stream` template caused the stream to literally be named `app-node-{{.ID}}` instead of evaluating the template. Switching to `awslogs-stream-prefix` fixed the template issue but still failed to solve the core problem: the Django log payloads themselves do not contain the EC2 hostname/IP, making it impossible to trace an aggregated log line back to the specific physical node that generated it.
+*   **Actions:**
+    *   Inject an explicit `NODE_IP` environment variable via `.env` on each EC2 instance.
+    *   Update `docker-compose-app.yml` to use `awslogs-stream: "app-node-${NODE_IP}"` for perfectly readable stream names without relying on Docker's template parser (tried couple of combinations but didn't work as expected).
+    *   Update Django's `LOGGING` formatter to automatically prefix every log payload with `[app-node-${NODE_IP}]`.
+*   **Notes/Edge Cases:** NA

@@ -181,7 +181,7 @@ LOGGING = {
             'style': '{',
         },
         'simple': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': f'[app-node-{os.environ.get("NODE_IP", "unknown")}] {{levelname}} {{asctime}} {{module}} {{message}}',
             'style': '{',
         },
     },

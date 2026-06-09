@@ -28,6 +28,28 @@ echo "Adding 'ubuntu' user to the docker group..."
 sudo usermod -aG docker ubuntu
 
 echo "---------------------------------------------------------"
+echo "Generating .env template..."
+EC2_IP=$(hostname -I | awk '{print $1}')
+DJANGO_SECRET_KEY=$(python3 -c "import secrets; import string; print(''.join(secrets.choice('abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)') for i in range(50)))")
+
+cat <<EOF > .env
+POSTGRES_DB=bses
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=<INSERT_DATABASE_PASSWORD>
+USE_S3=True
+AWS_STORAGE_BUCKET_NAME=<INSERT_BUCKET_NAME>
+AWS_S3_REGION_NAME=ap-south-1
+AWS_REGION=ap-south-1
+DEBUG_MODE=False
+AWS_ACCESS_KEY_ID=<INSERT_ACCESS_KEY_ID>
+AWS_SECRET_ACCESS_KEY=<INSERT_SECRET_ACCESS_KEY>
+SECRET_KEY=$DJANGO_SECRET_KEY
+POSTGRES_HOST=<INSERT_DATABASE_EC2_PRIVATE_IP>
+NODE_IP=$EC2_IP
+EOF
+
+echo ".env template successfully created in the current directory."
+echo "---------------------------------------------------------"
 echo "Docker installation complete!"
 echo "IMPORTANT: To apply the group changes without logging out,"
 echo "please run the following command manually:"
