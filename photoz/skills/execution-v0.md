@@ -98,7 +98,7 @@
 *   **Notes/Edge Cases:** The use of `user_data` completely eliminated the need for manual SSH configuration. The dynamic IP fetching required an external HTTP provider but resulted in a significantly more secure default SSH posture.
 
 ## Phase: Terraform IaC - Database Persistence & Automated Backups
-*   **Analysis:** The user requested the ability to skip destroying the database instance during infrastructure teardown, re-use the preserved database instance in future launches, and back up the database data.
+*   **Analysis:** Ability to skip destroying the database instance during infrastructure teardown, re-use the preserved database instance in future launches, and back up the database data.
 *   **Decisions:** 
     *   Introduce `--skip-db` to `destroy.sh` which executes `terraform state rm 'aws_instance.db_node[0]'` to leave the DB running and untracked.
     *   Introduce `create_db_node` and `existing_db_private_ip` variables to `variables.tf`.
