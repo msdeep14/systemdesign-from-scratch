@@ -10,7 +10,7 @@ This document contains guidelines on AI agent response generation, coding standa
 * Whenever you perform analysis, make architectural/design decisions, or take implementation actions, **you MUST append a log of your work to `execution-{version}.md`** where {version} is the current version of the codebase. The file should be created if it does not exist. The location of this file should be inside the `skills/` directory of the specific project being worked upon. Example: `chapter01/bses-v0/skills/execution-v0.md`.
 * Similarly, any implementation plan generated should be added to `implementation-{version}.md` inside the project's `skills/` folder. Example: `chapter01/bses-v0/skills/implementation-v0.md`.
 * The entry in each of these logs should include:
-    * The phase or feature you are working on.
+    * The phase or feature you are working on, including the Git commit ID of the phase.
     * Brief analysis and the rationale behind any technical decisions made.
     * A bulleted list of specific actions taken (files created, models updated, bugs resolved).
     * Any notable edge cases or errors you encountered and how you fixed them.
