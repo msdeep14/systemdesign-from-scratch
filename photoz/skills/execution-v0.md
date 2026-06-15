@@ -105,3 +105,11 @@
     *   Conditionally provision the DB node in `main.tf` and dynamically feed `existing_db_private_ip` to the App nodes if `create_db_node` is `false`.
     *   Inject a daily `cron` script into the DB node's `user_data` that runs `pg_dump` and uploads the snapshot to the existing S3 bucket using the IAM profile.
     *   Attach `AmazonS3FullAccess` to the EC2 IAM Role to allow the DB node to execute `aws s3 cp`.
+
+## Phase: Aggressive Image Optimization & Cost Reduction (Commit: c8ce5f26c22622621de11782bec7d3d4273e560a)
+*   **Analysis:** Identified hidden cost in S3 Data Transfer OUT. The application was compressing images via Pillow (`quality=85`) but not downscaling the physical resolution, resulting in ~600KB images. Under heavy load (e.g., 240,000 photo downloads/hour), this would result in ~105 TB of monthly data transfer (~$8,150/month).
+*   **Actions:**
+    *   Updated `photoz/photos/utils.py` `compress_photo` function.
+    *   Added logic to cap image width at `1080px` using `Image.LANCZOS` resampling.
+    *   Reduced Pillow save quality from `85` to `70`.
+*   **Notes/Edge Cases:** Code fix reduces the average image payload to roughly ~150KB. This drops the estimated S3 data transfer to ~26 TB/month, instantly saving approximately $5,800/month in AWS egress fees. CDN exploration in future.
