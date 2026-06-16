@@ -4,28 +4,30 @@
 <div class="card" style="max-width: 600px; margin: 0 auto; padding: 2rem;">
     <h2 class="mb-4">Upload Photo</h2>
     {% if community %}
-        <p class="mb-4 text-muted">Uploading to community: <strong>{{ community.name }}</strong></p>
+    <p class="mb-4 text-muted">Uploading to community: <strong>{{ community.name }}</strong></p>
     {% endif %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% for field in form %}
-            <div class="form-group">
-                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}
-                    <div style="color: var(--danger); font-size: 0.875rem; margin-top: 0.25rem;">
-                        {{ field.errors.0 }}
-                    </div>
-                {% endif %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <div style="color: var(--danger); font-size: 0.875rem; margin-top: 0.25rem;">
+                {{ field.errors.0 }}
             </div>
+            {% endif %}
+        </div>
         {% endfor %}
         <div class="mt-4">
             <button type="submit" class="btn btn-primary">Upload</button>
-            <a href="{% if community %}{% url 'community_detail' community.id %}{% else %}{% url 'newsfeed' %}{% endif %}" class="btn btn-outline ml-2">Cancel</a>
+            <a href="{% if community %}{% url 'community_detail' community.id %}{% else %}{% url 'newsfeed' %}{% endif %}"
+                class="btn btn-outline ml-2">Cancel</a>
         </div>
     </form>
 </div>
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+<script type="text/javascript"
+    src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 <script>
     document.querySelectorAll('input:not([type="file"]), textarea').forEach(input => {
         input.classList.add('form-control');
@@ -43,27 +45,27 @@
         hiddenFlag.value = 'false';
         form.appendChild(hiddenFlag);
 
-        form.addEventListener('submit', async function(e) {
+        form.addEventListener('submit', async function (e) {
             if (fileInput.files.length > 0 && !fileInput.dataset.compressed) {
                 e.preventDefault(); // Stop normal submission
-                
+
                 // Provide visual feedback
                 const originalText = submitBtn.innerText;
                 submitBtn.disabled = true;
                 submitBtn.innerText = 'Compressing...';
-                
+
                 const imageFile = fileInput.files[0];
                 const options = {
-                  maxSizeMB: 0.5,           // Target size
-                  maxWidthOrHeight: 1080,   // Max dimensions
-                  useWebWorker: true,
-                  initialQuality: 0.7       // 70% quality
+                    maxSizeMB: 0.5,           // Target size
+                    maxWidthOrHeight: 1080,   // Max dimensions
+                    useWebWorker: false,      // Disabled to prevent local HTTP/CORS errors. This can be enabled with HTTPS for faster processing.
+                    initialQuality: 0.7       // 70% quality
                 };
-                
+
                 try {
                     // Compress the image via web worker
                     const compressedFile = await browserImageCompression(imageFile, options);
-                    
+
                     // Create a DataTransfer object to assign the new file to the input
                     const dataTransfer = new DataTransfer();
                     const newFile = new File([compressedFile], imageFile.name, {
@@ -72,12 +74,12 @@
                     });
                     dataTransfer.items.add(newFile);
                     fileInput.files = dataTransfer.files;
-                    
+
                     // Mark as compressed
                     fileInput.dataset.compressed = "true";
                     hiddenFlag.value = 'true';
                     submitBtn.innerText = 'Uploading...';
-                    
+
                     // Resubmit the form with the new lightweight payload
                     form.submit();
                 } catch (error) {

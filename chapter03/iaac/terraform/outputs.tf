@@ -4,7 +4,7 @@ output "load_balancer_public_ip" {
 }
 
 output "database_private_ip" {
-  value       = aws_instance.db_node.private_ip
+  value       = try(aws_instance.db_node[0].private_ip, var.existing_db_private_ip)
   description = "The private IP address of the Database Node."
 }
 
