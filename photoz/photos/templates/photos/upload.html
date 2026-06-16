@@ -33,16 +33,16 @@
         input.classList.add('form-control');
     });
 
-    const form = document.querySelector('form');
     const fileInput = document.querySelector('input[type="file"]');
-    const submitBtn = document.querySelector('button[type="submit"]');
+    const form = fileInput ? fileInput.closest('form') : null;
+    const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
 
-    if (form && fileInput) {
+    if (form && fileInput && submitBtn) {
         // Add hidden flag to tell backend if compression succeeded
         const hiddenFlag = document.createElement('input');
         hiddenFlag.type = 'hidden';
         hiddenFlag.name = 'client_compressed';
-        hiddenFlag.value = 'false';
+        hiddenFlag.value = 'not_executed'; // Changed from 'false' to track if JS even runs
         form.appendChild(hiddenFlag);
 
         form.addEventListener('submit', async function (e) {
