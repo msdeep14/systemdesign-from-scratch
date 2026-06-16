@@ -123,3 +123,12 @@
     *   Configured the web-worker to downscale the image to max `1080px` and compress to `0.7` quality directly in the user's browser.
     *   Dynamically replaced the heavy file in the input with the lightweight compressed Blob before sending the HTTP POST.
 *   **Notes/Edge Cases:** The backend `utils.py` Pillow logic is intentionally left intact as a secondary defense to ensure that API requests skipping the browser JS are still forcefully compressed and resized before hitting S3.
+
+## Phase: Infrastructure & Frontend Debugging (Commit: Pending)
+*   **Analysis:** After deploying the horizontally scaled architecture, we encountered three distinct issues: CloudWatch log groups persisting after `terraform destroy`, a database `IntegrityError` during boot, and a silent failure of the client-side compression script.
+*   **Actions:**
+    *   **CloudWatch Logs Retention:** Docker automatically created the `awslogs` groups on EC2 boot, preventing Terraform from tracking or destroying them. Created `cloudwatch.tf` to explicitly manage `photoz-app-logs` and `photoz-lb-logs` with a 7-day retention policy so they are cleanly deleted on `terraform destroy`.
+    *   **Database Migration Race Condition:** Booting multiple App EC2 instances simultaneously caused a distributed race condition where both nodes hit the empty Postgres database and tried to run `python manage.py migrate` at the exact same millisecond. This caused an `IntegrityError` (violating unique constraint on `auth_permission`) and crashed the container. Fixed by adding `restart: always` to `docker-compose-app.yml` so the container revives and successfully skips the migration after the other node finishes.
+    *   **WebWorker CORS Exception:** Accessing the Load Balancer via HTTP triggered a Cross-Origin-Opener-Policy browser block on the client-side image compression WebWorker. Disabled WebWorkers (`useWebWorker: false`) to bypass local/HTTP restrictions.
+    *   **Verbose JS Error Logging:** Updated the `try/catch` block in `upload.html` to inject `error.message` into the hidden `client_compressed` payload, allowing the backend Django logs to instantly reveal exactly why frontend JS failed.
+*   **Notes/Edge Cases:** The CloudWatch fix required users to manually run `aws logs delete-log-group` if the logs were already created by Docker before Terraform attempted to adopt them.

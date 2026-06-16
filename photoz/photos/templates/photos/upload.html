@@ -85,8 +85,10 @@
                 } catch (error) {
                     // Silent fallback for the user
                     console.error("Client-side compression skipped:", error);
+                    // Mark as compressed to prevent loops
                     fileInput.dataset.compressed = "true";
-                    hiddenFlag.value = 'false';
+                    // Send the exact error to the backend for logging!
+                    hiddenFlag.value = 'false: ' + (error.message || error.toString());
                     submitBtn.innerText = 'Uploading...';
                     form.submit();
                 }
