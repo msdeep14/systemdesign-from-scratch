@@ -124,7 +124,7 @@
     *   Dynamically replaced the heavy file in the input with the lightweight compressed Blob before sending the HTTP POST.
 *   **Notes/Edge Cases:** The backend `utils.py` Pillow logic is intentionally left intact as a secondary defense to ensure that API requests skipping the browser JS are still forcefully compressed and resized before hitting S3.
 
-## Phase: Infrastructure & Frontend Debugging (Commit: 97a352fd7a47533e3c28b9ee6ad5091d5e900173)
+## Phase: Infrastructure & Frontend Debugging (Commit: 5510ccc36cfa039167a5ac385d6b683ad4e11a32)
 *   **Analysis:** After deploying the horizontally scaled architecture, we encountered three distinct issues: CloudWatch log groups persisting after `terraform destroy`, a database `IntegrityError` during boot, and a silent failure of the client-side compression script.
 *   **Actions:**
     *   **CloudWatch Logs Retention:** Docker automatically created the `awslogs` groups on EC2 boot, preventing Terraform from tracking or destroying them. Created `cloudwatch.tf` to explicitly manage `photoz-app-logs` and `photoz-lb-logs` with a 7-day retention policy so they are cleanly deleted on `terraform destroy`.
@@ -133,4 +133,6 @@
     *   **Verbose JS Error Logging:** Updated the `try/catch` block in `upload.html` to inject `error.message` into the hidden `client_compressed` payload, allowing the backend Django logs to instantly reveal exactly why frontend JS failed.
     *   **JS Form Selector Bug:** Discovered that `document.querySelector('form')` in `upload.html` was incorrectly grabbing the Search Form in the navbar (the first form in the DOM). This caused the WebWorker event listener to attach to the search bar instead of the photo upload form, completely bypassing client-side compression. Fixed by using `fileInput.closest('form')` to precisely target the correct form. This needs HTTPS for client compression to work, else it's blocked on the modern browsers with error `browserImageCompression is not defined`.
     *   **Same-Origin Script Bypass:** To bypass the strict Chrome security policies blocking the third-party CDN script on HTTP, we downloaded `browser-image-compression.js` directly into `photoz/static/js/`. Serving it locally as a same-origin request bypasses the Cross-Origin-Opener-Policy blocks without requiring HTTPS.
+*   **Notes/Edge Cases:** The CloudWatch fix required users to manually run `aws logs delete-log-group` if the logs were already created by Docker before Terraform attempted to adopt them.
+Compression`, not `browserImageCompression`. Corrected the function call in `upload.html`.
 *   **Notes/Edge Cases:** The CloudWatch fix required users to manually run `aws logs delete-log-group` if the logs were already created by Docker before Terraform attempted to adopt them.

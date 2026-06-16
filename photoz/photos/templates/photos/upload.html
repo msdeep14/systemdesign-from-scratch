@@ -64,7 +64,7 @@
 
                 try {
                     // Compress the image via web worker
-                    const compressedFile = await browserImageCompression(imageFile, options);
+                    const compressedFile = await imageCompression(imageFile, options);
 
                     // Create a DataTransfer object to assign the new file to the input
                     const dataTransfer = new DataTransfer();
