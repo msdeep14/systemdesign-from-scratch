@@ -114,7 +114,7 @@
     *   Reduced Pillow save quality from `85` to `70`.
 *   **Notes/Edge Cases:** Code fix reduces the average image payload to roughly ~150KB. This drops the estimated S3 data transfer to ~26 TB/month, instantly saving approximately $5,800/month in AWS egress fees. CDN exploration in future.
 
-## Phase: Client-Side Image Compression & Auto-Scaling Pivot (Commit: Pending)
+## Phase: Client-Side Image Compression & Auto-Scaling Pivot (Commit: 59e7d96969d2e4145bd933add858bc0fe04be681)
 *   **Analysis:** We evaluated the impact of compressing images *before* they are uploaded. Sending a 150KB image over the network instead of a 1.5MB image drastically improves user experience on mobile networks. Crucially, it drops the "Processed Bytes" penalty on an AWS Application Load Balancer (ALB) to almost zero. The math proves that with client-side compression, a fully managed AWS ALB actually becomes *cheaper* ($29/mo) than maintaining a custom open-source Nginx Load Balancer ($30/mo).
 *   **Actions:**
     *   Updated `photoz/photos/templates/photos/upload.html`.

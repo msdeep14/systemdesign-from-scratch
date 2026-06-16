@@ -12,25 +12,31 @@ def photo_upload_path(instance, filename):
 
 def compress_photo(image_file, quality=70):
     img = Image.open(image_file)
+    
+    # Convert transparent images (like PNGs) to solid RGB to prevent JPEG conversion crashes
     if img.mode in ('RGBA', 'P'):
         img = img.convert('RGB')
         
+    # Downscale large images to a maximum width of 1080px using the high-quality LANCZOS filter
     max_width = 1080
     if img.width > max_width:
         ratio = max_width / float(img.width)
         new_height = int((float(img.height) * float(ratio)))
         img = img.resize((max_width, new_height), Image.LANCZOS)
     
+    # Save the optimized image to an in-memory RAM buffer instead of the hard drive
     output = BytesIO()
     img.save(output, format='JPEG', quality=quality, optimize=True)
-    output.seek(0)
+    output.seek(0) # Rewind the buffer so Django can read it from the beginning
     
+    # Forcefully rename the file extension to .jpg
     filename = image_file.name
     if '.' in filename:
         filename = f"{filename.rsplit('.', 1)[0]}.jpg"
     else:
         filename = f"{filename}.jpg"
         
+    # Wrap the RAM buffer into a Django object so it can flow seamlessly into S3
     return InMemoryUploadedFile(
         output, 'ImageField', filename,
         'image/jpeg', output.getbuffer().nbytes, None
