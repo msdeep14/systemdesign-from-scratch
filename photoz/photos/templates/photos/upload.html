@@ -25,9 +25,71 @@
         </div>
     </form>
 </div>
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
 <script>
     document.querySelectorAll('input:not([type="file"]), textarea').forEach(input => {
         input.classList.add('form-control');
     });
+
+    const form = document.querySelector('form');
+    const fileInput = document.querySelector('input[type="file"]');
+    const submitBtn = document.querySelector('button[type="submit"]');
+
+    if (form && fileInput) {
+        // Add hidden flag to tell backend if compression succeeded
+        const hiddenFlag = document.createElement('input');
+        hiddenFlag.type = 'hidden';
+        hiddenFlag.name = 'client_compressed';
+        hiddenFlag.value = 'false';
+        form.appendChild(hiddenFlag);
+
+        form.addEventListener('submit', async function(e) {
+            if (fileInput.files.length > 0 && !fileInput.dataset.compressed) {
+                e.preventDefault(); // Stop normal submission
+                
+                // Provide visual feedback
+                const originalText = submitBtn.innerText;
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Compressing...';
+                
+                const imageFile = fileInput.files[0];
+                const options = {
+                  maxSizeMB: 0.5,           // Target size
+                  maxWidthOrHeight: 1080,   // Max dimensions
+                  useWebWorker: true,
+                  initialQuality: 0.7       // 70% quality
+                };
+                
+                try {
+                    // Compress the image via web worker
+                    const compressedFile = await browserImageCompression(imageFile, options);
+                    
+                    // Create a DataTransfer object to assign the new file to the input
+                    const dataTransfer = new DataTransfer();
+                    const newFile = new File([compressedFile], imageFile.name, {
+                        type: compressedFile.type || 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    dataTransfer.items.add(newFile);
+                    fileInput.files = dataTransfer.files;
+                    
+                    // Mark as compressed
+                    fileInput.dataset.compressed = "true";
+                    hiddenFlag.value = 'true';
+                    submitBtn.innerText = 'Uploading...';
+                    
+                    // Resubmit the form with the new lightweight payload
+                    form.submit();
+                } catch (error) {
+                    // Silent fallback for the user
+                    console.error("Client-side compression skipped:", error);
+                    fileInput.dataset.compressed = "true";
+                    hiddenFlag.value = 'false';
+                    submitBtn.innerText = 'Uploading...';
+                    form.submit();
+                }
+            }
+        });
+    }
 </script>
 {% endblock %}

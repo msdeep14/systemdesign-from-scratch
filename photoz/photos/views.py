@@ -29,7 +29,8 @@ def upload_photo(request):
             if community:
                 photo.community = community
             photo.save()
-            logger.info(f"Photo uploaded successfully by {request.user.username} (Photo ID: {photo.id})")
+            client_compressed = request.POST.get('client_compressed', 'false')
+            logger.info(f"Photo uploaded successfully by {request.user.username} (Photo ID: {photo.id}, Client Compressed: {client_compressed})")
             messages.success(request, "Photo uploaded successfully!")
             if community:
                 return redirect('community_detail', id=community.id)

@@ -106,10 +106,20 @@
     *   Inject a daily `cron` script into the DB node's `user_data` that runs `pg_dump` and uploads the snapshot to the existing S3 bucket using the IAM profile.
     *   Attach `AmazonS3FullAccess` to the EC2 IAM Role to allow the DB node to execute `aws s3 cp`.
 
-## Phase: Aggressive Image Optimization & Cost Reduction (Commit: c8ce5f26c22622621de11782bec7d3d4273e560a)
+## Phase: Aggressive Image Optimization & Cost Reduction (Commit: c7e3529cdafaf4959575e21dda72304528c0de62)
 *   **Analysis:** Identified hidden cost in S3 Data Transfer OUT. The application was compressing images via Pillow (`quality=85`) but not downscaling the physical resolution, resulting in ~600KB images. Under heavy load (e.g., 240,000 photo downloads/hour), this would result in ~105 TB of monthly data transfer (~$8,150/month).
 *   **Actions:**
     *   Updated `photoz/photos/utils.py` `compress_photo` function.
     *   Added logic to cap image width at `1080px` using `Image.LANCZOS` resampling.
     *   Reduced Pillow save quality from `85` to `70`.
 *   **Notes/Edge Cases:** Code fix reduces the average image payload to roughly ~150KB. This drops the estimated S3 data transfer to ~26 TB/month, instantly saving approximately $5,800/month in AWS egress fees. CDN exploration in future.
+
+## Phase: Client-Side Image Compression & Auto-Scaling Pivot (Commit: Pending)
+*   **Analysis:** We evaluated the impact of compressing images *before* they are uploaded. Sending a 150KB image over the network instead of a 1.5MB image drastically improves user experience on mobile networks. Crucially, it drops the "Processed Bytes" penalty on an AWS Application Load Balancer (ALB) to almost zero. The math proves that with client-side compression, a fully managed AWS ALB actually becomes *cheaper* ($29/mo) than maintaining a custom open-source Nginx Load Balancer ($30/mo).
+*   **Actions:**
+    *   Updated `photoz/photos/templates/photos/upload.html`.
+    *   Injected the `browser-image-compression` library via CDN.
+    *   Added an async JavaScript listener to intercept the `<form>` submission.
+    *   Configured the web-worker to downscale the image to max `1080px` and compress to `0.7` quality directly in the user's browser.
+    *   Dynamically replaced the heavy file in the input with the lightweight compressed Blob before sending the HTTP POST.
+*   **Notes/Edge Cases:** The backend `utils.py` Pillow logic is intentionally left intact as a secondary defense to ensure that API requests skipping the browser JS are still forcefully compressed and resized before hitting S3.
