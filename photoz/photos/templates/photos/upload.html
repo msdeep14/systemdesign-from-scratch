@@ -26,8 +26,8 @@
         </div>
     </form>
 </div>
-<script type="text/javascript"
-    src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+{% load static %}
+<script type="text/javascript" src="{% static 'js/browser-image-compression.js' %}"></script>
 <script>
     document.querySelectorAll('input:not([type="file"]), textarea').forEach(input => {
         input.classList.add('form-control');

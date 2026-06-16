@@ -114,6 +114,17 @@ terraform -v
    ```
 5. Once complete, Terraform will output the **Load Balancer Public IP**. Wait about 2-3 minutes for the `user_data` scripts to finish installing Docker and booting the containers, then visit the IP in your browser!
 
+## How to Deploy Code Updates to Running Instances
+
+Because Terraform's `user_data` script (which runs `git clone`) only executes on the *very first boot* of an EC2 instance, running a standard `terraform apply` will not pull your latest GitHub commits onto existing servers. 
+
+To deploy new code without destroying your database or base networking, you must instruct Terraform to cleanly terminate and recreate specifically the compute nodes. Run this command:
+
+```bash
+terraform apply -replace="aws_instance.app_node[0]" -replace="aws_instance.app_node[1]" -replace="aws_instance.lb_node" -auto-approve
+```
+Wait ~2 minutes for the new instances to boot up and pull your latest branch, and your application will be fully updated.
+
 ## How to Clean Up Resources
 
 Terraform allows you to destroy all resources it created to prevent runaway AWS costs.
