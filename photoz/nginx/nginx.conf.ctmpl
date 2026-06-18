@@ -1,0 +1,50 @@
+upstream photoz_web {
+    least_conn;
+    
+    # Consul Template dynamically queries the local Consul Server for all healthy instances 
+    # registered under the "photoz-app" service name.
+    {{- range service "photoz-app" }}
+    
+    # For every healthy node found, it generates a valid Nginx server line injecting the IP and Port.
+    server {{ .Address }}:{{ .Port }};
+    
+    {{- else }}
+    
+    # Fallback Mechanism: If zero nodes are healthy, the upstream block would be completely empty.
+    # An empty upstream block causes an Nginx syntax error and crashes the proxy on reload.
+    # Injecting a dummy "down" server ensures Nginx syntax remains mathematically valid
+    # so it can stay alive and gracefully serve a 502 Bad Gateway page.
+    server 127.0.0.1:65535 down;
+    
+    {{- end }}
+}
+
+server {
+    listen 80;
+
+    client_max_body_size 20M;
+    client_body_buffer_size 20M;
+
+    location / {
+        proxy_pass http://photoz_web;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+
+    location /static/ {
+        alias /usr/share/nginx/html/static/;
+    }
+
+    error_page 502 /502.html;
+    location = /502.html {
+        root /usr/share/nginx/html;
+        internal;
+    }
+
+    error_page 504 /504.html;
+    location = /504.html {
+        root /usr/share/nginx/html;
+        internal;
+    }
+}

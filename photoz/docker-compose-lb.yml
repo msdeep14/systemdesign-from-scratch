@@ -1,13 +1,22 @@
 version: '3.8'
 
 services:
-  nginx:
+  consul-server:
+    image: hashicorp/consul:latest
+    # Host networking is strictly required. If we used default Docker bridge networks,
+    # the nodes would register their internal Docker IPs (e.g., 172.18.0.5) with the central server.
+    # Nginx would then try to route traffic to 172.18.0.5, which is unreachable across the physical AWS VPC.
+    # Host mode forces the container to use the EC2 instance's true private IP.
+    network_mode: "host"
+    command: "agent -server -bootstrap-expect=1 -ui -bind={{ GetPrivateInterfaces | attr \"address\" }} -client=0.0.0.0"
+
+  nginx-router:
     build: ./nginx
+    # Must use host mode to share localhost with the consul-server, and we drop 'ports: - "80:80"' 
+    # because host mode automatically binds directly to the EC2 instance's port 80.
+    network_mode: "host"
     restart: always
-    ports:
-      - "80:80"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
       - ./static:/usr/share/nginx/html/static:ro
     logging:
       driver: awslogs

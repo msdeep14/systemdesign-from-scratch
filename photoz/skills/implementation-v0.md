@@ -29,3 +29,13 @@ Use Terraform to automate the deployment. The implementation will include condit
     *   Conditionally provision the DB node in `main.tf` and dynamically feed `existing_db_private_ip` to the App nodes if `create_db_node` is `false`.
     *   Inject a daily `cron` script into the DB node's `user_data` that runs `pg_dump` and uploads the snapshot to the existing S3 bucket using the IAM profile.
     *   Attach `AmazonS3FullAccess` to the EC2 IAM Role to allow the DB node to execute `aws s3 cp`.
+
+## Phase: Consul Service Discovery
+### The Problem
+Hardcoded IPs in the Load Balancer Nginx configuration prevent the architecture from scaling dynamically. If an Auto Scaling Group adds or replaces an App Node, a human must manually SSH in and update the `nginx.conf` file.
+
+### The Solution
+Use HashiCorp Consul to automate Service Discovery.
+*   Run a central Consul Server on the LB node.
+*   Run Consul Agents on the App Nodes to constantly perform HTTP health checks against the Django container.
+*   Run Consul Template on the LB node to automatically rewrite the `nginx.conf` upstream block and execute `nginx -s reload` in milliseconds whenever a node joins or dies.

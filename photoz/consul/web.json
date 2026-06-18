@@ -1,0 +1,13 @@
+{
+  "service": {
+    "name": "photoz-app",
+    "port": 8000,
+    "check": {
+      "id": "web-ping",
+      "name": "HTTP ping",
+      "http": "http://localhost:8000/",
+      "interval": "10s",
+      "timeout": "1s"
+    }
+  }
+}

@@ -20,12 +20,13 @@ The Terraform setup provisions exactly what is documented in the deployment guid
 | **`destroy.sh`** | A custom bash wrapper around `terraform destroy` that accepts flags (e.g., `--skip-vpc`) to safely untrack base infrastructure from the state file, allowing for targeted teardowns to save costs without destroying persistent foundations. |
 | **`terraform.tfvars`** | A local (git-ignored) configuration file where you define your secure passwords, existing SSH key names, and S3 credentials. |
 
-### Automated Bootstrapping (`user_data`)
-The magic happens via EC2 `user_data` scripts. Terraform automatically:
+### Automated Bootstrapping (`user_data`) & Service Discovery
+This happens via EC2 `user_data` scripts and Consul Service Discovery. Terraform automatically:
 1. Installs Docker using `configure_dependencies.sh`.
-2. Generates the `.env` files. It dynamically reads the DB node's Private IP and passes it to the App nodes.
-3. Automatically writes the Nginx configuration file (`nginx.conf`) with the dynamically assigned Private IPs of the App nodes.
-4. Starts the respective `docker-compose-*.yml` files.
+2. Provisions the **Load Balancer Node first**. It boots up Nginx and a **Consul Server** central registry.
+3. Provisions the **App Nodes** next. It generates `.env` files dynamically, passing the **Load Balancer's Private IP** (`CONSUL_SERVER_IP`) to the App nodes.
+4. Starts the respective `docker-compose-*.yml` files. 
+5. As App Nodes boot, their local **Consul Agents** automatically connect to the LB Node and register the Django application. **Consul Template** running on the LB node immediately detects this and automatically rewrites the Nginx configuration to include the new App Node IPs.
 
 ## Prerequisites
 

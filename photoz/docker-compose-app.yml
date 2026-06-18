@@ -26,3 +26,12 @@ services:
         awslogs-create-group: "true"
     env_file:
       - .env
+
+  consul-agent:
+    image: hashicorp/consul:latest
+    # Host networking is strictly required so the agent registers the true EC2 Private IP
+    # with the Load Balancer, rather than an unreachable internal Docker IP like 172.18.0.5.
+    network_mode: "host"
+    volumes:
+      - ./consul/web.json:/consul/config/web.json:ro
+    command: "agent -retry-join=${CONSUL_SERVER_IP} -bind={{ GetPrivateInterfaces | attr \"address\" }}"

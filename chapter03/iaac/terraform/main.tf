@@ -102,6 +102,7 @@ resource "aws_instance" "app_node" {
     SECRET_KEY=${var.django_secret_key}
     POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
     NODE_IP=$LOCAL_IP
+    CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
     ENV
 
     docker compose -f docker-compose-app.yml up -d
@@ -127,44 +128,6 @@ resource "aws_instance" "lb_node" {
     
     chmod +x configure_dependencies.sh
     sudo ./configure_dependencies.sh
-
-    cat <<NGINX > nginx/nginx.conf
-    upstream photoz_web {
-        least_conn;
-        server ${aws_instance.app_node[0].private_ip}:8000;
-        server ${aws_instance.app_node[1].private_ip}:8000;
-    }
-
-    server {
-        listen 80;
-
-        client_max_body_size 20M;
-        client_body_buffer_size 20M;
-
-        location / {
-            proxy_pass http://photoz_web;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header Host \$host;
-            proxy_redirect off;
-        }
-
-        location /static/ {
-            alias /usr/share/nginx/html/static/;
-        }
-
-        error_page 502 /502.html;
-        location = /502.html {
-            root /usr/share/nginx/html;
-            internal;
-        }
-
-        error_page 504 /504.html;
-        location = /504.html {
-            root /usr/share/nginx/html;
-            internal;
-        }
-    }
-    NGINX
 
     cat <<ENV > .env
     AWS_REGION=${var.aws_region}

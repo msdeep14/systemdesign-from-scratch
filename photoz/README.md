@@ -85,10 +85,12 @@ newgrp docker
 ```
 
 ### 3. Deploying the 3-Tier Architecture
-Photoz has been upgraded to a production-grade decoupled architecture! The monolithic `docker-compose.yml` has been shattered into three role-specific files:
+Photoz has been upgraded to a production-grade decoupled architecture featuring dynamic Service Discovery! The monolithic `docker-compose.yml` has been shattered into three role-specific files:
 1. `docker-compose-db.yml` (Postgres only)
-2. `docker-compose-app.yml` (Django workers only)
-3. `docker-compose-lb.yml` (Nginx Load Balancer only)
+2. `docker-compose-app.yml` (Django Workers + Consul Agent)
+3. `docker-compose-lb.yml` (Nginx Router + Consul Server + Consul Template)
 
-**For complete step-by-step instructions on deploying this architecture across multiple EC2 instances, please read:**
-👉 [../chapter03/decoupled_architecture/aws-deployment-guide.md](../chapter03/decoupled_architecture/aws-deployment-guide.md)
+This architecture allows the Load Balancer to instantly and automatically detect when new App Nodes are spun up or destroyed.
+
+**For complete step-by-step instructions on deploying this architecture across multiple EC2 instances using Terraform, please read:**
+👉 [../chapter03/iaac/terraform/README.md](../chapter03/iaac/terraform/README.md)
