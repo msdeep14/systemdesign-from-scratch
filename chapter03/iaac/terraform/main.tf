@@ -68,16 +68,22 @@ resource "aws_instance" "db_node" {
   tags = { Name = "photoz-db-node" }
 }
 
-resource "aws_instance" "app_node" {
-  count                  = 2
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.app_instance_type
-  subnet_id              = local.subnet_ids[count.index % length(local.subnet_ids)]
-  key_name               = var.key_name
-  vpc_security_group_ids = [local.app_sg_id]
-  iam_instance_profile   = local.iam_instance_profile
+resource "aws_launch_template" "app_node" {
+  name_prefix   = "photoz-app-node-"
+  image_id      = data.aws_ami.ubuntu.id
+  instance_type = var.app_instance_type
+  key_name      = var.key_name
 
-  user_data = <<-EOF
+  network_interfaces {
+    security_groups             = [local.app_sg_id]
+    associate_public_ip_address = true
+  }
+
+  iam_instance_profile {
+    name = local.iam_instance_profile
+  }
+
+  user_data = base64encode(<<-EOF
     #!/bin/bash
     sudo apt-get update && sudo apt-get install -y git
     git clone https://${var.github_token}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
@@ -107,8 +113,85 @@ resource "aws_instance" "app_node" {
 
     docker compose -f docker-compose-app.yml up -d
   EOF
+  )
 
-  tags = { Name = "photoz-app-node-${count.index + 1}" }
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "photoz-app-node"
+    }
+  }
+}
+
+resource "aws_autoscaling_group" "app_nodes" {
+  name                = "photoz-app-asg"
+  vpc_zone_identifier = local.subnet_ids
+  desired_capacity    = 2
+  max_size            = 4
+  min_size            = 2
+
+  launch_template {
+    id      = aws_launch_template.app_node.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "photoz-app-node"
+    propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "scale_up" {
+  name                   = "photoz-scale-up"
+  scaling_adjustment     = 1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.app_nodes.name
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name          = "photoz-cpu-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 70
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_nodes.name
+  }
+
+  alarm_description = "This metric monitors ec2 cpu utilization"
+  alarm_actions     = [aws_autoscaling_policy.scale_up.arn]
+}
+
+resource "aws_autoscaling_policy" "scale_down" {
+  name                   = "photoz-scale-down"
+  scaling_adjustment     = -1
+  adjustment_type        = "ChangeInCapacity"
+  cooldown               = 300
+  autoscaling_group_name = aws_autoscaling_group.app_nodes.name
+}
+
+resource "aws_cloudwatch_metric_alarm" "cpu_low" {
+  alarm_name          = "photoz-cpu-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 60
+  statistic           = "Average"
+  threshold           = 30
+
+  dimensions = {
+    AutoScalingGroupName = aws_autoscaling_group.app_nodes.name
+  }
+
+  alarm_description = "This metric monitors ec2 cpu utilization"
+  alarm_actions     = [aws_autoscaling_policy.scale_down.arn]
 }
 
 resource "aws_instance" "lb_node" {

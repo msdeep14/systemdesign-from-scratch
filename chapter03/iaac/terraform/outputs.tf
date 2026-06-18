@@ -8,7 +8,7 @@ output "database_private_ip" {
   description = "The private IP address of the Database Node."
 }
 
-output "app_server_private_ips" {
-  value       = aws_instance.app_node[*].private_ip
-  description = "The private IP addresses of the App Servers."
+output "app_server_asg_name" {
+  value       = aws_autoscaling_group.app_nodes.name
+  description = "The name of the Auto Scaling Group managing the App Servers."
 }

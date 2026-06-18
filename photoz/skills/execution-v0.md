@@ -136,10 +136,18 @@
     *   **Function Name Typo:** Discovered the global variable was `imageCompression`, not `browserImageCompression`. Corrected the function call in `upload.html`.
 *   **Notes/Edge Cases:** The CloudWatch fix required users to manually run `aws logs delete-log-group` if the logs were already created by Docker before Terraform attempted to adopt them.
 
-## Phase: Consul Service Discovery Implementation (Commit: ff1ea9d0823a7f946549dc0e0e54c42cf63c5d24)
+## Phase: Consul Service Discovery Implementation (Commit: 10a3dd01510afb532d325cd838f031e561949045)
 *   **Analysis:** Transitioned from a hardcoded Nginx upstream block to a dynamic Service Discovery architecture using HashiCorp Consul. This allows Auto Scaling Groups to scale App nodes infinitely without manual Nginx configuration updates.
 *   **Actions:**
     *   **Terraform:** Reversed dependency order so `lb_node` boots first, allowing App nodes to dynamically receive the Load Balancer's private IP (`CONSUL_SERVER_IP`) via `user_data`.
     *   **LB Node:** Replaced standard Nginx container with a custom image bundling `consul-template`. Added a `consul-server` container in `bootstrap` mode. Configured `consul-template` to dynamically write `nginx.conf` and issue `nginx -s reload` commands internally without exposing `/var/run/docker.sock`.
     *   **App Node:** Deployed lightweight `consul-agent` sidecar via `docker-compose-app.yml` on the host network. Mounted `web.json` to configure an edge HTTP health check pinging the local Gunicorn port 8000 every 10 seconds.
 *   **Notes/Edge Cases:** Avoided mapping `docker.sock` to the template container by packaging Nginx and Consul-Template into a single container. This ensures strict isolation and prevents root privilege escalation vulnerabilities.
+
+## Phase: Auto Scaling Group Implementation (Commit: Pending)
+*   **Analysis:** Transitioned the App nodes from static `aws_instance` definitions to an AWS Auto Scaling Group (`aws_autoscaling_group`) to enable true self-healing and dynamic scaling. Added CloudWatch CPU scaling policies.
+*   **Actions:**
+    *   **Terraform Migration:** Replaced `aws_instance.app_node` with `aws_launch_template.app_node` and `aws_autoscaling_group.app_nodes`.
+    *   **Scaling Policies:** Implemented `aws_autoscaling_policy` with Step Scaling triggered by `aws_cloudwatch_metric_alarm`. Added a scale-up policy (+1 instance) for `CPUUtilization > 70%` and a scale-down policy (-1 instance) for `CPUUtilization < 30%`.
+    *   **High Availability:** Set ASG constraints to `min_size = 2` and `max_size = 4`, guaranteeing cross-AZ availability while allowing the cluster to automatically replace terminated instances.
+*   **Notes/Edge Cases:** With the introduction of ASG, `app_server_private_ips` in `outputs.tf` was replaced by `app_server_asg_name` since instances are now dynamically provisioned by AWS.
