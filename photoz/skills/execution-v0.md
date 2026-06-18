@@ -136,7 +136,7 @@
     *   **Function Name Typo:** Discovered the global variable was `imageCompression`, not `browserImageCompression`. Corrected the function call in `upload.html`.
 *   **Notes/Edge Cases:** The CloudWatch fix required users to manually run `aws logs delete-log-group` if the logs were already created by Docker before Terraform attempted to adopt them.
 
-## Phase: Consul Service Discovery Implementation (Commit: Pending)
+## Phase: Consul Service Discovery Implementation (Commit: ff1ea9d0823a7f946549dc0e0e54c42cf63c5d24)
 *   **Analysis:** Transitioned from a hardcoded Nginx upstream block to a dynamic Service Discovery architecture using HashiCorp Consul. This allows Auto Scaling Groups to scale App nodes infinitely without manual Nginx configuration updates.
 *   **Actions:**
     *   **Terraform:** Reversed dependency order so `lb_node` boots first, allowing App nodes to dynamically receive the Load Balancer's private IP (`CONSUL_SERVER_IP`) via `user_data`.

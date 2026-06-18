@@ -8,7 +8,7 @@ services:
     # Nginx would then try to route traffic to 172.18.0.5, which is unreachable across the physical AWS VPC.
     # Host mode forces the container to use the EC2 instance's true private IP.
     network_mode: "host"
-    command: "agent -server -bootstrap-expect=1 -ui -bind={{ GetPrivateInterfaces | attr \"address\" }} -client=0.0.0.0"
+    command: ["agent", "-server", "-bootstrap-expect=1", "-ui", "-bind={{ GetPrivateInterfaces | attr \"address\" }}", "-client=0.0.0.0"]
 
   nginx-router:
     build: ./nginx

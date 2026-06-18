@@ -34,4 +34,4 @@ services:
     network_mode: "host"
     volumes:
       - ./consul/web.json:/consul/config/web.json:ro
-    command: "agent -retry-join=${CONSUL_SERVER_IP} -bind={{ GetPrivateInterfaces | attr \"address\" }}"
+    command: ["agent", "-retry-join=${CONSUL_SERVER_IP}", "-bind={{ GetPrivateInterfaces | attr \"address\" }}"]
