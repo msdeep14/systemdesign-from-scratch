@@ -144,7 +144,7 @@
     *   **App Node:** Deployed lightweight `consul-agent` sidecar via `docker-compose-app.yml` on the host network. Mounted `web.json` to configure an edge HTTP health check pinging the local Gunicorn port 8000 every 10 seconds.
 *   **Notes/Edge Cases:** Avoided mapping `docker.sock` to the template container by packaging Nginx and Consul-Template into a single container. This ensures strict isolation and prevents root privilege escalation vulnerabilities.
 
-## Phase: Auto Scaling Group Implementation (Commit: Pending)
+## Phase: Auto Scaling Group Implementation (Commit: 8efea0e1779ff69bc377a93526717d34874e7df9)
 *   **Analysis:** Transitioned the App nodes from static `aws_instance` definitions to an AWS Auto Scaling Group (`aws_autoscaling_group`) to enable true self-healing and dynamic scaling. Added CloudWatch CPU scaling policies.
 *   **Actions:**
     *   **Terraform Migration:** Replaced `aws_instance.app_node` with `aws_launch_template.app_node` and `aws_autoscaling_group.app_nodes`.

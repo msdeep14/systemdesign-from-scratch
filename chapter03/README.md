@@ -52,9 +52,34 @@ Located in `server_overload/`, these scripts demonstrate how to exhaust a server
 
 ---
 
-## Part 3: Decoupled Architecture (Production 3-Tier)
+## Part 3: Infrastructure as Code (Terraform) & Decoupled Architecture
 
-Located in `decoupled_architecture/`, this section outlines the steps required to transition the monolithic application into a true production-grade, 3-tier horizontally scalable architecture across multiple EC2 instances.
+We transitioned the monolithic application into a true production-grade, 3-tier horizontally scalable architecture across multiple EC2 instances (Load Balancer, App Nodes, Database Node) using **Terraform**.
+- **Location:** [`iaac/terraform/`](iaac/terraform/)
+- **Details:** Automated provisioning of VPCs, Security Groups, IAM Roles (S3 & CloudWatch access), and automated daily DB backups via cron. Read the [Terraform Deployment Guide](iaac/terraform/README.md).
 
-**For full details on deploying the Database, App Servers, and Load Balancer independently on AWS, read:**
-[decoupled_architecture/aws-deployment-guide.md](decoupled_architecture/aws-deployment-guide.md)
+---
+
+## Part 4: Dynamic Service Discovery (Consul) & Auto Scaling
+
+Hardcoded IPs in a Load Balancer fail when scaling dynamically. We used **HashiCorp Consul** to automate Service Discovery alongside an **AWS Auto Scaling Group (ASG)**.
+- **Location:** [`../photoz/docker-compose-lb.yml`](../photoz/docker-compose-lb.yml) and [`iaac/terraform/main.tf`](iaac/terraform/main.tf)
+- **Details:** The Load Balancer runs a Consul Server and Consul-Template to instantly rewrite `nginx.conf` when new App Nodes boot up. The ASG scales the App Nodes based on CloudWatch CPU Alarms (`>70%` scale up, `<30%` scale down).
+
+---
+
+## Part 5: Aggressive Image Optimization & Cost Reduction
+
+To drastically reduce S3 egress bandwidth costs and improve user experience on slow networks, we implemented dual-layer image compression.
+- **Client-Side Compression:** Uses `browser-image-compression.js` to compress images directly in the user's browser *before* the HTTP POST payload is sent.
+  - **Location:** [`../photoz/photos/templates/photos/upload.html`](../photoz/photos/templates/photos/upload.html)
+- **Server-Side Fallback:** Uses Python's `Pillow` library to forcefully downscale any bypassing images to `1080px` (LANCZOS resampling, `70` quality).
+  - **Location:** [`../photoz/photos/utils.py`](../photoz/photos/utils.py)
+
+---
+
+## Part 6: Distributed Logging (AWS CloudWatch)
+
+In a horizontally scaled environment, logs are scattered across multiple instances. We implemented centralized logging to aggregate them.
+- **Location:** [`../photoz/docker-compose-app.yml`](../photoz/docker-compose-app.yml)
+- **Details:** Docker's `awslogs` driver automatically streams all container logs to CloudWatch. We also injected the EC2 Private IP (`NODE_IP`) into the Django formatter so every aggregated log line can be traced back to its specific physical node.
