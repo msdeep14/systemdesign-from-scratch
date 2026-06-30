@@ -10,10 +10,11 @@ This document contains guidelines on AI agent response generation, coding standa
 * Whenever you perform analysis, make architectural/design decisions, or take implementation actions, **you MUST append a log of your work to `execution-{version}.md`** where {version} is the current version of the codebase. The file should be created if it does not exist. The location of this file should be inside the `skills/` directory of the specific project being worked upon. Example: `chapter01/bses-v0/skills/execution-v0.md`.
 * Similarly, any implementation plan generated should be added to `implementation-{version}.md` inside the project's `skills/` folder. Example: `chapter01/bses-v0/skills/implementation-v0.md`.
 * The entry in each of these logs should include:
-    * The phase or feature you are working on, including the Git commit ID of the phase.
+    * The phase or feature you are working on, including the Date, Git commit ID of the phase, and the Name of the AI model used (e.g., `Phase: [Feature] (Date: YYYY-MM-DD, Commit: [hash], Model: [Model Name])`).
     * Brief analysis and the rationale behind any technical decisions made.
     * A bulleted list of specific actions taken (files created, models updated, bugs resolved).
     * Any notable edge cases or errors you encountered and how you fixed them.
+* **Any change to the `photoz/` application code (middleware, settings, models, views, etc.) MUST also be logged in `photoz/skills/execution-v0.md`**, in addition to the chapter-specific execution log. This ensures the photoz project maintains a complete history of all application-level changes regardless of which chapter triggered them.
 
 ## Coding Standards
 - **Keep it Simple & Direct**: Do not over-engineer. Do not abstract for the sake of abstraction. If a feature can be implemented cleanly in 10 lines instead of 100, choose the 10-line approach.

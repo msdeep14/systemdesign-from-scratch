@@ -1,6 +1,6 @@
 # Execution Log - Chapter 04 (v0)
 
-## Phase: Reproduce Query Bottlenecks (Commit: pending)
+## Phase: Reproduce Query Bottlenecks (Date: 2026-06-19, Commit: be3ce8a0878e235c5c269770804783831b0da7f5, Model: Claude Opus 4.6 (Thinking))
 
 **Analysis:** The photoz application has significant N+1 query problems across all major views. The newsfeed page is the worst offender -- a single page load fires **89 SQL queries** due to lazy-loading ForeignKey relationships in templates without `select_related` or `prefetch_related`. Combined with per-photo `COUNT(*)` queries for likes and comments (instead of using `annotate`), a single user browsing 5 pages fires ~160 queries total.
 
@@ -86,3 +86,28 @@ Key observation: Full **Seq Scan** with `UPPER(...) LIKE` pattern matching. No t
 **Edge Cases:**
 - Fixed Postgres modulo operator issue in seed script -- Django's `cursor.execute` uses psycopg2 parameterization, not Python `%` formatting. Used `MOD()` function instead.
 - Removed all emojis from code and print statements per project coding standards.
+
+---
+
+## Phase: CloudWatch EMF Metrics Middleware (Date: 2026-06-30, Commit: pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** The benchmark scripts provide offline analysis of query counts and DB latency per endpoint. To get the same visibility in production (without `DEBUG=True` or EXPLAIN ANALYZE overhead), we need a lightweight middleware that measures request and database latency on every request and outputs the data as structured logs.
+
+**Why EMF instead of PutMetricData API?**
+The alternative approach is to call the AWS `cloudwatch:PutMetricData` API directly from the middleware (using `boto3`). We chose EMF over this for three reasons:
+1. **No added latency.** `PutMetricData` is an HTTP API call to AWS. On every request, the middleware would make a network round-trip to the CloudWatch API endpoint, adding 5-20ms of latency to every user request. EMF just writes a log line to stdout, which is a local in-memory operation with near-zero overhead.
+2. **No extra IAM permissions.** `PutMetricData` requires the `cloudwatch:PutMetricData` permission. EMF reuses the existing `CloudWatchLogsFullAccess` policy that is already attached to the EC2 IAM role from Chapter 3. The metric extraction happens server-side inside AWS when CloudWatch Logs receives the structured JSON.
+3. **No extra dependencies.** `PutMetricData` requires the `boto3` SDK in the application container. EMF only requires `json.dumps()` from Python's standard library.
+4. **Vendor Agnosticism (Portability).** `PutMetricData` is a proprietary AWS API. If the architecture later moves to Grafana, Datadog, or ELK, the application code would have to be rewritten. Because EMF is just structured JSON written to standard output, the application remains fully decoupled from the metrics provider. Any log forwarder (FluentBit, Promtail, etc.) can parse this JSON to extract metrics without touching the application code.
+
+**Approach:** CloudWatch Embedded Metric Format (EMF). The middleware logs a JSON object to stdout on every request. When the Docker container sends these logs to CloudWatch Logs, AWS automatically extracts the metrics (no extra agents or API calls needed).
+
+**Actions:**
+- Created `photoz/bses/metrics_middleware.py` -- uses Django's `connection.execute_wrapper()` to wrap every SQL call and measure DB latency and query count per request. Outputs EMF JSON with `RequestLatency`, `DatabaseLatency`, and `QueryCount` metrics under the `PhotoZ/Application` namespace, dimensioned by `Endpoint` and `Method`.
+- Updated `photoz/bses/settings.py` -- added `json_raw` formatter (outputs raw message without timestamp/level prefix), `metrics_console` handler, and `metrics` logger. Registered `CloudWatchMetricsMiddleware` at the end of the MIDDLEWARE list.
+- Verified middleware imports correctly with Django setup.
+
+**Example EMF log output (one line per request):**
+```json
+{"_aws": {"Timestamp": 1719734400000, "CloudWatchMetrics": [{"Namespace": "PhotoZ/Application", "Dimensions": [["Endpoint", "Method"]], "Metrics": [{"Name": "RequestLatency", "Unit": "Milliseconds"}, {"Name": "DatabaseLatency", "Unit": "Milliseconds"}, {"Name": "QueryCount", "Unit": "Count"}]}]}, "Endpoint": "/newsfeed/", "Method": "GET", "StatusCode": 200, "RequestLatency": 124.56, "DatabaseLatency": 48.32, "QueryCount": 83}
+```

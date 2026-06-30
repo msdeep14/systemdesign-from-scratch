@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'bses.metrics_middleware.CloudWatchMetricsMiddleware',
 ]
 
 ROOT_URLCONF = 'bses.urls'
@@ -184,12 +185,21 @@ LOGGING = {
             'format': f'[app-node-{os.environ.get("NODE_IP", "unknown")}] {{levelname}} {{asctime}} {{module}} {{message}}',
             'style': '{',
         },
+        'json_raw': {
+            'format': '{message}',
+            'style': '{',
+        },
     },
     'handlers': {
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+        },
+        'metrics_console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'json_raw',
         },
     },
     'loggers': {
@@ -200,6 +210,11 @@ LOGGING = {
         },
         'bses': {
             'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'metrics': {
+            'handlers': ['metrics_console'],
             'level': 'INFO',
             'propagate': False,
         },
