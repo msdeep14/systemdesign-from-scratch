@@ -35,7 +35,10 @@ class CloudWatchMetricsMiddleware:
         request_latency_ms = (time.time() - start) * 1000
         db_latency_ms = query_timer.total_db_time * 1000
         query_count = query_timer.query_count
-        endpoint = request.path
+        if hasattr(request, 'resolver_match') and request.resolver_match:
+            endpoint = f"/{request.resolver_match.route}"
+        else:
+            endpoint = request.path
         method = request.method
         status_code = response.status_code
 

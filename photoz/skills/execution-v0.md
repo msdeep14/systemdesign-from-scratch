@@ -152,7 +152,7 @@
     *   **High Availability:** Set ASG constraints to `min_size = 2` and `max_size = 4`, guaranteeing cross-AZ availability while allowing the cluster to automatically replace terminated instances.
 *   **Notes/Edge Cases:** With the introduction of ASG, `app_server_private_ips` in `outputs.tf` was replaced by `app_server_asg_name` since instances are now dynamically provisioned by AWS.
 
-## Phase: CloudWatch EMF Metrics Middleware (Date: 2026-06-30, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: CloudWatch EMF Metrics Middleware (Date: 2026-06-30, Commit: 0d17852e38ff966e51b6ae0c6d828dae46535d4bq, triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Chapter04 benchmark scripts identified N+1 query problems and missing indexes using offline analysis (`DEBUG=True` + `connection.queries`). To get the same visibility in production without the overhead, we needed a lightweight middleware that measures request and database latency per endpoint.
 *   **Actions:**
     *   **New file:** Created `bses/metrics_middleware.py` with `CloudWatchMetricsMiddleware`. Uses Django's `connection.execute_wrapper()` to wrap every SQL call and measure `DatabaseLatency` and `QueryCount` per request. Outputs CloudWatch Embedded Metric Format (EMF) JSON to stdout.
@@ -160,3 +160,8 @@
 *   **Notes/Edge Cases:**
     *   EMF JSON must be output as raw text (no log-level prefix or timestamp), which is why a separate `json_raw` formatter is used instead of the existing `simple` formatter.
     *   **Vendor Agnosticism:** By logging structured JSON instead of using AWS `boto3` to call `PutMetricData`, the application remains entirely decoupled from AWS. If the system migrates to Datadog or Grafana, the log forwarder can extract the metrics from the JSON without requiring any code changes in the Django application.
+
+## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+*   **Analysis:** CloudWatch metrics were failing to aggregate into line graphs because the EMF middleware was logging exact URL paths (e.g., `/users/phoenix_jackson_0/`). This high cardinality created tens of thousands of unique metrics instead of grouping them by route.
+*   **Actions:**
+    *   **Metrics Middleware Update:** Updated `bses/metrics_middleware.py` to use Django's `request.resolver_match.route` instead of `request.path`. This transforms specific URLs into their generic URL patterns (e.g., `/users/<str:username>/`), allowing CloudWatch to correctly aggregate the data for visualization.
