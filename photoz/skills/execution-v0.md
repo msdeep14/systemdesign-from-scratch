@@ -161,7 +161,7 @@
     *   EMF JSON must be output as raw text (no log-level prefix or timestamp), which is why a separate `json_raw` formatter is used instead of the existing `simple` formatter.
     *   **Vendor Agnosticism:** By logging structured JSON instead of using AWS `boto3` to call `PutMetricData`, the application remains entirely decoupled from AWS. If the system migrates to Datadog or Grafana, the log forwarder can extract the metrics from the JSON without requiring any code changes in the Django application.
 
-## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: caffaf65d08b17442a96fb9f502f7254d19677ff, triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** CloudWatch metrics were failing to aggregate into line graphs because the EMF middleware was logging exact URL paths (e.g., `/users/phoenix_jackson_0/`). This high cardinality created tens of thousands of unique metrics instead of grouping them by route.
 *   **Actions:**
-    *   **Metrics Middleware Update:** Updated `bses/metrics_middleware.py` to use Django's `request.resolver_match.route` instead of `request.path`. This transforms specific URLs into their generic URL patterns (e.g., `/users/<str:username>/`), allowing CloudWatch to correctly aggregate the data for visualization.
+    *   **Metrics Middleware Update:** Updated `bses/metrics_middleware.py` to use Django's `request.resolver_match.view_name` instead of `request.path`. Because Django's `route` property truncates outer included URL namespaces, `view_name` is much cleaner. This transforms specific URLs into their exact logical view names (e.g., `profile`, `newsfeed`, `login`), allowing CloudWatch to correctly aggregate the data into clean visualizations.

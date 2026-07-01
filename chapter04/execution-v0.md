@@ -126,11 +126,11 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 
 ---
 
-## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: caffaf65d08b17442a96fb9f502f7254d19677ff, Model: Gemini 3.1 Pro (High))
 
 **Analysis:** After successfully executing the seed script and logging in, we observed that CloudWatch metrics were not graphing correctly. The EMF logs showed high cardinality dimensions where the endpoint was logged as the exact URL path (e.g., `/users/phoenix_jackson_0/`). This created a unique metric for every single user profile, breaking CloudWatch's ability to aggregate metrics into a single line graph.
 
 **Approach:** Rather than logging `request.path` directly, we updated the middleware to capture Django's parameterized route pattern (e.g., `/users/<str:username>/`).
 
 **Actions:**
-- Updated `photoz/bses/metrics_middleware.py`. Added logic to fall back to `request.path` only if `request.resolver_match` is empty, otherwise extract the generic route via `request.resolver_match.route`. This correctly groups all identical endpoint paths into a single consistent metric dimension, making the data properly visible on CloudWatch graphs.
+- Updated `photoz/bses/metrics_middleware.py`. Added logic to fall back to `request.path` only if `request.resolver_match` is empty, otherwise extract the logical view name via `request.resolver_match.view_name`. This properly resolves Django's nested URL inclusions (which `route` truncates), correctly grouping all identical endpoint paths into clean dimensions like `newsfeed`, `login`, and `profile`, making the data properly visible on CloudWatch graphs.
