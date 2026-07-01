@@ -200,6 +200,7 @@ def seed_communities(users):
 
 def seed_photos(users, communities):
     with timed(f"Creating {NUM_PHOTOS} photos"):
+        total = 0
         photos = []
         for _ in range(NUM_PHOTOS):
             photo = Photo(
@@ -212,7 +213,14 @@ def seed_photos(users, communities):
                 photo.community = random.choice(communities)
             photos.append(photo)
 
-        photos = Photo.objects.bulk_create(photos)
+            if len(photos) >= 10000:
+                Photo.objects.bulk_create(photos)
+                total += len(photos)
+                photos = []
+
+        if photos:
+            Photo.objects.bulk_create(photos)
+            total += len(photos)
 
     # Spread created_at timestamps over the past 90 days
     with timed("Spreading photo timestamps over 90 days"):
@@ -225,7 +233,7 @@ def seed_photos(users, communities):
                 "                       - MOD(id, 60) * INTERVAL '1 minute'"
             )
 
-    return photos
+    return list(Photo.objects.values_list('id', flat=True))
 
 
 def seed_follows(users):
@@ -234,6 +242,7 @@ def seed_follows(users):
         follows = []
         user_ids = [u.id for u in users]
 
+        total = 0
         for user in users:
             num_to_follow = random.randint(10, 50)
             target_ids = random.sample(user_ids, num_to_follow + 1)
@@ -244,19 +253,26 @@ def seed_follows(users):
                     follow_set.add(key)
                     follows.append(Follow(follower_id=user.id, following_id=tid))
 
-        Follow.objects.bulk_create(follows, batch_size=1000, ignore_conflicts=True)
-        print(f"       {len(follows)} follow relationships created")
+                    if len(follows) >= 10000:
+                        Follow.objects.bulk_create(follows, batch_size=1000, ignore_conflicts=True)
+                        total += len(follows)
+                        follows = []
+
+        if follows:
+            Follow.objects.bulk_create(follows, batch_size=1000, ignore_conflicts=True)
+            total += len(follows)
+
+        print(f"       {total} follow relationships created")
 
 
-def seed_likes(users, photos):
+def seed_likes(user_ids, photo_ids):
     with timed(f"Creating {NUM_LIKES} likes"):
         like_set = set()
         likes = []
-        user_ids = [u.id for u in users]
-        photo_ids = [p.id for p in photos]
 
         attempts = 0
-        while len(likes) < NUM_LIKES and attempts < NUM_LIKES * 3:
+        total = 0
+        while total < NUM_LIKES and attempts < NUM_LIKES * 3:
             attempts += 1
             uid = random.choice(user_ids)
             pid = random.choice(photo_ids)
@@ -265,14 +281,18 @@ def seed_likes(users, photos):
                 like_set.add(key)
                 likes.append(Like(user_id=uid, photo_id=pid))
 
-        Like.objects.bulk_create(likes, batch_size=1000, ignore_conflicts=True)
+                if len(likes) >= 10000:
+                    Like.objects.bulk_create(likes, batch_size=1000, ignore_conflicts=True)
+                    total += len(likes)
+                    likes = []
+
+        if likes:
+            Like.objects.bulk_create(likes, batch_size=1000, ignore_conflicts=True)
+            total += len(likes)
 
 
-def seed_comments(users, photos):
+def seed_comments(user_ids, photo_ids):
     with timed(f"Creating {NUM_COMMENTS} comments"):
-        user_ids = [u.id for u in users]
-        photo_ids = [p.id for p in photos]
-
         comments = []
         for _ in range(NUM_COMMENTS):
             comments.append(Comment(
@@ -281,13 +301,16 @@ def seed_comments(users, photos):
                 text=random.choice(COMMENT_TEXTS),
             ))
 
-        Comment.objects.bulk_create(comments, batch_size=1000)
+            if len(comments) >= 10000:
+                Comment.objects.bulk_create(comments, batch_size=1000)
+                comments = []
+
+        if comments:
+            Comment.objects.bulk_create(comments, batch_size=1000)
 
 
-def seed_notifications(users, photos):
+def seed_notifications(user_ids, photo_ids):
     with timed(f"Creating {NUM_NOTIFICATIONS} notifications"):
-        user_ids = [u.id for u in users]
-        photo_ids = [p.id for p in photos]
         types = ['photo_like', 'photo_comment']
 
         notifications = []
@@ -304,7 +327,12 @@ def seed_notifications(users, photos):
                 is_read=random.random() < 0.4,  # 40% read
             ))
 
-        Notification.objects.bulk_create(notifications, batch_size=1000)
+            if len(notifications) >= 10000:
+                Notification.objects.bulk_create(notifications, batch_size=1000)
+                notifications = []
+
+        if notifications:
+            Notification.objects.bulk_create(notifications, batch_size=1000)
 
 def main():
     reset = '--reset' in sys.argv
@@ -328,12 +356,13 @@ def main():
     overall_start = time.time()
 
     users = seed_users()
+    user_ids = [u.id for u in users]
     communities = seed_communities(users)
-    photos = seed_photos(users, communities)
+    photo_ids = seed_photos(users, communities)
     seed_follows(users)
-    seed_likes(users, photos)
-    seed_comments(users, photos)
-    seed_notifications(users, photos)
+    seed_likes(user_ids, photo_ids)
+    seed_comments(user_ids, photo_ids)
+    seed_notifications(user_ids, photo_ids)
 
     elapsed = time.time() - overall_start
 

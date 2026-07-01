@@ -86,10 +86,22 @@ Key observation: Full **Seq Scan** with `UPPER(...) LIKE` pattern matching. No t
 **Edge Cases:**
 - Fixed Postgres modulo operator issue in seed script -- Django's `cursor.execute` uses psycopg2 parameterization, not Python `%` formatting. Used `MOD()` function instead.
 - Removed all emojis from code and print statements per project coding standards.
+- **OOM Crash on t3.micro (Debugging & Fix):**
+  - **Issue:** Running the massive `seed_data.py` on a 1GB `t3.micro` EC2 instance caused the Postgres server to abruptly crash with `psycopg2.OperationalError: server closed the connection unexpectedly`. When attempting to rerun the script immediately after, a secondary error occurred: `FATAL: the database system is in recovery mode`.
+  - **Debugging Steps:** To confirm if the crash was caused by the OS terminating the process due to lack of memory, we checked the Linux kernel ring buffer on the DB EC2 instance using `sudo dmesg -T | grep -i -E 'oom|killed process'`. The output confirmed the OOM killer intervened:
+    ```text
+    [Wed Jul  1 04:25:31 2026] oom-kill:constraint=CONSTRAINT_NONE... task=postgres,pid=3154,uid=999
+    [Wed Jul  1 04:25:31 2026] Out of memory: Killed process 3154 (postgres) total-vm:526664kB, anon-rss:295264kB...
+    ```
+    Postgres was killed by the OS. The secondary `recovery mode` error occurred because Docker's `restart: always` policy immediately rebooted the container, but Postgres needed time to replay its Write-Ahead Logs (WAL) before accepting new connections.
+  - **The Fix:** The script held ~100,000 `Photo` and ~300,000 `Follow` massive Django ORM objects in Python memory before calling `bulk_create`. This caused Postgres and Python to compete for the 1GB of RAM, triggering the OOM kill. We fixed this by:
+    1. Chunking the ORM creation and flushing `bulk_create` to the database every 10,000 objects across all heavy tables (`photos`, `follows`, `likes`, `comments`, `notifications`).
+    2. Optimizing downstream functions to accept lists of integer IDs rather than passing around massive lists of heavy Django model instances (reducing memory overhead from ~150MB down to ~1MB).
+    3. Manually wiping the corrupted Docker volume (`docker compose down -v`) and re-running migrations to quickly bypass the lengthy WAL recovery process.
 
 ---
 
-## Phase: CloudWatch EMF Metrics Middleware (Date: 2026-06-30, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: CloudWatch EMF Metrics Middleware (Date: 2026-06-30, Commit: 0d17852e38ff966e51b6ae0c6d828dae46535d4b, Model: Gemini 3.1 Pro (High))
 
 **Analysis:** The benchmark scripts provide offline analysis of query counts and DB latency per endpoint. To get the same visibility in production (without `DEBUG=True` or EXPLAIN ANALYZE overhead), we need a lightweight middleware that measures request and database latency on every request and outputs the data as structured logs.
 

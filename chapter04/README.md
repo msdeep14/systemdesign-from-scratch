@@ -56,6 +56,7 @@ The scripts use Django's ORM internally to interact with the database models, so
 
 ```bash
 cd photoz
+sudo apt update && sudo apt install -y python3-venv
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -168,7 +169,7 @@ Push the latest code (with the metrics middleware) to the App EC2 instances. Reb
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<APP_EC2_PUBLIC_IP>
-cd systemdesignfromscratch/photoz
+cd systemdesign-from-scratch/photoz
 git pull origin main
 docker compose -f docker-compose-app.yml up -d --build
 ```
@@ -179,8 +180,17 @@ SSH into the DB EC2 instance and seed data:
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
-cd systemdesignfromscratch
-source photoz/venv/bin/activate
+cd systemdesign-from-scratch/
+
+# Set up the virtual environment (if not already done)
+cd photoz
+sudo apt update && sudo apt install -y python3-venv
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd ..
+
+# Run the seed script
 python chapter04/query_optimization/seed_data.py --reset
 ```
 
@@ -199,7 +209,7 @@ Other example usernames: `jordan_johnson_1`, `taylor_williams_2`, `morgan_brown_
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
-docker exec -it photoz-db psql -U postgres -d bses -c "SELECT username_display FROM users_userprofile LIMIT 5;"
+docker exec -it photoz-db-1 psql -U postgres -d bses -c "SELECT username_display FROM users_userprofile LIMIT 5;"
 ```
 
 ### Step 4: Browse Pages to Generate Metrics
