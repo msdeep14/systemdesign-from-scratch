@@ -110,7 +110,8 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 1. **No added latency.** `PutMetricData` is an HTTP API call to AWS. On every request, the middleware would make a network round-trip to the CloudWatch API endpoint, adding 5-20ms of latency to every user request. EMF just writes a log line to stdout, which is a local in-memory operation with near-zero overhead.
 2. **No extra IAM permissions.** `PutMetricData` requires the `cloudwatch:PutMetricData` permission. EMF reuses the existing `CloudWatchLogsFullAccess` policy that is already attached to the EC2 IAM role from Chapter 3. The metric extraction happens server-side inside AWS when CloudWatch Logs receives the structured JSON.
 3. **No extra dependencies.** `PutMetricData` requires the `boto3` SDK in the application container. EMF only requires `json.dumps()` from Python's standard library.
-4. **Vendor Agnosticism (Portability).** `PutMetricData` is a proprietary AWS API. If the architecture later moves to Grafana, Datadog, or ELK, the application code would have to be rewritten. Because EMF is just structured JSON written to standard output, the application remains fully decoupled from the metrics provider. Any log forwarder (FluentBit, Promtail, etc.) can parse this JSON to extract metrics without touching the application code.
+4. **No AWS SDK dependency in application code.** `PutMetricData` requires importing `boto3` and calling AWS APIs directly from the middleware, tightly coupling the Django application to AWS. With EMF, the application only uses `json.dumps()` from Python's standard library. The metric data (e.g., `QueryCount`, `RequestLatency`) is just plain JSON fields. If the system later migrates away from AWS, only the **log pipeline** needs to change (swap Docker's `awslogs` driver for FluentBit/Promtail configured to extract the JSON fields) — the application code stays untouched. Note: the `_aws` and `CloudWatchMetrics` keys in the EMF JSON are AWS-proprietary. Other tools like Promtail or Grafana cannot automatically interpret this structure. They would need custom configuration to extract the raw JSON metric fields.
+5. **Lower cost at scale.** Both approaches create the same custom metrics ($0.30/metric/month), but the transport cost differs significantly. `PutMetricData` charges $0.01 per 1,000 API calls — at 100 req/s that's ~8.6M calls/day (~$86/day). EMF piggybacks on CloudWatch Logs ingestion at $0.50/GB — each EMF line is ~500 bytes, so at 100 req/s that's ~4.3 GB/day (~$2.15/day). At production scale, PutMetricData is roughly **40x more expensive** for metric transport.
 
 **Approach:** CloudWatch Embedded Metric Format (EMF). The middleware logs a JSON object to stdout on every request. When the Docker container sends these logs to CloudWatch Logs, AWS automatically extracts the metrics (no extra agents or API calls needed).
 
@@ -126,7 +127,7 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 
 ---
 
-## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: caffaf65d08b17442a96fb9f502f7254d19677ff, Model: Gemini 3.1 Pro (High))
+## Phase: CloudWatch EMF Middleware - High Cardinality Fix (Date: 2026-07-01, Commit: 408c39b4d1c99f254f3025f85b7798212a3784c8, Model: Claude Opus 4.6 (Thinking))
 
 **Analysis:** After successfully executing the seed script and logging in, we observed that CloudWatch metrics were not graphing correctly. The EMF logs showed high cardinality dimensions where the endpoint was logged as the exact URL path (e.g., `/users/phoenix_jackson_0/`). This created a unique metric for every single user profile, breaking CloudWatch's ability to aggregate metrics into a single line graph.
 
