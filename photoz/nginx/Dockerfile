@@ -9,6 +9,7 @@ RUN apk add --no-cache curl unzip && \
 RUN rm /etc/nginx/conf.d/default.conf
 COPY 504.html /usr/share/nginx/html/504.html
 COPY 502.html /usr/share/nginx/html/502.html
+COPY 500.html /usr/share/nginx/html/500.html
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh

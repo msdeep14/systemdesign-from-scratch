@@ -66,13 +66,19 @@ resource "aws_instance" "db_node" {
 
     if [ "${var.seed_database}" = "true" ]; then
       echo "Seeding database..."
-      sudo apt-get install -y python3-venv libpq-dev
+      sudo apt-get install -y python3-venv libpq-dev postgresql-client
       python3 -m venv venv
       source venv/bin/activate
       pip install -r requirements.txt
       
-      # Wait for DB to be ready
-      sleep 10
+      # Wait for DB to be fully ready to accept connections
+      until pg_isready -h 127.0.0.1 -U postgres; do
+        echo "Waiting for postgres to start..."
+        sleep 2
+      done
+      
+      # Ensure schema exists before seeding
+      python manage.py migrate
       
       python ../chapter04/query_optimization/seed_data.py --reset
     fi
