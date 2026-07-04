@@ -37,10 +37,10 @@
                 <div style="padding: 1rem;">
                     <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
                         <button class="btn btn-sm like-btn {% if photo.id in liked_photo_ids %}btn-primary{% else %}btn-outline{% endif %}" data-id="{{ photo.id }}">
-                            <i class="fas fa-heart"></i> <span class="likes-count">{{ photo.likes.count }}</span>
+                            <i class="fas fa-heart"></i> <span class="likes-count">{{ photo.likes_count }}</span>
                         </button>
                         <a href="{% url 'photo_detail' photo.id %}" class="btn btn-sm btn-outline">
-                            <i class="fas fa-comment"></i> {{ photo.comments.count }}
+                            <i class="fas fa-comment"></i> {{ photo.comments_count }}
                         </a>
                     </div>
                     

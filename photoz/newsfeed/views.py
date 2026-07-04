@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Count, Q
 from photos.models import Photo
 from users.models import Follow
 from communities.models import CommunityMembership
@@ -16,6 +16,12 @@ def newsfeed(request):
         Q(user__in=followed_users, community__isnull=True) |
         Q(community__in=my_communities) |
         Q(user=request.user)
+    ).select_related(
+        'user__profile',
+        'community',
+    ).annotate(
+        likes_count=Count('likes', distinct=True),
+        comments_count=Count('comments', distinct=True),
     ).order_by('-created_at').distinct()
     
     paginator = Paginator(feed, getattr(settings, 'BSES_PAGE_SIZE', 20))

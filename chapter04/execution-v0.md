@@ -38,7 +38,72 @@ Comment COUNT (N+1 per photo):      20
 TOTAL:                              83-89
 ```
 
-**EXPLAIN ANALYZE -- Newsfeed main query (top 20 photos):**
+**EXPLAIN ANALYZE -- What it is and how to use it:**
+
+`EXPLAIN ANALYZE` is a PostgreSQL command that runs the query and shows how the database executed it. It answers two questions: (1) What plan did the database choose? (2) How long did each step take?
+
+There are two versions:
+- `EXPLAIN` (without ANALYZE): Shows the plan without running the query. Safe to run on production. Shows estimated costs only.
+- `EXPLAIN ANALYZE`: Actually executes the query, so it shows real timing data. Use on dev/staging, or carefully on production (it runs the query and can be slow on large tables).
+
+**How to run it from Django:**
+
+Option 1 -- From a Django script (what our benchmark does):
+```python
+# In benchmark_queries.py (line 67-81)
+def run_explain_analyze(queryset, label="Main query"):
+    compiler = queryset.query.get_compiler(using='default')
+    sql, params = compiler.as_sql()  # extract the raw SQL from the Django QuerySet
+
+    with connection.cursor() as cursor:
+        cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS) {sql}", params)
+        rows = cursor.fetchall()
+        for row in rows:
+            print(f"   {row[0]}")
+```
+`queryset.query.get_compiler().as_sql()` extracts the raw SQL that Django would send to the database. We then prepend `EXPLAIN (ANALYZE, BUFFERS)` and run it directly. The `BUFFERS` option additionally shows how many disk pages were read (cache hits vs disk reads).
+
+Option 2 -- From the psql shell directly:
+```bash
+psql -U photoz_user -d photoz_db
+photoz_db=> EXPLAIN ANALYZE SELECT * FROM photos_photo ORDER BY created_at DESC LIMIT 20;
+```
+
+**How to read the output:**
+
+Each line in the output is a "node" in the execution plan. The query planner builds a tree of operations. The deepest (most indented) nodes run first, and their results flow upward to the parent nodes.
+
+Each node shows two sets of numbers:
+```text
+Seq Scan on photos_photo  (cost=17.60..280.10 rows=3502 width=66) (actual time=0.044..0.757 rows=491 loops=1)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           ESTIMATED (before execution)              ACTUAL (measured during execution)
+```
+
+| Field | Meaning |
+|-------|---------|
+| `cost=17.60..280.10` | Estimated work. First number = startup cost (before first row is returned). Second number = total cost. These are abstract units, not milliseconds. |
+| `rows=3502` | Estimated number of rows this step will produce. |
+| `width=66` | Estimated average size (bytes) per row. |
+| `actual time=0.044..0.757` | Measured wall time in milliseconds. First number = time to return the first row. Second number = time to return all rows. |
+| `rows=491` | Actual number of rows produced. |
+| `loops=1` | How many times this step was executed. In parallel plans or nested loops, this can be >1. Multiply time * loops to get the real total time. |
+
+**Common node types and what they mean for optimization:**
+
+| Node | Meaning | Optimization Signal |
+|------|---------|-------------------|
+| **Seq Scan** | Reads every row in the table from start to end. | Missing index. Acceptable for small tables (<1,000 rows). |
+| **Index Scan** | Uses an index to jump directly to matching rows. | Good. This is what you want for filtered queries. |
+| **Index Only Scan** | Reads data directly from the index without touching the table. | Best case. The index contains all the columns needed. |
+| **Bitmap Index Scan + Bitmap Heap Scan** | Two-step: first scans the index to build a list of matching row locations, then reads those rows from the table. | Good for queries that match many rows (too many for a single Index Scan, too few for a Seq Scan). |
+| **Sort** | Sorts rows in memory or on disk. | Check if an index on the ORDER BY column could avoid the sort entirely. |
+| **Hash Join / Merge Join / Nested Loop** | Joins two tables. Hash Join builds a hash table. Merge Join requires sorted input. Nested Loop iterates row by row. | Nested Loop with a Seq Scan on the inner table is a red flag at large scale. |
+| **Parallel Seq Scan** | Seq Scan split across multiple CPU workers. | Postgres auto-enables this for large tables. Still a sign that an index could help. |
+
+---
+
+**EXPLAIN ANALYZE results -- Newsfeed main query (top 20 photos):**
 
 *With 500 Users (5,000 photos):*
 ```text
@@ -48,6 +113,12 @@ Limit  (cost=460.84..460.89 rows=20 width=66) (actual time=1.050..1.052 rows=20 
               -> Seq Scan on photos_photo  (cost=17.60..280.10 rows=3502 width=66) (actual time=0.044..0.757 rows=491 loops=1)
 Execution Time: 1.086 ms
 ```
+Reading from inside out:
+1. **Seq Scan on photos_photo**: Reads all 5,000 rows, filters down to 491 matching photos (photos from followed users, communities, or self). This is a full table scan because there is no index on `user_id` or `community_id`.
+2. **HashAggregate**: Removes duplicates (from the `DISTINCT` in the Django query). Builds a hash table of unique photo IDs.
+3. **Sort**: Sorts the 491 photos by `created_at DESC` to show newest first. Done in memory since the dataset is small.
+4. **Limit**: Takes only the first 20 rows (page 1).
+
 Key observation: **Seq Scan on photos_photo** -- the database scans all 5,000 rows and filters down to matching photos. No index on `created_at` for the `ORDER BY`, and no index on `user_id + community_id` for the filter.
 
 *With 10,000 Users (100,000 photos):*
@@ -61,6 +132,13 @@ Limit  (cost=7593.82..7596.40 rows=20 width=65) (actual time=5.685..6.345 rows=2
                     ->  Parallel Seq Scan on photos_photo  (cost=13.35..3436.76 rows=41188 width=65) (actual time=0.079..4.431 rows=200 loops=2)
 Execution Time: 6.364 ms
 ```
+Reading from inside out:
+1. **Parallel Seq Scan**: Two workers (`loops=2`) each scan half the table (~50,000 rows each), filtering down to ~200 matching rows each. 
+2. **Sort**: Each worker sorts its results by `created_at DESC`.
+3. **Gather Merge**: Merges the sorted results from both workers into a single sorted stream.
+4. **Unique**: Removes duplicates.
+5. **Limit**: Takes first 20 rows.
+
 Key observation: **Parallel Seq Scan on photos_photo** -- execution time jumped significantly (6x slower).
 
 **Why did PostgreSQL shift from a Seq Scan to a Parallel Seq Scan?**
@@ -135,3 +213,19 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 
 **Actions:**
 - Updated `photoz/bses/metrics_middleware.py`. Added logic to fall back to `request.path` only if `request.resolver_match` is empty, otherwise extract the logical view name via `request.resolver_match.view_name`. This properly resolves Django's nested URL inclusions (which `route` truncates), correctly grouping all identical endpoint paths into clean dimensions like `newsfeed`, `login`, and `profile`, making the data properly visible on CloudWatch graphs.
+
+---
+
+## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: pending, Model: Claude Opus 4.6 (Thinking))
+
+**Analysis:** The newsfeed page fires 87 SQL queries per page load (20 photos). 80 of those are N+1 queries triggered by the template loop accessing lazy-loaded ForeignKey relationships (`photo.user`, `photo.user.profile`, `photo.community`) and calling `.count()` on related managers (`photo.likes.count`, `photo.comments.count`). Production CloudWatch metrics confirmed: 87 queries, ~128ms DB latency, 230-635ms request latency (1,439ms on cold start).
+
+**Approach:** Two changes:
+1. Add `select_related('user__profile', 'community')` to the feed QuerySet in `views.py`. This tells Django to JOIN the `auth_user`, `users_userprofile`, and `communities_community` tables in a single SQL query instead of lazy-loading them one by one inside the template loop. Eliminates ~45 N+1 queries (20 user lookups + 20 profile lookups + ~5 community lookups).
+2. Add `annotate(likes_count=Count('likes', distinct=True), comments_count=Count('comments', distinct=True))` to compute like and comment counts inside the database in the same query. The template then reads `photo.likes_count` (a pre-computed integer attribute) instead of calling `photo.likes.count()` (which fires a new `SELECT COUNT(*)` query). Eliminates 40 N+1 queries (20 likes + 20 comments). The `distinct=True` is required because `select_related` with multiple JOINs can produce duplicate rows, which would inflate the counts without it.
+
+**Actions:**
+- Modified `photoz/newsfeed/views.py` -- added `select_related('user__profile', 'community')` and `annotate(likes_count=..., comments_count=...)` to the feed QuerySet. Added `Count` import.
+- Modified `photoz/newsfeed/templates/newsfeed/feed.html` -- replaced `{{ photo.likes.count }}` with `{{ photo.likes_count }}` and `{{ photo.comments.count }}` with `{{ photo.comments_count }}`.
+
+**Expected result:** 87 queries -> ~7 queries per newsfeed page load.

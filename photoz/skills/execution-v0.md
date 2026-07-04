@@ -165,3 +165,10 @@
 *   **Analysis:** CloudWatch metrics were failing to aggregate into line graphs because the EMF middleware was logging exact URL paths (e.g., `/users/phoenix_jackson_0/`). This high cardinality created tens of thousands of unique metrics instead of grouping them by route.
 *   **Actions:**
     *   **Metrics Middleware Update:** Updated `bses/metrics_middleware.py` to use Django's `request.resolver_match.view_name` instead of `request.path`. Because Django's `route` property truncates outer included URL namespaces, `view_name` is much cleaner. This transforms specific URLs into their exact logical view names (e.g., `profile`, `newsfeed`, `login`), allowing CloudWatch to correctly aggregate the data into clean visualizations.
+
+## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: pending, triggered by chapter04, Model: Claude Opus 4.6 (Thinking))
+*   **Analysis:** Newsfeed page fired 87 queries per page load due to N+1 lazy-loading in the template loop. Each of the 20 photos triggered separate queries for user, profile, community, likes count, and comments count.
+*   **Actions:**
+    *   **newsfeed/views.py:** Added `select_related('user__profile', 'community')` and `annotate(likes_count=Count('likes', distinct=True), comments_count=Count('comments', distinct=True))` to the feed QuerySet. Added `Count` import.
+    *   **newsfeed/templates/newsfeed/feed.html:** Replaced `{{ photo.likes.count }}` with `{{ photo.likes_count }}` and `{{ photo.comments.count }}` with `{{ photo.comments_count }}` to use pre-computed annotations.
+*   **Expected result:** 87 queries -> ~7 queries per newsfeed page load.
