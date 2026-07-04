@@ -75,7 +75,16 @@ Populates Postgres with realistic volume: 10,000 users, 100,000 photos, 400,000 
 python chapter04/query_optimization/seed_data.py --reset
 ```
 
-**Remote EC2:**
+**Remote EC2 (Automated via Terraform):**
+You can automatically seed the database when launching the infrastructure by using the global Terraform configuration:
+```bash
+cd iaac/aws/terraform
+terraform apply -var="seed_database=true"
+```
+*Note: Terraform will output the `test_user_credentials` (Username: test_user / Password: password123) for easy login.*
+
+**Remote EC2 (Manual SSH):**
+If you have already launched the infrastructure without seeding:
 ```bash
 POSTGRES_HOST=<DB_EC2_PRIVATE_IP> python chapter04/query_optimization/seed_data.py --reset
 ```

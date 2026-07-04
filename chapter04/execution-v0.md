@@ -216,7 +216,7 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 
 ---
 
-## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: pending, Model: Claude Opus 4.6 (Thinking))
+## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: 4f1239cae949316ceb826c918264e7d99d7f4340, Model: Claude Opus 4.6 (Thinking))
 
 **Analysis:** The newsfeed page fires 87 SQL queries per page load (20 photos). 80 of those are N+1 queries triggered by the template loop accessing lazy-loaded ForeignKey relationships (`photo.user`, `photo.user.profile`, `photo.community`) and calling `.count()` on related managers (`photo.likes.count`, `photo.comments.count`). Production CloudWatch metrics confirmed: 87 queries, ~128ms DB latency, 230-635ms request latency (1,439ms on cold start).
 
@@ -229,3 +229,17 @@ The alternative approach is to call the AWS `cloudwatch:PutMetricData` API direc
 - Modified `photoz/newsfeed/templates/newsfeed/feed.html` -- replaced `{{ photo.likes.count }}` with `{{ photo.likes_count }}` and `{{ photo.comments.count }}` with `{{ photo.comments_count }}`.
 
 **Expected result:** 87 queries -> ~7 queries per newsfeed page load.
+
+---
+
+## Phase: Automated Database Seeding via Terraform (Date: 2026-07-04, Commit: pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** Manually SSHing into the EC2 instance to run `seed_data.py` is tedious. By exposing a boolean Terraform variable, we can optionally instruct the Database EC2 node to run the seeding script directly during initial provisioning.
+
+**Actions:**
+- Copied `chapter03/iaac/terraform` to `iaac/aws/terraform` for global use across the project.
+- Modified `iaac/aws/terraform/variables.tf` to add the `seed_database` variable (default false).
+- Modified `iaac/aws/terraform/outputs.tf` to print `test_user_credentials` if seeding is enabled.
+- Modified `iaac/aws/terraform/main.tf` to update `db_node`'s `user_data`. If `seed_database` is true, it installs `python3-venv`, `libpq-dev`, builds the virtual environment, installs requirements, waits 10 seconds for Postgres to start, and runs `seed_data.py --reset`.
+- Modified `chapter04/query_optimization/seed_data.py` to guarantee the first seeded user (index 0) has `first_name="Test"`, `last_name="User"`, and `username_display="test_user"` with password `password123`.
+- Updated `chapter04/README.md` to document the new `terraform apply -var="seed_database=true"` command for automated seeding.

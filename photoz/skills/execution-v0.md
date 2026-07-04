@@ -166,7 +166,7 @@
 *   **Actions:**
     *   **Metrics Middleware Update:** Updated `bses/metrics_middleware.py` to use Django's `request.resolver_match.view_name` instead of `request.path`. Because Django's `route` property truncates outer included URL namespaces, `view_name` is much cleaner. This transforms specific URLs into their exact logical view names (e.g., `profile`, `newsfeed`, `login`), allowing CloudWatch to correctly aggregate the data into clean visualizations.
 
-## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: pending, triggered by chapter04, Model: Claude Opus 4.6 (Thinking))
+## Phase: Newsfeed N+1 Query Fix (Date: 2026-07-04, Commit: 4f1239cae949316ceb826c918264e7d99d7f4340, triggered by chapter04, Model: Claude Opus 4.6 (Thinking))
 *   **Analysis:** Newsfeed page fired 87 queries per page load due to N+1 lazy-loading in the template loop. Each of the 20 photos triggered separate queries for user, profile, community, likes count, and comments count.
 *   **Actions:**
     *   **newsfeed/views.py:** Added `select_related('user__profile', 'community')` and `annotate(likes_count=Count('likes', distinct=True), comments_count=Count('comments', distinct=True))` to the feed QuerySet. Added `Count` import.

@@ -129,8 +129,12 @@ def seed_users():
 
         users = []
         for i in range(NUM_USERS):
-            first = random.choice(FIRST_NAMES)
-            last = random.choice(LAST_NAMES)
+            if i == 0:
+                first = "Test"
+                last = "User"
+            else:
+                first = random.choice(FIRST_NAMES)
+                last = random.choice(LAST_NAMES)
             users.append(User(
                 username=str(uuid.uuid4())[:30],
                 password=hashed_pw,
@@ -141,9 +145,10 @@ def seed_users():
 
         profiles = []
         for i, user in enumerate(users):
+            username_display = "test_user" if i == 0 else f"{user.first_name.lower()}_{user.last_name.lower()}_{i}"
             profiles.append(UserProfile(
                 user=user,
-                username_display=f"{user.first_name.lower()}_{user.last_name.lower()}_{i}",
+                username_display=username_display,
                 first_name=user.first_name,
                 last_name=user.last_name,
             ))
