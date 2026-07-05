@@ -423,7 +423,7 @@ After applying the migration and deploying the new query, the production metrics
 
 ---
 
-## Phase: Fix Photo Detail N+1 (Date: 2026-07-05, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: Fix Photo Detail N+1 (Date: 2026-07-05, Commit: 25e37ec718217a91741755205ab5234b9178b804, Model: Gemini 3.1 Pro (High))
 
 **Analysis:** The photo detail page fired 24-30 queries per page load. The primary bottleneck was the comment loop, which fired 2 queries per comment (`comment.user` and `comment.user.profile`). Furthermore, the photo lookup itself fired additional queries for its author's profile and the community.
 
@@ -434,3 +434,15 @@ After applying the migration and deploying the new query, the production metrics
 * **Indexes:** No new indexes were required here because (1) `get_object_or_404(id=...)` uses the primary key index, (2) `photo.likes.count()` uses the automatic foreign key index on `Like.photo_id`, (3) `has_liked` uses the unique constraint index on `['user', 'photo']`, and (4) the comments query is completely optimized by the `idx_comment_photo_created` composite index that was already added in Phase 2.
 
 **Notes/Edge Cases:** This dramatically drops the queries on the photo detail page to a flat ~5 queries regardless of how many comments are rendered, and all queries are backed by optimal indexes.
+
+---
+
+## Phase: Fix Profile Page N+1 (Date: 2026-07-05, Commit: pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** The profile page benchmark fired an excess of queries because it was fetching the base user object separately from the profile, resulting in an additional query. Furthermore, while the current template does not render like/comment counts per photo, the base photos query lacked prefetching if those counts were ever added.
+
+**Actions:**
+* **users/views.py:** Modified the `profile_view` to eagerly load the associated `User` object when fetching the `UserProfile`:
+    * Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` lookup.
+    
+**Notes/Edge Cases:** This saves 1 query immediately by fetching the `UserProfile` and `User` in a single SQL `INNER JOIN` rather than hitting the database twice. It also future-proofs the baseline profile view.

@@ -180,8 +180,13 @@
     *   **photos/models.py:** Added composite indexes on `Photo` (`user/-created_at`, `community/-created_at`, `-created_at`) and `Comment` (`photo/created_at`).
 *   **Result:** Database execution time dropped from 524.5ms to 9.9ms (a ~98% reduction). Sequential Scans and massive JOINs were completely eliminated, replaced by Index Scans. CloudWatch reported `DatabaseLatency: 79.06ms` total across 9 queries.
 
-## Phase: Fix Photo Detail N+1 (Date: 2026-07-05, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: Fix Photo Detail N+1 (Date: 2026-07-05, Commit: 25e37ec718217a91741755205ab5234b9178b804, triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Photo detail page fired 24-30 queries due to N+1 on the photo's profile/community, and N+1 on the comment's user/profile.
 *   **Actions:**
     *   **photos/views.py:** Added `.select_related('user__profile', 'community')` to the `Photo` lookup, and `.select_related('user__profile')` to the `photo.comments` queryset.
     *   **Result:** Queries drop to a flat ~5 queries regardless of comment count. No new indexes needed (relies on PK index, single column FK indexes, and the `idx_comment_photo_created` composite index added in Phase 2).
+
+## Phase: Fix Profile Page N+1 (Date: 2026-07-05, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+*   **Analysis:** The profile page benchmark was doing an extra database query to fetch the User object after fetching the UserProfile.
+*   **Actions:**
+    *   **users/views.py:** Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` call in `profile_view` to load both simultaneously in one query.

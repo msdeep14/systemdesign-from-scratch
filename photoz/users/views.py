@@ -78,7 +78,10 @@ def logout_view(request):
     return redirect('login')
 
 def profile_view(request, username):
-    profile = get_object_or_404(UserProfile, username_display=username)
+    profile = get_object_or_404(
+        UserProfile.objects.select_related('user'),
+        username_display=username
+    )
     user_obj = profile.user
     
     photos = user_obj.photos.filter(community__isnull=True).order_by('-created_at') if hasattr(user_obj, 'photos') else []
