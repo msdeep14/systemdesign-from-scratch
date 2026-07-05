@@ -358,7 +358,7 @@ Discovered two massive bottlenecks:
 
 ---
 
-## Phase: Newsfeed Database Latency Fix (Date: 2026-07-05, Commit: pending, Model: Claude Opus 4.6 (Thinking))
+## Phase: Newsfeed Database Latency Fix (Date: 2026-07-05, Commit: d8a670a2997f24f59b42825d2c3b4986c7a6e568, Model: Claude Opus 4.6 (Thinking))
 
 **Analysis:** Based on the EXPLAIN ANALYZE findings, two changes are needed: (1) remove the `.annotate()` from the main feed queryset to eliminate the massive LEFT JOINs on 400k likes + 200k comments, and (2) add composite indexes to enable Index Scans instead of Seq Scans.
 
@@ -420,3 +420,17 @@ After applying the migration and deploying the new query, the production metrics
 * **CloudWatch Metrics:** The middleware reported `DatabaseLatency: 79.06ms` and `QueryCount: 9`. The 79ms includes the main query (9.9ms) plus the two new small grouped count queries and network round-trip overhead.
 
 **Notes/Edge Cases:** Django already auto-creates single-column FK indexes on `Like.photo_id` and `Comment.photo_id`, so no duplicate index was added for Like. The Comment composite index `(photo, created_at)` is specifically useful for the photo detail page which fetches `comments.order_by('created_at')` — PostgreSQL can serve both filter and sort from a single index.
+
+---
+
+## Phase: Fix Photo Detail N+1 (Date: 2026-07-05, Commit: pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** The photo detail page fired 24-30 queries per page load. The primary bottleneck was the comment loop, which fired 2 queries per comment (`comment.user` and `comment.user.profile`). Furthermore, the photo lookup itself fired additional queries for its author's profile and the community.
+
+**Actions:**
+* **photos/views.py:** Modified the `photo_detail` view to eagerly load related entities:
+    * Used `Photo.objects.select_related('user__profile', 'community')` in the `get_object_or_404` call to kill 3 queries for the photo author, profile, and community.
+    * Used `.select_related('user__profile')` on the `photo.comments` queryset to kill the 2 queries per comment in the template loop.
+* **Indexes:** No new indexes were required here because (1) `get_object_or_404(id=...)` uses the primary key index, (2) `photo.likes.count()` uses the automatic foreign key index on `Like.photo_id`, (3) `has_liked` uses the unique constraint index on `['user', 'photo']`, and (4) the comments query is completely optimized by the `idx_comment_photo_created` composite index that was already added in Phase 2.
+
+**Notes/Edge Cases:** This dramatically drops the queries on the photo detail page to a flat ~5 queries regardless of how many comments are rendered, and all queries are backed by optimal indexes.

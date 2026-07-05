@@ -44,10 +44,13 @@ def upload_photo(request):
 
 @login_required
 def photo_detail(request, id):
-    photo = get_object_or_404(Photo, id=id)
+    photo = get_object_or_404(
+        Photo.objects.select_related('user__profile', 'community'),
+        id=id
+    )
     likes_count = photo.likes.count()
     has_liked = photo.likes.filter(user=request.user).exists()
-    comments = photo.comments.all().order_by('created_at')
+    comments = photo.comments.select_related('user__profile').order_by('created_at')
     
     return render(request, 'photos/detail.html', {
         'photo': photo,
