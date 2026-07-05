@@ -36,6 +36,11 @@ server {
     location /static/ {
         alias /usr/share/nginx/html/static/;
     }
+    error_page 400 401 403 404 501 503 /error.html;
+    location = /error.html {
+        root /usr/share/nginx/html;
+        internal;
+    }
 
     error_page 500 /500.html;
     location = /500.html {

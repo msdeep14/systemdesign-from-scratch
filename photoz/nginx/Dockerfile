@@ -7,6 +7,7 @@ RUN apk add --no-cache curl unzip && \
     apk del curl unzip
 
 RUN rm /etc/nginx/conf.d/default.conf
+COPY error.html /usr/share/nginx/html/error.html
 COPY 504.html /usr/share/nginx/html/504.html
 COPY 502.html /usr/share/nginx/html/502.html
 COPY 500.html /usr/share/nginx/html/500.html
