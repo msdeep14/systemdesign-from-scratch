@@ -313,7 +313,7 @@ SSH into the Database EC2 instance and run the migration. The migration creates 
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
-cd systemdesignfromscratch
+cd systemdesign-from-scratch/
 git pull origin main
 
 cd photoz
@@ -336,7 +336,7 @@ The App Nodes are managed by an Auto Scaling Group. To deploy the new code, SSH 
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<APP_EC2_IP>
-cd systemdesignfromscratch
+cd systemdesign-from-scratch/
 git pull origin main
 cd photoz
 docker compose -f docker-compose-app.yml up -d --build

@@ -367,4 +367,56 @@ Discovered two massive bottlenecks:
 * **photos/models.py:** Added `Meta.indexes` to `Photo` with three composite indexes: `(user, -created_at)` for the newsfeed user filter, `(community, -created_at)` for the community filter, and `(-created_at)` for the global sort. Added `Meta.indexes` to `Comment` with `(photo, created_at)` for the photo detail comments query.
 * Imported `Like` and `Comment` in views.py for the post-pagination count queries.
 
+**Results (Post-Optimization):**
+After applying the migration and deploying the new query, the production metrics improved dramatically.
+
+<details>
+<summary>Click to view POST-OPTIMIZATION EXPLAIN ANALYZE output</summary>
+
+```text
+ Limit  (cost=14.38..21.25 rows=20 width=149) (actual time=0.143..9.134 rows=20 loops=1)
+   ->  Nested Loop Left Join  (cost=14.38..24033.65 rows=70000 width=149) (actual time=0.141..9.129 rows=20 loops=1)
+         ->  Nested Loop Left Join  (cost=14.23..22251.98 rows=70000 width=126) (actual time=0.135..9.107 rows=20 loops=1)
+               ->  Nested Loop  (cost=13.94..16868.86 rows=70000 width=100) (actual time=0.124..5.307 rows=20 loops=1)
+                     ->  Index Scan using idx_photo_created_at on photos_photo  (cost=13.64..11979.64 rows=70000 width=65) (actual time=0.110..5.147 rows=20 loops=1)
+                           Filter: ((hashed SubPlan 1) OR ((community_id IS NULL) AND (hashed SubPlan 2)) OR (user_id = 1))
+                           Rows Removed by Filter: 6458
+                           SubPlan 1
+                             ->  Index Scan using communities_communitymembership_user_id_599c8d2c on communities_communitymembership u0  (cost=0.28..8.30 rows=1 width=8) (actual time=0.019..0.019 rows=0 loops=1)
+                                   Index Cond: (user_id = 1)
+                                   Filter: ((status)::text = 'accepted'::text)
+                           SubPlan 2
+                             ->  Index Only Scan using unique_follow on users_follow u0_1  (cost=0.42..4.96 rows=31 width=4) (actual time=0.030..0.033 rows=25 loops=1)
+                                   Index Cond: (follower_id = 1)
+                                   Heap Fetches: 0
+                     ->  Memoize  (cost=0.30..0.33 rows=1 width=35) (actual time=0.007..0.007 rows=1 loops=20)
+                           Cache Key: photos_photo.user_id
+                           Cache Mode: logical
+                           Hits: 5  Misses: 15  Evictions: 0  Overflows: 0  Memory Usage: 2kB
+                           ->  Index Scan using auth_user_pkey on auth_user  (cost=0.29..0.32 rows=1 width=35) (actual time=0.008..0.008 rows=1 loops=15)
+                                 Index Cond: (id = photos_photo.user_id)
+               ->  Memoize  (cost=0.30..0.37 rows=1 width=30) (actual time=0.190..0.190 rows=1 loops=20)
+                     Cache Key: auth_user.id
+                     Cache Mode: logical
+                     Hits: 5  Misses: 15  Evictions: 0  Overflows: 0  Memory Usage: 2kB
+                     ->  Index Scan using users_userprofile_user_id_key on users_userprofile  (cost=0.29..0.36 rows=1 width=30) (actual time=0.251..0.251 rows=1 loops=15)
+                           Index Cond: (user_id = auth_user.id)
+         ->  Memoize  (cost=0.15..0.17 rows=1 width=23) (actual time=0.001..0.001 rows=0 loops=20)
+               Cache Key: photos_photo.community_id
+               Cache Mode: logical
+               Hits: 19  Misses: 1  Evictions: 0  Overflows: 0  Memory Usage: 1kB
+               ->  Index Scan using communities_community_pkey on communities_community  (cost=0.14..0.16 rows=1 width=23) (actual time=:
+               0.004..0.005 rows=0 loops=1)
+                     Index Cond: (id = photos_photo.community_id)
+ Planning Time: 7.836 ms
+ Execution Time: 9.927 ms
+```
+
+</details>
+
+* **Database Execution Time:** Dropped from **524.5 ms** down to **9.9 ms** (a ~98% reduction in latency).
+* **Scan Type:** The `Parallel Seq Scan` was entirely replaced by an `Index Scan using idx_photo_created_at`.
+* **Join Elimination:** The catastrophic `Merge Left Join` on the likes and comments tables is completely gone from the main query.
+* **CloudWatch Metrics:** The middleware reported `DatabaseLatency: 79.06ms` and `QueryCount: 9`. The 79ms includes the main query (9.9ms) plus the two new small grouped count queries and network round-trip overhead.
+
 **Notes/Edge Cases:** Django already auto-creates single-column FK indexes on `Like.photo_id` and `Comment.photo_id`, so no duplicate index was added for Like. The Comment composite index `(photo, created_at)` is specifically useful for the photo detail page which fetches `comments.order_by('created_at')` — PostgreSQL can serve both filter and sort from a single index.

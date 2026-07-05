@@ -178,3 +178,4 @@
 *   **Actions:**
     *   **newsfeed/views.py:** Removed `.annotate()` from the main feed queryset. Added post-pagination count queries using `Like.objects.filter(photo_id__in=photo_ids)` and `Comment.objects.filter(photo_id__in=photo_ids)` to compute counts for only the 20 visible photos.
     *   **photos/models.py:** Added composite indexes on `Photo` (`user/-created_at`, `community/-created_at`, `-created_at`) and `Comment` (`photo/created_at`).
+*   **Result:** Database execution time dropped from 524.5ms to 9.9ms (a ~98% reduction). Sequential Scans and massive JOINs were completely eliminated, replaced by Index Scans. CloudWatch reported `DatabaseLatency: 79.06ms` total across 9 queries.
