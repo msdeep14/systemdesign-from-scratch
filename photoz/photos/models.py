@@ -9,6 +9,13 @@ class Photo(models.Model):
     caption = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='idx_photo_user_created'),
+            models.Index(fields=['community', '-created_at'], name='idx_photo_community_created'),
+            models.Index(fields=['-created_at'], name='idx_photo_created_at'),
+        ]
+
     def __str__(self):
         return f"Photo {self.id} by {self.user.username}"
 
@@ -27,3 +34,9 @@ class Comment(models.Model):
     photo = models.ForeignKey(Photo, on_delete=models.CASCADE, related_name='comments')
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['photo', 'created_at'], name='idx_comment_photo_created'),
+        ]
+

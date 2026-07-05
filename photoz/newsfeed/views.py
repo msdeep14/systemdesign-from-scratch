@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.conf import settings
 from django.db.models import Count, Q
-from photos.models import Photo
+from photos.models import Photo, Like, Comment
 from users.models import Follow
 from communities.models import CommunityMembership
 
@@ -19,14 +19,28 @@ def newsfeed(request):
     ).select_related(
         'user__profile',
         'community',
-    ).annotate(
-        likes_count=Count('likes', distinct=True),
-        comments_count=Count('comments', distinct=True),
     ).order_by('-created_at').distinct()
     
     paginator = Paginator(feed, getattr(settings, 'BSES_PAGE_SIZE', 20))
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    photo_ids = [photo.id for photo in page_obj.object_list]
+    likes_counts = dict(
+        Like.objects.filter(photo_id__in=photo_ids)
+        .values('photo_id')
+        .annotate(count=Count('id'))
+        .values_list('photo_id', 'count')
+    )
+    comments_counts = dict(
+        Comment.objects.filter(photo_id__in=photo_ids)
+        .values('photo_id')
+        .annotate(count=Count('id'))
+        .values_list('photo_id', 'count')
+    )
+    for photo in page_obj.object_list:
+        photo.likes_count = likes_counts.get(photo.id, 0)
+        photo.comments_count = comments_counts.get(photo.id, 0)
     
     liked_photo_ids = set(request.user.like_set.values_list('photo_id', flat=True)) if request.user.is_authenticated else set()
     

@@ -172,3 +172,9 @@
     *   **newsfeed/views.py:** Added `select_related('user__profile', 'community')` and `annotate(likes_count=Count('likes', distinct=True), comments_count=Count('comments', distinct=True))` to the feed QuerySet. Added `Count` import.
     *   **newsfeed/templates/newsfeed/feed.html:** Replaced `{{ photo.likes.count }}` with `{{ photo.likes_count }}` and `{{ photo.comments.count }}` with `{{ photo.comments_count }}` to use pre-computed annotations.
 *   **Expected result:** 87 queries -> ~7 queries per newsfeed page load.
+
+## Phase: Newsfeed Database Latency Fix (Date: 2026-07-05, Commit: pending, triggered by chapter04, Model: Claude Opus 4.6 (Thinking))
+*   **Analysis:** EXPLAIN ANALYZE showed 524ms execution time due to massive LEFT JOINs from `.annotate()` and Seq Scans from missing indexes.
+*   **Actions:**
+    *   **newsfeed/views.py:** Removed `.annotate()` from the main feed queryset. Added post-pagination count queries using `Like.objects.filter(photo_id__in=photo_ids)` and `Comment.objects.filter(photo_id__in=photo_ids)` to compute counts for only the 20 visible photos.
+    *   **photos/models.py:** Added composite indexes on `Photo` (`user/-created_at`, `community/-created_at`, `-created_at`) and `Comment` (`photo/created_at`).

@@ -265,3 +265,143 @@ Example output (one line per request):
 ```json
 {"_aws": {"Timestamp": 1719734400000, "CloudWatchMetrics": [{"Namespace": "PhotoZ/Application", "Dimensions": [["Endpoint", "Method"]], "Metrics": [{"Name": "RequestLatency", "Unit": "Milliseconds"}, {"Name": "DatabaseLatency", "Unit": "Milliseconds"}, {"Name": "QueryCount", "Unit": "Count"}]}]}, "Endpoint": "/newsfeed/", "Method": "GET", "StatusCode": 200, "RequestLatency": 124.56, "DatabaseLatency": 48.32, "QueryCount": 83}
 ```
+
+---
+
+## Part 3: Database Latency Fix (Indexes + Query Restructuring)
+
+Part 2 showed that the newsfeed query took ~524ms in the database despite only returning 20 photos. `EXPLAIN ANALYZE` revealed two bottlenecks:
+
+1. **Sequential Scans** on `photos_photo` (no indexes on `user_id + created_at` or `community_id + created_at`).
+2. **Massive LEFT JOINs** from `.annotate()` — PostgreSQL joined 400,000 likes and 200,000 comments against the entire photo set *before* applying `LIMIT 20`.
+
+### What Changed
+
+**Query restructuring (`newsfeed/views.py`):**
+- Removed `.annotate(likes_count=..., comments_count=...)` from the main feed queryset.
+- After Django paginates to 20 photos, two small `GROUP BY` queries fetch counts only for those 20 photo IDs.
+
+**Database indexes (`photos/models.py`):**
+- `Photo`: composite indexes on `(user, -created_at)`, `(community, -created_at)`, and `(-created_at)`.
+- `Comment`: composite index on `(photo, created_at)` for the photo detail page.
+
+### Deploying to an Already Running System
+
+The system has three layers: Load Balancer, App Nodes (behind Auto Scaling Group), and Database Node. The changes touch both the application code (App Nodes) and the database schema (Database Node). Here are the steps to deploy without downtime.
+
+#### Step 1: Generate the Migration Locally
+
+Run this on your local machine to generate the migration file:
+
+```bash
+cd photoz
+source venv/bin/activate
+python manage.py makemigrations photos
+```
+
+This creates a migration file under `photoz/photos/migrations/` that contains `CREATE INDEX` statements. Commit this file to git.
+
+```bash
+git add .
+git commit -m "add composite indexes and fix newsfeed query"
+git push origin main
+```
+
+#### Step 2: Apply the Migration on the Database Node
+
+SSH into the Database EC2 instance and run the migration. The migration creates indexes on existing tables — it does not modify any table data or schema structure.
+
+```bash
+ssh -i <your_key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
+cd systemdesignfromscratch
+git pull origin main
+
+cd photoz
+source venv/bin/activate
+python manage.py migrate photos
+```
+
+If the virtual environment is not set up on the DB node, create it first:
+
+```bash
+sudo apt update && sudo apt install -y python3-venv libpq-dev
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+#### Step 3: Update the App Nodes
+
+The App Nodes are managed by an Auto Scaling Group. To deploy the new code, SSH into each running App node and rebuild:
+
+```bash
+ssh -i <your_key.pem> ubuntu@<APP_EC2_IP>
+cd systemdesignfromscratch
+git pull origin main
+cd photoz
+docker compose -f docker-compose-app.yml up -d --build
+```
+
+Repeat for each App node. To find the IPs of the running App nodes:
+
+```bash
+aws ec2 describe-instances \
+  --filters "Name=tag:aws:autoscaling:groupName,Values=photoz-app-asg" "Name=instance-state-name,Values=running" \
+  --query "Reservations[].Instances[].PublicIpAddress" \
+  --output text
+```
+
+#### Step 4: Verify the Fix
+
+After deploying, run `EXPLAIN ANALYZE` on the Database Node to confirm the indexes are being used:
+
+```bash
+ssh -i <your_key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
+docker exec -it photoz-db-1 psql -U postgres -d bses
+```
+
+Then run the newsfeed query (without the `.annotate()` joins — the new query is simpler):
+
+```sql
+EXPLAIN ANALYZE
+SELECT "photos_photo"."id", "photos_photo"."user_id", "photos_photo"."community_id",
+       "photos_photo"."image", "photos_photo"."caption", "photos_photo"."created_at",
+       "auth_user"."id", "auth_user"."username",
+       "users_userprofile"."id", "users_userprofile"."username_display",
+       "communities_community"."id", "communities_community"."name"
+FROM "photos_photo"
+INNER JOIN "auth_user" ON ("photos_photo"."user_id" = "auth_user"."id")
+LEFT OUTER JOIN "users_userprofile" ON ("auth_user"."id" = "users_userprofile"."user_id")
+LEFT OUTER JOIN "communities_community" ON ("photos_photo"."community_id" = "communities_community"."id")
+WHERE (
+    "photos_photo"."community_id" IN (
+        SELECT U0."community_id" FROM "communities_communitymembership" U0 WHERE (U0."status" = 'accepted' AND U0."user_id" = 1)
+    ) OR
+    ("photos_photo"."community_id" IS NULL AND "photos_photo"."user_id" IN (
+        SELECT U0."following_id" FROM "users_follow" U0 WHERE U0."follower_id" = 1
+    )) OR
+    "photos_photo"."user_id" = 1
+)
+ORDER BY "photos_photo"."created_at" DESC
+LIMIT 20;
+```
+
+Look for **`Index Scan`** instead of `Seq Scan`, and the execution time should drop from ~524ms to under 10ms.
+
+Also check CloudWatch metrics after browsing the newsfeed a few times — `DatabaseLatency` should drop significantly.
+
+### Does Running Migrations Impact Production Traffic?
+
+Short answer: for this specific migration, **no meaningful impact**.
+
+Django's `CREATE INDEX` statement runs as a standard (non-concurrent) operation. Here is what happens during the index creation:
+
+| Aspect | Impact |
+|--------|--------|
+| **Read queries (SELECT)** | Continue to work normally. Existing queries are not blocked. |
+| **Write queries (INSERT/UPDATE/DELETE)** | PostgreSQL acquires a `SHARE` lock on the table during `CREATE INDEX`. This blocks writes (new photo uploads, new likes, new comments) until the index is built. |
+| **Duration** | On our dataset (100k photos, 400k likes, 200k comments), index creation takes 1-5 seconds per index. Total: ~15-20 seconds of write blocking. |
+
+For our scale (a few concurrent users), a 15-20 second write pause is acceptable. Reads continue uninterrupted — users can still browse the newsfeed, view photos, and search.
+
+**For larger production systems** (millions of rows, hundreds of concurrent writes), you would use `CREATE INDEX CONCURRENTLY` instead. This builds the index in the background without blocking writes, but takes longer and cannot run inside a transaction. Django supports this via `AddIndex` with `opclasses` or by writing a custom `RunSQL` migration with `CREATE INDEX CONCURRENTLY`. This is outside the scope of our current setup.
