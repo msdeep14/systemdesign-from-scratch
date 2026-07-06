@@ -186,7 +186,7 @@
     *   **photos/views.py:** Added `.select_related('user__profile', 'community')` to the `Photo` lookup, and `.select_related('user__profile')` to the `photo.comments` queryset.
     *   **Result:** Queries drop to a flat ~5 queries regardless of comment count. No new indexes needed (relies on PK index, single column FK indexes, and the `idx_comment_photo_created` composite index added in Phase 2).
 
-## Phase: Fix Profile Page N+1 (Date: 2026-07-05, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: Fix Profile Page N+1 (Date: 2026-07-05, Commit: 0a8ce76b5987a620df6ca4dad9ed474c34fe39dd, triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** The profile page benchmark was doing an extra database query to fetch the User object after fetching the UserProfile.
 *   **Actions:**
     *   **users/views.py:** Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` call in `profile_view` to load both simultaneously in one query.

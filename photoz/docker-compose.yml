@@ -39,7 +39,9 @@ services:
     build: ./nginx
     ports:
       - "80:80"
+    command: ["nginx", "-g", "daemon off;"]
     volumes:
+      - ./nginx/nginx.conf.local:/etc/nginx/conf.d/default.conf
       - static_volume:/app/staticfiles
     depends_on:
       - web

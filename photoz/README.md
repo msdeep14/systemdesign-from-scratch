@@ -42,18 +42,46 @@ BSES is a modern, responsive social media web application built with Django. It 
    ```
    Visit `http://localhost:8000` in your browser.
 
-## Start Everything via Docker (All-in-one)
-If you don't want to start the database and Gunicorn manually as shown above, you can run everything together in one command using Docker. This will boot both the PostgreSQL database and the Django Gunicorn server simultaneously:
+## Start the Decoupled Architecture Locally via Docker
+To run the full decoupled system locally (mimicking the production environment without AWS-specific networking), use the provided local `docker-compose.yml`. This boots the PostgreSQL database, multiple Django Gunicorn workers, and the Nginx Load Balancer:
+
 ```bash
 docker-compose up -d --build
 ```
-You can then visit `http://localhost` (or your EC2 public IP) in your browser.
+You can then visit `http://localhost` in your browser. Nginx will route your requests to the application workers.
 
 To stop the cluster:
 ```bash
 docker-compose down
 ```
 
+### Interacting with the Local Database
+While the cluster is running, you can connect directly to the PostgreSQL database container to run queries, test indexes, or debug.
+
+Connect to the database using `psql`:
+```bash
+docker-compose exec db psql -U postgres -d bses
+```
+
+You can seed the data in the database if needed:
+```bash
+cd photoz
+source venv/bin/activate  
+pip install -r requirements.txt 
+cd chapter04/query_optimization 
+python seed_data.py --reset 
+```
+
+Login with username `test_user` and `password123`
+
+Once connected, you can run standard SQL queries. Here are some examples:
+```sql
+-- select query
+select * from photos_photo limit 1;
+
+-- Exit the database terminal
+\q
+```
 ## Production Deployment (AWS EC2 / Docker)
 
 For detailed deployment strategies and architectural decisions, refer to the full [EC2 Deployment Guide](skills/aws-ec2-deployment-v0.md). Below are the essential steps to launch this application on AWS.
