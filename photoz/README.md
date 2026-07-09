@@ -55,6 +55,12 @@ To stop the cluster:
 docker-compose down
 ```
 
+### Applying Database Migrations in Docker
+If you modify the Django models (`models.py`) while using the Docker setup, you must generate and apply migrations inside the running web container:
+```bash
+docker-compose exec web bash -c "python manage.py makemigrations && python manage.py migrate"
+```
+
 ### Interacting with the Local Database
 While the cluster is running, you can connect directly to the PostgreSQL database container to run queries, test indexes, or debug.
 

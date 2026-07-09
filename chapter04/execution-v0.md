@@ -446,3 +446,14 @@ After applying the migration and deploying the new query, the production metrics
     * Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` lookup.
     
 **Notes/Edge Cases:** This saves 1 query immediately by fetching the `UserProfile` and `User` in a single SQL `INNER JOIN` rather than hitting the database twice. It also future-proofs the baseline profile view.
+
+---
+
+## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: pending, Model: Gemini 3.1 Pro)
+
+**Analysis & Decision:**
+During the query optimization phase, a single-column index on `Photo` for `(-created_at)` was created as a potential fallback for global ordering. However, further analysis of the newsfeed queries revealed that because the application strictly filters photos by `user_id` or `community_id`, a global explore feed doesn't exist. Thus, `idx_photo_created_at` was dead weight, occupying disk space and degrading write performance for no benefit.
+
+**Actions Taken:**
+* **Removed** `idx_photo_created_at` from `photoz/photos/models.py`.
+* Maintained the strict scope rule of not including features/indexes meant for future "unclarified" enhancements.

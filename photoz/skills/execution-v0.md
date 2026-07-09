@@ -190,3 +190,8 @@
 *   **Analysis:** The profile page benchmark was doing an extra database query to fetch the User object after fetching the UserProfile.
 *   **Actions:**
     *   **users/views.py:** Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` call in `profile_view` to load both simultaneously in one query.
+
+## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro)
+*   **Analysis:** Removed `idx_photo_created_at` because there is no global explore feed that orders by `-created_at` without filtering by user/community.
+*   **Actions:**
+    *   **photos/models.py:** Removed the index `idx_photo_created_at` from the `Photo` model.

@@ -13,7 +13,6 @@ class Photo(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at'], name='idx_photo_user_created'),
             models.Index(fields=['community', '-created_at'], name='idx_photo_community_created'),
-            models.Index(fields=['-created_at'], name='idx_photo_created_at'),
         ]
 
     def __str__(self):
