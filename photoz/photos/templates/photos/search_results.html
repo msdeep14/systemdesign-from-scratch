@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load hashtag_tags %}
+{% block title %}Search Results for "{{ query }}" - BSES{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 class="mb-4">Search Results for "{{ query }}"</h2>
+
+    {% if search_type == 'users' %}
+        {% if user_results %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for profile in user_results %}
+                    <div class="card" style="padding: 1.5rem; display: flex; align-items: center; gap: 1.5rem;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                            {% if profile.profile_picture %}
+                                <img src="{{ profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                            {% else %}
+                                <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; font-size: 1.5rem; color: white; background-color: var(--primary);">
+                                    {{ profile.first_name|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1;">
+                            <h3 style="margin-bottom: 0.25rem;">
+                                <a href="{% url 'profile' profile.username_display %}" style="text-decoration: none; color: inherit;">
+                                    {{ profile.first_name }} {{ profile.last_name }}
+                                </a>
+                            </h3>
+                            <p style="color: var(--text-muted);">@{{ profile.username_display }}</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'profile' profile.username_display %}" class="btn btn-outline">View Profile</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="card text-center" style="padding: 3rem;">
+                <i class="fas fa-search mb-4" style="font-size: 3rem; color: var(--text-muted);"></i>
+                <h3>No users found</h3>
+                <p class="mt-2 text-muted">We couldn't find any users matching "{{ query }}".</p>
+            </div>
+        {% endif %}
+
+    {% elif search_type == 'photos' %}
+        {% if page_obj %}
+            <div style="display: flex; flex-direction: column; gap: 2rem;">
+                {% for photo in page_obj %}
+                    <div class="card photo-card">
+                        <div style="padding: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                            <div style="width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                                {% if photo.user.profile.profile_picture %}
+                                    <img src="{{ photo.user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                {% else %}
+                                    <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary); font-size: 0.8rem;">
+                                        {{ photo.user.profile.first_name|first|upper }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit; font-weight: 600;">
+                                    {{ photo.user.profile.first_name }} {{ photo.user.profile.last_name }}
+                                </a>
+                                {% if photo.community %}
+                                    <span class="text-muted" style="font-size: 0.9rem;"> in <a href="{% url 'community_detail' photo.community.id %}" style="text-decoration: none; color: var(--primary);">{{ photo.community.name }}</a></span>
+                                {% endif %}
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ photo.created_at|timesince }} ago</div>
+                            </div>
+                        </div>
+
+                        <a href="{% url 'photo_detail' photo.id %}" style="display: block; width: 100%; max-height: 500px; background-color: #000;">
+                            <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="width: 100%; max-height: 500px; object-fit: contain;">
+                        </a>
+
+                        <div style="padding: 1rem;">
+                            <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                                <button class="btn btn-sm like-btn {% if photo.id in liked_photo_ids %}btn-primary{% else %}btn-outline{% endif %}" data-id="{{ photo.id }}">
+                                    <i class="fas fa-heart"></i> <span class="likes-count">{{ photo.likes_count }}</span>
+                                </button>
+                                <a href="{% url 'photo_detail' photo.id %}" class="btn btn-sm btn-outline">
+                                    <i class="fas fa-comment"></i> {{ photo.comments_count }}
+                                </a>
+                            </div>
+                            {% if photo.caption %}
+                                <div>
+                                    <strong><a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit;">{{ photo.user.profile.username_display }}</a></strong>
+                                    {{ photo.caption|linkify_hashtags }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if page_obj.has_other_pages %}
+                <div class="pagination d-flex justify-center mt-4 gap-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}" class="btn btn-outline">&laquo; Prev</a>
+                    {% endif %}
+                    <span class="btn" style="pointer-events: none;">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    {% if page_obj.has_next %}
+                        <a href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}" class="btn btn-outline">Next &raquo;</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="card text-center" style="padding: 3rem;">
+                <i class="fas fa-hashtag mb-4" style="font-size: 3rem; color: var(--text-muted);"></i>
+                <h3>No photos found</h3>
+                <p class="mt-2 text-muted">We couldn't find any photos with "{{ query }}" in their caption.</p>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const photoId = btn.dataset.id;
+            fetch(`/photos/${photoId}/like/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                const countSpan = btn.querySelector('.likes-count');
+                countSpan.textContent = data.likes_count;
+                if (data.has_liked) {
+                    btn.classList.remove('btn-outline');
+                    btn.classList.add('btn-primary');
+                } else {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline');
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    });
+});
+</script>
+{% endblock %}

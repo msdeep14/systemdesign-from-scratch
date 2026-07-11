@@ -57,12 +57,17 @@ LAST_NAMES = [
 ]
 
 CAPTIONS = [
-    'Beautiful sunset!', 'Coffee time', 'Weekend vibes', 'Nature walk',
-    'City lights', 'Throwback Thursday', 'No filter needed', 'Living my best life',
-    'Grateful for moments like these', 'Adventure awaits', 'Golden hour',
-    'Peaceful morning', 'Road trip memories', 'Simple pleasures', '',
-    'Exploring new places', 'Chasing sunsets', 'Perfect day', 'Making memories',
-    'Feeling blessed', 'Views for days', 'Wanderlust', 'Good vibes only',
+    'Beautiful sunset! #sunset #nature', 'Coffee time #coffee #morning',
+    'Weekend vibes #weekend', 'Nature walk #nature #hiking',
+    'City lights #citylife #urban', '#throwbackthursday #tbt',
+    'No filter needed #nofilter', 'Living my best life #blessed',
+    'Grateful for moments like these #grateful', 'Adventure awaits #adventure #travel',
+    'Golden hour #goldenhour #photography', 'Peaceful morning #morning #calm',
+    'Road trip memories #roadtrip #travel', 'Simple pleasures #simplethings', '',
+    'Exploring new places #explore #wanderlust', 'Chasing sunsets #sunset #sky',
+    'Perfect day #perfectday', 'Making memories #memories #friends',
+    'Feeling blessed #blessed #life', 'Views for days #views #landscape',
+    'Wanderlust #wanderlust #travel', 'Good vibes only #goodvibes',
 ]
 
 COMMENT_TEXTS = [

@@ -23,6 +23,7 @@ This document contains guidelines on AI agent response generation, coding standa
 - **Ask for Clarification**: Do not make blind assumptions. If the user's request is ambiguous or underspecified, stop and ask for clarification.
 - **No emojis in code**: Don't use any emojis in the code or print statements for debugging. Keep it in plain simple english.
 - **Plain English only**: Use simple, direct language in all code comments, documentation, and README files. No idioms (e.g. "death by a thousand cuts"), no metaphors, no fancy vocabulary. Write so that a non-native English speaker can understand immediately.
+- **No Inline Imports**: Do not use imports inside functions. All imports should be at the top of the file.
 
 ## Passwords and Secrets (CRITICAL)
 * NEVER hardcode any passwords or secrets in the code.

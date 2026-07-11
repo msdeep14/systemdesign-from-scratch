@@ -191,7 +191,21 @@
 *   **Actions:**
     *   **users/views.py:** Added `UserProfile.objects.select_related('user')` to the `get_object_or_404` call in `profile_view` to load both simultaneously in one query.
 
-## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: pending, triggered by chapter04, Model: Gemini 3.1 Pro)
+## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: c3261dbe9c25e417d9496149d0a926dfbe602796, triggered by chapter04, Model: Gemini 3.1 Pro)
 *   **Analysis:** Removed `idx_photo_created_at` because there is no global explore feed that orders by `-created_at` without filtering by user/community.
 *   **Actions:**
     *   **photos/models.py:** Removed the index `idx_photo_created_at` from the `Photo` model.
+
+## Phase: Hashtag Search (Date: 2026-07-10, Commit: pending, triggered by chapter04, Model: Claude Opus 4.6)
+*   **Analysis:** The application only supported searching for users by name. Users had no way to find photos by topic. Implemented hashtag-based photo search using PostgreSQL's `pg_trgm` extension with a GIN trigram index on the `caption` column for fast substring matching.
+*   **Actions:**
+    *   **bses/settings.py:** Added `django.contrib.postgres` to `INSTALLED_APPS`.
+    *   **photos/models.py:** Added `GinIndex` with `gin_trgm_ops` on the `caption` field.
+    *   **photos/migrations/0004_enable_pg_trgm.py:** Manual migration to enable `pg_trgm` PostgreSQL extension.
+    *   **photos/views.py:** Added unified `search_view` that routes to user search (plain text) or hashtag photo search (queries starting with `#`). Uses same post-pagination count approach as newsfeed.
+    *   **photos/urls.py:** Added `path('search/', ...)` route.
+    *   **photos/templates/photos/search_results.html:** New unified template rendering user cards or photo cards based on query type.
+    *   **photos/templatetags/hashtag_tags.py:** Custom `linkify_hashtags` filter that converts `#hashtag` text into clickable search links.
+    *   **newsfeed/templates/newsfeed/feed.html:** Applied `linkify_hashtags` filter to captions.
+    *   **photos/templates/photos/detail.html:** Applied `linkify_hashtags` filter to captions.
+    *   **templates/navbar.html:** Updated search bar to point to unified `/photos/search/` endpoint with updated placeholder text.

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load hashtag_tags %}
 {% block title %}Feed - BSES{% endblock %}
 {% block content %}
 <div style="max-width: 600px; margin: 0 auto;">
@@ -47,7 +48,7 @@
                     {% if photo.caption %}
                         <div>
                             <strong><a href="{% url 'profile' photo.user.profile.username_display %}" style="text-decoration: none; color: inherit;">{{ photo.user.profile.username_display }}</a></strong> 
-                            {{ photo.caption }}
+                            {{ photo.caption|linkify_hashtags }}
                         </div>
                     {% endif %}
                 </div>

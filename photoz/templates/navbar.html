@@ -8,8 +8,8 @@
 
         <div class="navbar-links" id="navbar-links">
             {% if user.is_authenticated %}
-                <form action="{% url 'search_users' %}" method="get" class="search-form">
-                    <input type="text" name="q" placeholder="Search users..." class="search-input" required>
+                <form action="{% url 'search' %}" method="get" class="search-form">
+                    <input type="text" name="q" placeholder="Search users or #hashtags..." class="search-input" required>
                     <button type="submit" class="search-btn"><i class="fas fa-search"></i></button>
                 </form>
                 

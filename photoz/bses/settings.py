@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     
     # Third-party
     'storages',
+    'django.contrib.postgres',
     
     # Local apps
     'users.apps.UsersConfig',

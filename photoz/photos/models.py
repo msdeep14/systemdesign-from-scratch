@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.postgres.indexes import GinIndex
 from .utils import photo_upload_path
 
 class Photo(models.Model):
@@ -13,6 +14,7 @@ class Photo(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at'], name='idx_photo_user_created'),
             models.Index(fields=['community', '-created_at'], name='idx_photo_community_created'),
+            GinIndex(name='idx_photo_caption_trgm', fields=['caption'], opclasses=['gin_trgm_ops']),
         ]
 
     def __str__(self):

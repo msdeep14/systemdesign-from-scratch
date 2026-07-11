@@ -171,16 +171,3 @@ def toggle_follow_view(request, username):
         'is_following': is_following,
         'followers_count': followers_count
     })
-
-def search_users_view(request):
-    query = request.GET.get('q', '')
-    results = []
-    
-    if query:
-        results = UserProfile.objects.filter(
-            Q(username_display__icontains=query) | 
-            Q(first_name__icontains=query) | 
-            Q(last_name__icontains=query)
-        )
-        
-    return render(request, 'users/search_results.html', {'results': results, 'query': query})

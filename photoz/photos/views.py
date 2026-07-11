@@ -3,9 +3,15 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.contrib import messages
+from django.db.models import Q, Count
+from django.core.paginator import Paginator
+from django.conf import settings
+import json
 from .models import Photo, Like, Comment
 from .forms import PhotoUploadForm
 from notifications.models import Notification
+from communities.models import Community
+from users.models import UserProfile
 import logging
 
 logger = logging.getLogger('bses')
@@ -15,7 +21,6 @@ def upload_photo(request):
     community_id = request.GET.get('community')
     community = None
     if community_id:
-        from communities.models import Community
         community = get_object_or_404(Community, id=community_id)
         if not community.memberships.filter(user=request.user, status='accepted').exists():
             messages.error(request, "You must be a member to upload to this community.")
@@ -104,7 +109,6 @@ def toggle_like(request, id):
 @require_POST
 def add_comment(request, id):
     photo = get_object_or_404(Photo, id=id)
-    import json
     try:
         data = json.loads(request.body)
         text = data.get('text', '').strip()
@@ -134,4 +138,80 @@ def add_comment(request, id):
         'user_name': request.user.profile.first_name,
         'username_display': request.user.profile.username_display,
         'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+
+@login_required
+def search_view(request):
+    query = request.GET.get('q', '').strip()
+
+    if query.startswith('#'):
+        return _search_photos_by_hashtag(request, query)
+    else:
+        return _search_users(request, query)
+
+
+def _search_users(request, query):
+    results = []
+    if query:
+        results = UserProfile.objects.filter(
+            Q(username_display__icontains=query) |
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query)
+        )
+    return render(request, 'photos/search_results.html', {
+        'query': query,
+        'search_type': 'users',
+        'user_results': results,
+    })
+
+
+def _search_photos_by_hashtag(request, query):
+    # Support multiple hashtags like "#sunset #nature"
+    parts = query.split()
+    q_objects = Q()
+    for part in parts:
+        q_objects &= Q(caption__icontains=part)
+
+    photos = Photo.objects.filter(
+        q_objects
+    ).select_related(
+        'user__profile', 'community'
+    ).order_by('-created_at')
+
+    paginator = Paginator(photos, getattr(settings, 'BSES_PAGE_SIZE', 20))
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    photo_ids = [p.id for p in page_obj.object_list]
+    
+    # Decoupled aggregations: We query likes and comments separately for the 
+    # photos on the current page to avoid generating massive, slow SQL JOINs 
+    # (a Cartesian product) that occur when using multiple .annotate() calls 
+    # on the main Photo query.
+    likes_counts = dict(
+        Like.objects.filter(photo_id__in=photo_ids)
+        .values('photo_id')
+        .annotate(count=Count('id'))
+        .values_list('photo_id', 'count')
+    )
+    comments_counts = dict(
+        Comment.objects.filter(photo_id__in=photo_ids)
+        .values('photo_id')
+        .annotate(count=Count('id'))
+        .values_list('photo_id', 'count')
+    )
+    for photo in page_obj.object_list:
+        photo.likes_count = likes_counts.get(photo.id, 0)
+        photo.comments_count = comments_counts.get(photo.id, 0)
+
+    liked_photo_ids = set(
+        request.user.like_set.filter(photo_id__in=photo_ids).values_list('photo_id', flat=True)
+    )
+
+    return render(request, 'photos/search_results.html', {
+        'query': query,
+        'search_type': 'photos',
+        'page_obj': page_obj,
+        'liked_photo_ids': liked_photo_ids,
     })

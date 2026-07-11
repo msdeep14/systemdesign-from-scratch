@@ -449,7 +449,7 @@ After applying the migration and deploying the new query, the production metrics
 
 ---
 
-## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: pending, Model: Gemini 3.1 Pro)
+## Phase: Remove Dead-Weight Index (Date: 2026-07-08, Commit: c3261dbe9c25e417d9496149d0a926dfbe602796, Model: Gemini 3.1 Pro)
 
 **Analysis & Decision:**
 During the query optimization phase, a single-column index on `Photo` for `(-created_at)` was created as a potential fallback for global ordering. However, further analysis of the newsfeed queries revealed that because the application strictly filters photos by `user_id` or `community_id`, a global explore feed doesn't exist. Thus, `idx_photo_created_at` was dead weight, occupying disk space and degrading write performance for no benefit.
@@ -457,3 +457,58 @@ During the query optimization phase, a single-column index on `Photo` for `(-cre
 **Actions Taken:**
 * **Removed** `idx_photo_created_at` from `photoz/photos/models.py`.
 * Maintained the strict scope rule of not including features/indexes meant for future "unclarified" enhancements.
+
+---
+
+## Phase: Hashtag Search Implementation (Date: 2026-07-10, Commit: pending, Model: Claude Opus 4.6)
+
+**Analysis & Decision:**
+The application only supported searching for users by name/username. There was no way to discover photos by topic. Implemented hashtag-based photo search using PostgreSQL's `pg_trgm` extension with a GIN trigram index.
+
+**Why GIN trigram over Full-Text Search (tsvector)?**
+Full-Text Search tokenizes text into words and stems them. A hashtag like `#sunset` would be tokenized to just `sunset`, losing the `#` prefix. Compound hashtags like `#nofilterneeded` would not be split into words, making them unsearchable via FTS. GIN trigram indexes handle arbitrary substring matching (`LIKE '%#sunset%'`), which is exactly what hashtag search requires.
+
+**Trade-off: GIN vs GiST for trigram indexes**
+
+Both GIN and GiST can be used with `pg_trgm`. They solve different problems:
+
+| | GIN | GiST |
+|---|---|---|
+| **Index type** | Lossless (stores every trigram mapped to row IDs, like an inverted index) | Lossy (stores a compressed signature of trigrams per row) |
+| **Read speed** | Faster. No re-checking needed after index scan. | Slower. Must re-check actual row data to confirm matches because the signature can produce false positives. |
+| **Write speed** | Slower. Every trigram must be individually indexed on insert. | Faster. Only a single signature needs to be computed and stored. |
+| **Index size** | Larger on disk. | Smaller on disk. |
+| **Best operators** | Containment: `LIKE`, `ILIKE` (exact substring match) | Similarity: `%`, `<->`, `<%`, `%>` (fuzzy match, distance ordering) |
+| **Best for** | "Find all captions containing `#sunset`" | "Find captions similar to `#sunst` (typo), ranked by closeness" |
+
+GIN was chosen because our query is a containment match (`caption ILIKE '%#sunset%'`), not a fuzzy/similarity search. Additionally, photo captions are written once and rarely updated, so the higher write cost of GIN is negligible.
+
+**Trade-off: PostgreSQL built-in search vs Elasticsearch**
+
+| | PostgreSQL (pg_trgm + GIN) | Elasticsearch |
+|---|---|---|
+| **Infrastructure** | Zero additional infrastructure. Runs inside the existing database. | Requires a separate cluster (nodes, memory, storage, monitoring). |
+| **Operational cost** | No extra deployment, no data sync pipeline, no version management. | Needs a data sync mechanism (e.g., Django signals or CDC) to keep the search index in sync with the database. Data consistency becomes a concern. |
+| **Query capability** | Substring matching, basic similarity. Sufficient for hashtag search. | Full-text search with stemming, synonyms, fuzzy matching, faceted search, relevance scoring, autocomplete, highlighting. |
+| **Scalability** | Scales with the database. At very high query volumes (thousands of searches/sec), search queries compete with application queries for database connections and CPU. | Scales independently. Search traffic does not affect the primary database. |
+| **When to switch** | Current scale (100k photos, low search traffic). | When search becomes a core product feature with complex requirements (multi-field search, typo tolerance, search suggestions) or search traffic volume starts degrading database performance. |
+
+PostgreSQL was chosen because the current requirement is simple (exact hashtag substring match), the data volume is small, and adding Elasticsearch would introduce significant operational complexity (a new cluster, a data sync pipeline, monitoring) for no measurable benefit at this stage.
+**Design Decisions:**
+* **Unified search endpoint:** Instead of separate endpoints for user search and photo search, a single `/photos/search/` endpoint handles both. If the query starts with `#`, it searches photo captions. Otherwise, it searches users. This keeps the UI clean with a single search bar.
+* **Clickable hashtags:** A custom Django template filter (`linkify_hashtags`) converts `#hashtag` text in captions into clickable links that trigger a search. Applied across newsfeed, photo detail, and search results templates.
+* **Post-pagination counts:** Like/comment counts use the same decoupled post-pagination approach established in Phase 2, avoiding the `.annotate()` Cartesian product problem.
+
+**Actions Taken:**
+* **bses/settings.py:** Added `django.contrib.postgres` to `INSTALLED_APPS`.
+* **photos/models.py:** Added `GinIndex(name='idx_photo_caption_trgm', fields=['caption'], opclasses=['gin_trgm_ops'])`.
+* **photos/migrations/0004_enable_pg_trgm.py:** Manual migration to enable `pg_trgm` extension.
+* **photos/views.py:** Added `search_view`, `_search_users`, `_search_photos_by_hashtag`.
+* **photos/urls.py:** Added `path('search/', ...)`.
+* **photos/templates/photos/search_results.html:** New unified search results template.
+* **photos/templatetags/hashtag_tags.py:** `linkify_hashtags` filter using regex to convert `#word` patterns into anchor tags.
+* **newsfeed/templates/newsfeed/feed.html**, **photos/templates/photos/detail.html:** Applied `linkify_hashtags` to caption rendering.
+* **templates/navbar.html:** Updated search bar to unified endpoint.
+* **chapter04/query_optimization/seed_data.py:** Updated `CAPTIONS` list with hashtags.
+* **users/views.py** & **users/urls.py:** Removed obsolete `search_users_view` and route.
+
