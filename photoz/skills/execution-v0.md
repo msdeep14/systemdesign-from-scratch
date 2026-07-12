@@ -196,7 +196,7 @@
 *   **Actions:**
     *   **photos/models.py:** Removed the index `idx_photo_created_at` from the `Photo` model.
 
-## Phase: Hashtag Search (Date: 2026-07-10, Commit: pending, triggered by chapter04, Model: Claude Opus 4.6)
+## Phase: Hashtag Search (Date: 2026-07-10, Commit: 9157189ec89c9e74a53b993eda22efb2ed3cf9dc, triggered by chapter04, Model: Claude Opus 4.6)
 *   **Analysis:** The application only supported searching for users by name. Users had no way to find photos by topic. Implemented hashtag-based photo search using PostgreSQL's `pg_trgm` extension with a GIN trigram index on the `caption` column for fast substring matching.
 *   **Actions:**
     *   **bses/settings.py:** Added `django.contrib.postgres` to `INSTALLED_APPS`.

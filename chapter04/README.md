@@ -405,3 +405,13 @@ Django's `CREATE INDEX` statement runs as a standard (non-concurrent) operation.
 For our scale (a few concurrent users), a 15-20 second write pause is acceptable. Reads continue uninterrupted — users can still browse the newsfeed, view photos, and search.
 
 **For larger production systems** (millions of rows, hundreds of concurrent writes), you would use `CREATE INDEX CONCURRENTLY` instead. This builds the index in the background without blocking writes, but takes longer and cannot run inside a transaction. Django supports this via `AddIndex` with `opclasses` or by writing a custom `RunSQL` migration with `CREATE INDEX CONCURRENTLY`. This is outside the scope of our current setup.
+
+---
+
+## Part 4: Read Replicas — Scaling the Database Layer
+
+Located in `read_replicas/`. 
+
+The single PostgreSQL instance handles all reads and writes. As concurrent users increase, reads and writes compete for CPU, I/O, and connections on the same machine.
+
+See [`read_replicas/README.md`](read_replicas/README.md) for full documentation.

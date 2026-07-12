@@ -15,7 +15,7 @@ services:
   web:
     build: .
     command: >
-      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 2 bses.wsgi:application"
+      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 5 --threads 10 bses.wsgi:application"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles

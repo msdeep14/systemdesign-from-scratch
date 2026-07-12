@@ -460,7 +460,7 @@ During the query optimization phase, a single-column index on `Photo` for `(-cre
 
 ---
 
-## Phase: Hashtag Search Implementation (Date: 2026-07-10, Commit: pending, Model: Claude Opus 4.6)
+## Phase: Hashtag Search Implementation (Date: 2026-07-10, Commit: 9157189ec89c9e74a53b993eda22efb2ed3cf9dc, Model: Claude Opus 4.6)
 
 **Analysis & Decision:**
 The application only supported searching for users by name/username. There was no way to discover photos by topic. Implemented hashtag-based photo search using PostgreSQL's `pg_trgm` extension with a GIN trigram index.
@@ -512,3 +512,17 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 * **chapter04/query_optimization/seed_data.py:** Updated `CAPTIONS` list with hashtags.
 * **users/views.py** & **users/urls.py:** Removed obsolete `search_users_view` and route.
 
+---
+
+## Phase: Read Replicas - HTTP Load Test (Date: 2026-07-12, Commit: d6d1453633c6e41ce50e3f31665036b8c589adb3, Model: Claude Opus 4.6 (Thinking))
+
+**Analysis:** Parts 1-3 solved query-level bottlenecks. The next bottleneck is the single PostgreSQL instance itself. All reads and writes go to one machine. As concurrent users increase, reads and writes compete for CPU, I/O, and connections.
+
+**Rationale:**
+- Load test sends real HTTP requests including nginx routing, gunicorn processing, and database queries.
+- Uses Python `requests` with session cookies for Django CSRF/auth, `ThreadPoolExecutor` for concurrency.
+- Results are saved to JSON for later comparison after read replicas are set up.
+
+**Actions:**
+- Created `chapter04/read_replicas/benchmark_db_load.py` — HTTP load generator with configurable concurrency, read/write ratio, duration. Outputs latency percentiles (p50/p95/p99), throughput, 5xx errors, DB connection count, per-endpoint breakdown. Supports `--save-to` for JSON output and `--compare` for baseline comparison.
+- Created `chapter04/read_replicas/README.md` — documents the single-instance bottleneck, vertical vs horizontal scaling trade-offs, PhotoZ's read-heavy nature, and how to run the load test.
