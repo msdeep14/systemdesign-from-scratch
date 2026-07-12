@@ -526,3 +526,15 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 **Actions:**
 - Created `chapter04/read_replicas/benchmark_db_load.py` — HTTP load generator with configurable concurrency, read/write ratio, duration. Outputs latency percentiles (p50/p95/p99), throughput, 5xx errors, DB connection count, per-endpoint breakdown. Supports `--save-to` for JSON output and `--compare` for baseline comparison.
 - Created `chapter04/read_replicas/README.md` — documents the single-instance bottleneck, vertical vs horizontal scaling trade-offs, PhotoZ's read-heavy nature, and how to run the load test.
+
+---
+
+## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [pending], Model: Gemini 3.1 Pro (High))
+
+**Analysis:** A bug was discovered where photos belonging to private communities were leaking into hashtag search results for non-members. This happened because `_search_photos_by_hashtag` applied a text filter on the caption without enforcing community visibility constraints.
+
+**Rationale:**
+- We need to enforce standard PhotoZ visibility rules: a user can see public photos (no community), photos in communities they have 'accepted' status in, and their own photos.
+
+**Actions:**
+- **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring only authorized photos are returned in search results. Imported `CommunityMembership`.

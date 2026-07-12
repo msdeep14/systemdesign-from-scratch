@@ -10,7 +10,7 @@ import json
 from .models import Photo, Like, Comment
 from .forms import PhotoUploadForm
 from notifications.models import Notification
-from communities.models import Community
+from communities.models import Community, CommunityMembership
 from users.models import UserProfile
 import logging
 
@@ -173,8 +173,17 @@ def _search_photos_by_hashtag(request, query):
     for part in parts:
         q_objects &= Q(caption__icontains=part)
 
+    # Enforce privacy: users should only see public photos (no community) 
+    # OR photos from communities they are a member of, OR their own photos.
+    visibility_q = Q(community__isnull=True)
+    if request.user.is_authenticated:
+        my_communities = CommunityMembership.objects.filter(user=request.user, status='accepted').values_list('community', flat=True)
+        if my_communities:
+            visibility_q |= Q(community__in=my_communities)
+        visibility_q |= Q(user=request.user)
+
     photos = Photo.objects.filter(
-        q_objects
+        q_objects & visibility_q
     ).select_related(
         'user__profile', 'community'
     ).order_by('-created_at')

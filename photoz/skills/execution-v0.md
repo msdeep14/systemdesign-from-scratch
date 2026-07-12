@@ -209,3 +209,8 @@
     *   **newsfeed/templates/newsfeed/feed.html:** Applied `linkify_hashtags` filter to captions.
     *   **photos/templates/photos/detail.html:** Applied `linkify_hashtags` filter to captions.
     *   **templates/navbar.html:** Updated search bar to point to unified `/photos/search/` endpoint with updated placeholder text.
+
+## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [pending], triggered by chapter04, Model: Gemini 3.1 Pro (High))
+*   **Analysis:** Photos belonging to private communities were leaking into hashtag search results for non-members because `_search_photos_by_hashtag` applied a text filter on the caption without enforcing community visibility constraints.
+*   **Actions:**
+    *   **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring a user can only see public photos, their own photos, or photos in communities they are a member of. Imported `CommunityMembership`.
