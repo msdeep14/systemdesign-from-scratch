@@ -135,7 +135,7 @@ class UserSession:
 
     def login(self):
         login_url = f'{self.base_url}/users/login/'
-        resp = self.session.get(login_url, timeout=10)
+        resp, _ = self.get('/users/login/')
         if resp.status_code != 200:
             return False
 
@@ -156,7 +156,7 @@ class UserSession:
                 'csrfmiddlewaretoken': csrf_token,
             },
             headers={'Referer': login_url},
-            timeout=10,
+            timeout=30,
             allow_redirects=True,
         )
         self.logged_in = resp.status_code == 200 and '/users/login/' not in resp.url
@@ -165,7 +165,7 @@ class UserSession:
     def get(self, path):
         url = f'{self.base_url}{path}'
         start = time.time()
-        resp = self.session.get(url, timeout=15, allow_redirects=True)
+        resp = self.session.get(url, timeout=30, allow_redirects=True)
         latency_ms = (time.time() - start) * 1000
         return resp, latency_ms
 
@@ -185,7 +185,7 @@ class UserSession:
 
         start = time.time()
         resp = self.session.post(
-            url, data=body, headers=headers, timeout=15, allow_redirects=True
+            url, data=body, headers=headers, timeout=30, allow_redirects=True
         )
         latency_ms = (time.time() - start) * 1000
         return resp, latency_ms
@@ -272,7 +272,8 @@ def generate_usernames(count):
 
 def read_worker(worker_id, base_url, test_data, collector, duration, stop_event):
     """Simulates a user repeatedly loading read-heavy pages."""
-    username = f'test_user'
+    time.sleep(random.uniform(0.1, 5.0)) # Jitter to prevent thundering herd on login
+    username = random.choice(test_data['usernames']) if test_data['usernames'] else 'test_user'
     session = UserSession(base_url, username, 'password123')
 
     if not session.login():
@@ -296,7 +297,8 @@ def read_worker(worker_id, base_url, test_data, collector, duration, stop_event)
 
 def write_worker(worker_id, base_url, test_data, collector, duration, stop_event):
     """Simulates a user repeatedly liking photos and adding comments."""
-    username = 'test_user'
+    time.sleep(random.uniform(0.1, 5.0)) # Jitter to prevent thundering herd on login
+    username = random.choice(test_data['usernames']) if test_data['usernames'] else 'test_user'
     session = UserSession(base_url, username, 'password123')
 
     if not session.login():

@@ -77,13 +77,22 @@ python chapter04/read_replicas/benchmark_db_load.py \
 ```
 
 **Against EC2 load balancer:**
+Because the AWS security group restricts PostgreSQL (port 5432) access to internal app nodes only, you must first create an SSH tunnel to your DB instance to view the connection metrics:
+
+```bash
+# Keep this running in a separate terminal
+ssh -i /path/to/your/aws-key.pem -L 5432:127.0.0.1:5432 ubuntu@<DB_PUBLIC_IP>
+```
+
+Then, run the benchmark (using `localhost` for the database to route through your tunnel):
 ```bash
 python chapter04/read_replicas/benchmark_db_load.py \
   --target http://<LB_PUBLIC_IP> \
-  --concurrency 50 \
-  --duration 60 \
-  --save-to chapter04/read_replicas/baseline.json
-  --db-host localhost
+  --concurrency 200 \
+  --duration 30 \
+  --save-to chapter04/read_replicas/baseline-remote.json \
+  --db-host localhost \
+  --read-ratio 0.9
 ```
 
 ### Parameters
