@@ -26,6 +26,8 @@ services:
         awslogs-create-group: "true"
     env_file:
       - .env
+    environment:
+      - POSTGRES_PORT=6432
 
   consul-agent:
     image: hashicorp/consul:latest

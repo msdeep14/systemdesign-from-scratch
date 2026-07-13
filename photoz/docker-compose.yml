@@ -3,6 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15
+    command: ["postgres", "-c", "max_connections=20"]
     environment:
       POSTGRES_DB: bses
       POSTGRES_USER: postgres
@@ -11,6 +12,26 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_NAME=bses
+      # AUTH_TYPE=plain resolves a mismatch where Postgres 15 expects scram-sha-256.
+      # Safe for PhotoZ as traffic is isolated within private VPC/Docker networks.
+      # Recommendation: For strict Zero Trust compliance, use scram-sha-256 and enforce TLS.
+      - AUTH_TYPE=plain
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=10
+      - LISTEN_PORT=6432
+    ports:
+      - "6432:6432"
+    depends_on:
+      - db
 
   web:
     build: .
@@ -30,10 +51,11 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
+      - POSTGRES_HOST=pgbouncer
+      - POSTGRES_PORT=6432
     depends_on:
       - db
+      - pgbouncer
 
   nginx:
     build: ./nginx

@@ -529,7 +529,7 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 
 ---
 
-## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [pending], Model: Gemini 3.1 Pro (High))
+## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [c97834face52712c77b140da721af1fa3ef24622], Model: Gemini 3.1 Pro (High))
 
 **Analysis:** A bug was discovered where photos belonging to private communities were leaking into hashtag search results for non-members. This happened because `_search_photos_by_hashtag` applied a text filter on the caption without enforcing community visibility constraints.
 
@@ -538,3 +538,19 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 
 **Actions:**
 - **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring only authorized photos are returned in search results. Imported `CommunityMembership`.
+
+---
+
+## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [pending], Model: Gemini 3.1 Pro (High))
+
+**Analysis:** Load testing proved that scaling app nodes (Gunicorn threads) overwhelmed the single PostgreSQL connection pool, leading to `FATAL: too many clients already`.
+
+**Rationale:**
+- We introduced `PgBouncer` (via `edoburu/pgbouncer` Docker image) in front of PostgreSQL.
+- Reduced PostgreSQL `max_connections` directly to 20 to aggressively protect its memory.
+- `PgBouncer` handles 1000+ incoming app connections in lightweight threads and multiplexes them across the 20 Postgres connections in `transaction` mode.
+
+**Actions:**
+- **photoz/docker-compose-db.yml**: Added `pgbouncer` service mapping port 6432 to `db:5432`. Added `max_connections=20` to `db` and `AUTH_TYPE=plain` to PgBouncer to prevent SCRAM/MD5 mismatch.
+- **photoz/docker-compose-app.yml**: Appended `POSTGRES_PORT=6432` to the environment block of `web` so EC2 app nodes target PgBouncer instead of Postgres directly.
+- **photoz/docker-compose.yml**: Replicated the PgBouncer integration for the local unified dev setup.

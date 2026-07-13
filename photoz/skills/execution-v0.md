@@ -210,7 +210,14 @@
     *   **photos/templates/photos/detail.html:** Applied `linkify_hashtags` filter to captions.
     *   **templates/navbar.html:** Updated search bar to point to unified `/photos/search/` endpoint with updated placeholder text.
 
-## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [pending], triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: Hashtag Search Privacy Bug Fix (Date: 2026-07-12, Commit: [c97834face52712c77b140da721af1fa3ef24622], triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Photos belonging to private communities were leaking into hashtag search results for non-members because `_search_photos_by_hashtag` applied a text filter on the caption without enforcing community visibility constraints.
 *   **Actions:**
     *   **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring a user can only see public photos, their own photos, or photos in communities they are a member of. Imported `CommunityMembership`.
+
+## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [pending], triggered by chapter04, Model: Gemini 3.1 Pro (High))
+*   **Analysis:** Adding PgBouncer to multiplex 1000+ app connections down to 20 Postgres connections to solve connection limit saturation and OOM thrashing on the DB instance.
+*   **Actions:**
+    *   **docker-compose-db.yml**: Added `pgbouncer` service mapping port 6432 to `db:5432`. Added `max_connections=20` to `db`.
+    *   **docker-compose-app.yml**: Appended `POSTGRES_PORT=6432` to the environment block of `web`.
+    *   **docker-compose.yml**: Added `pgbouncer` integration to the local unified dev setup.
