@@ -144,7 +144,7 @@ To apply the secure authentication without data loss or downtime:
 
 1. **SSH into your Database Node and pull the latest code:**
    ```bash
-   cd /home/ubuntu/photoz
+   cd /home/ubuntu/systemdesign-from-scratch/photoz
    git pull origin main
    ```
 
@@ -158,6 +158,15 @@ To apply the secure authentication without data loss or downtime:
    Restart only the `pgbouncer` container to mount the new `pgbouncer.ini` and `userlist.txt` files, leaving the Postgres container untouched:
    ```bash
    docker compose -f docker-compose-db.yml up -d --force-recreate pgbouncer
+   ```
+
+4. **Update App Nodes to fix Django Migrations:**
+   You must pull the latest code on your App Nodes to ensure the `POSTGRES_PORT=5432` override is applied to the migration command in `docker-compose-app.yml`. Otherwise, future migrations will hang in PgBouncer's transaction pool.
+   ```bash
+   # SSH into each App Node
+   cd /home/ubuntu/systemdesign-from-scratch/photoz
+   git pull origin main
+   docker compose -f docker-compose-app.yml up -d --force-recreate web
    ```
 
 For local testing, you can simply scrape off the database, then start fresh. 

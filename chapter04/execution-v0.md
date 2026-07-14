@@ -556,10 +556,16 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 - **iaac/aws/terraform/security.tf**: Added an ingress rule to `photoz-db-sg` to allow traffic from the App nodes on port `6432` to reach PgBouncer.
 - **photoz/docker-compose.yml**: Replicated the PgBouncer integration for the local unified dev setup.
 
-## Phase: PgBouncer Auth Query Implementation (Date: 2026-07-14, Commit: [pending], Model: Gemini 3.1 Pro (High))
+## Phase: PgBouncer Auth Query Implementation (Date: 2026-07-14, Commit: [6fcc1ec93351e6b72b5477a2eff9e818031c6f2a], Model: Gemini 3.1 Pro (High))
 - **Goal**: Harden PgBouncer authentication by using `scram-sha-256` instead of `plain` text, following Enterprise best practices.
 - **Analysis**: Instead of manually managing SCRAM hashes in `userlist.txt` or relying on bypassing authentication with `trust`, we configured PgBouncer to use `auth_query`. This allows PgBouncer to dynamically query Postgres for the SCRAM hash of connecting users, allowing for robust password rotation and True Zero Trust authentication.
 - **Actions**:
     - Created `photoz/postgres-init/01-pgbouncer-auth.sql` to initialize a `pgbouncer` user and a `SECURITY DEFINER` function for querying `pg_shadow`.
     - Created `photoz/pgbouncer/pgbouncer.ini` and `userlist.txt` for custom `edoburu` image configuration.
     - Updated `photoz/docker-compose.yml` and `photoz/docker-compose-db.yml` to remove `POSTGRES_HOST_AUTH_METHOD=trust` and instead mount the new init scripts and config files.
+
+## Phase: Django Persistent Connections (Date: 2026-07-14, Commit: [pending], Model: Antigravity)
+- **Goal**: Fix 100% CPU bottleneck on App Nodes during load testing caused by TCP and SCRAM-SHA-256 overhead.
+- **Analysis**: By default, Django (`CONN_MAX_AGE=0`) tears down and rebuilds the database connection on every HTTP request. With PgBouncer auth set to `scram-sha-256`, this meant Django was forced to perform expensive cryptographic hashing 200 times per second during load testing. The App Nodes maxed out at 100% CPU, while the database remained idle.
+- **Actions**:
+    - **photoz/bses/settings.py**: Set `CONN_MAX_AGE` to 60 seconds (configurable via `.env`). This instructs Django to keep the TCP connections to PgBouncer alive, completely bypassing the connection and authentication overhead on subsequent requests.
