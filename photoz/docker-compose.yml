@@ -10,24 +10,15 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
-    environment:
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_HOST=db
-      - DB_NAME=bses
-      # AUTH_TYPE=plain resolves a mismatch where Postgres 15 expects scram-sha-256.
-      # Safe for PhotoZ as traffic is isolated within private VPC/Docker networks.
-      # Recommendation: For strict Zero Trust compliance, use scram-sha-256 and enforce TLS.
-      - AUTH_TYPE=plain
-      - POOL_MODE=transaction
-      - MAX_CLIENT_CONN=1000
-      - DEFAULT_POOL_SIZE=10
-      - LISTEN_PORT=6432
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
     ports:
       - "6432:6432"
     depends_on:
@@ -35,19 +26,12 @@ services:
 
   web:
     build: .
+    restart: always
+    # Override port to 5432 and host to db just for migrations to bypass PgBouncer (transaction mode breaks migrations)
     command: >
-      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 5 --threads 10 bses.wsgi:application"
+      bash -c "POSTGRES_HOST=db POSTGRES_PORT=5432 python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 30 bses.wsgi:application"
     volumes:
       - .:/app
-      - static_volume:/app/staticfiles
-    expose:
-      - "8000"
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 200M
     env_file:
       - .env
     environment:

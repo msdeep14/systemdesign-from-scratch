@@ -69,11 +69,11 @@ psycopg2-binary helps in connecting to database directly and query pg_stat_activ
 
 **Against local Docker (nginx on port 80):**
 ```bash
-python chapter04/read_replicas/benchmark_db_load.py \
+python chapter04/connection_pooling/benchmark_db_load.py \
   --target http://localhost \
   --concurrency 30 \
   --duration 30 \
-  --save-to chapter04/read_replicas/baseline.json
+  --save-to chapter04/connection_pooling/baseline.json
 ```
 
 **Against EC2 load balancer:**
@@ -86,11 +86,11 @@ ssh -i /path/to/your/aws-key.pem -L 5432:127.0.0.1:5432 ubuntu@<DB_PUBLIC_IP>
 
 Then, run the benchmark (using `localhost` for the database to route through your tunnel):
 ```bash
-python chapter04/read_replicas/benchmark_db_load.py \
+python chapter04/connection_pooling/benchmark_db_load.py \
   --target http://<LB_PUBLIC_IP> \
   --concurrency 200 \
   --duration 30 \
-  --save-to chapter04/read_replicas/baseline-remote.json \
+  --save-to chapter04/connection_pooling/baseline-remote.json \
   --db-host localhost \
   --read-ratio 0.9
 ```
@@ -124,14 +124,60 @@ The output includes:
 
 Save the baseline (single-instance) results:
 ```bash
-python chapter04/read_replicas/benchmark_db_load.py \
+python chapter04/connection_pooling/benchmark_db_load.py \
   --target http://localhost --save-to baseline.json
 ```
 
 After setting up read replicas (Part 4.2+), run the same test with `--compare`:
 ```bash
-python chapter04/read_replicas/benchmark_db_load.py \
+python chapter04/connection_pooling/benchmark_db_load.py \
   --target http://localhost --compare baseline.json
 ```
 
 This prints a side-by-side comparison showing the improvement from read replicas.
+
+## Migrating PgBouncer to SCRAM Auth (Live Database)
+
+If you are migrating PgBouncer to use the dynamic `auth_query` pattern (Zero Trust SCRAM) on an already running AWS production database, you cannot rely on Docker's `postgres-init` directory because initialization scripts only run on fresh, empty databases. 
+
+To apply the secure authentication without data loss or downtime:
+
+1. **SSH into your Database Node and pull the latest code:**
+   ```bash
+   cd /home/ubuntu/photoz
+   git pull origin main
+   ```
+
+2. **Inject the Auth Query Function into the Live Database:**
+   Pipe the initialization SQL directly into the running Postgres container:
+   ```bash
+   cat postgres-init/01-pgbouncer-auth.sql | docker exec -i photoz-db-1 psql -U postgres -d bses
+   ```
+
+3. **Restart PgBouncer to Apply Configs:**
+   Restart only the `pgbouncer` container to mount the new `pgbouncer.ini` and `userlist.txt` files, leaving the Postgres container untouched:
+   ```bash
+   docker compose -f docker-compose-db.yml up -d --force-recreate pgbouncer
+   ```
+
+For local testing, you can simply scrape off the database, then start fresh. 
+```bash
+# -v ensures volumes are wiped out, meaning database is wiped out
+# because of -v, init script will run
+docker compose down -v
+docker compose up -d
+```
+
+## Important Note: Django Migrations with PgBouncer
+
+When using PgBouncer in **transaction pooling mode** (`pool_mode = transaction`), Django migrations will often hang or fail. This is because Django (4.0+) uses PostgreSQL session-level advisory locks during migrations to prevent concurrent migration execution. In transaction mode, PgBouncer immediately returns the connection to the pool after the advisory lock transaction commits, causing subsequent migration steps to potentially receive a different connection that does not hold the lock.
+
+To fix this, **migrations must always be run directly against the database (port 5432)**, bypassing PgBouncer (port 6432).
+
+This is why the application node's startup command explicitly overrides the `POSTGRES_PORT` just for the `migrate` command:
+
+```yaml
+# In docker-compose.yml and docker-compose-app.yml
+command: >
+  bash -c "POSTGRES_HOST=db POSTGRES_PORT=5432 python manage.py migrate && python manage.py collectstatic --noinput && gunicorn ..."
+```

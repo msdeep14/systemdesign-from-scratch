@@ -410,8 +410,8 @@ For our scale (a few concurrent users), a 15-20 second write pause is acceptable
 
 ## Part 4: Read Replicas — Scaling the Database Layer
 
-Located in `read_replicas/`. 
+Located in `connection_pooling/`. 
 
 The single PostgreSQL instance handles all reads and writes. As concurrent users increase, reads and writes compete for CPU, I/O, and connections on the same machine.
 
-See [`read_replicas/README.md`](read_replicas/README.md) for full documentation.
+See [`connection_pooling/README.md`](connection_pooling/README.md) for full documentation.

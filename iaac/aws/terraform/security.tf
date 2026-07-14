@@ -113,6 +113,14 @@ resource "aws_security_group" "db" {
   }
 
   ingress {
+    description     = "PgBouncer from App"
+    from_port       = 6432
+    to_port         = 6432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app[0].id]
+  }
+
+  ingress {
     description = "SSH from my IP"
     from_port   = 22
     to_port     = 22

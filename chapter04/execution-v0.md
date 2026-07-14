@@ -524,8 +524,8 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 - Results are saved to JSON for later comparison after read replicas are set up.
 
 **Actions:**
-- Created `chapter04/read_replicas/benchmark_db_load.py` — HTTP load generator with configurable concurrency, read/write ratio, duration. Outputs latency percentiles (p50/p95/p99), throughput, 5xx errors, DB connection count, per-endpoint breakdown. Supports `--save-to` for JSON output and `--compare` for baseline comparison.
-- Created `chapter04/read_replicas/README.md` — documents the single-instance bottleneck, vertical vs horizontal scaling trade-offs, PhotoZ's read-heavy nature, and how to run the load test.
+- Created `chapter04/connection_pooling/benchmark_db_load.py` — HTTP load generator with configurable concurrency, read/write ratio, duration. Outputs latency percentiles (p50/p95/p99), throughput, 5xx errors, DB connection count, per-endpoint breakdown. Supports `--save-to` for JSON output and `--compare` for baseline comparison.
+- Created `chapter04/connection_pooling/README.md` — documents the single-instance bottleneck, vertical vs horizontal scaling trade-offs, PhotoZ's read-heavy nature, and how to run the load test.
 
 ---
 
@@ -541,7 +541,7 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 
 ---
 
-## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [pending], Model: Gemini 3.1 Pro (High))
+## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [d1c0a317acea8d31ec34ea7752710173750b2955], Model: Gemini 3.1 Pro (High))
 
 **Analysis:** Load testing proved that scaling app nodes (Gunicorn threads) overwhelmed the single PostgreSQL connection pool, leading to `FATAL: too many clients already`.
 
@@ -553,4 +553,13 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 **Actions:**
 - **photoz/docker-compose-db.yml**: Added `pgbouncer` service mapping port 6432 to `db:5432`. Added `max_connections=20` to `db` and `AUTH_TYPE=plain` to PgBouncer to prevent SCRAM/MD5 mismatch.
 - **photoz/docker-compose-app.yml**: Appended `POSTGRES_PORT=6432` to the environment block of `web` so EC2 app nodes target PgBouncer instead of Postgres directly.
+- **iaac/aws/terraform/security.tf**: Added an ingress rule to `photoz-db-sg` to allow traffic from the App nodes on port `6432` to reach PgBouncer.
 - **photoz/docker-compose.yml**: Replicated the PgBouncer integration for the local unified dev setup.
+
+## Phase: PgBouncer Auth Query Implementation (Date: 2026-07-14, Commit: [pending], Model: Gemini 3.1 Pro (High))
+- **Goal**: Harden PgBouncer authentication by using `scram-sha-256` instead of `plain` text, following Enterprise best practices.
+- **Analysis**: Instead of manually managing SCRAM hashes in `userlist.txt` or relying on bypassing authentication with `trust`, we configured PgBouncer to use `auth_query`. This allows PgBouncer to dynamically query Postgres for the SCRAM hash of connecting users, allowing for robust password rotation and True Zero Trust authentication.
+- **Actions**:
+    - Created `photoz/postgres-init/01-pgbouncer-auth.sql` to initialize a `pgbouncer` user and a `SECURITY DEFINER` function for querying `pg_shadow`.
+    - Created `photoz/pgbouncer/pgbouncer.ini` and `userlist.txt` for custom `edoburu` image configuration.
+    - Updated `photoz/docker-compose.yml` and `photoz/docker-compose-db.yml` to remove `POSTGRES_HOST_AUTH_METHOD=trust` and instead mount the new init scripts and config files.

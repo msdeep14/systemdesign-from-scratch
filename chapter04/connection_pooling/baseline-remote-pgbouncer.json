@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-07-14T11:30:13.009182",
+  "target": "http://3.110.173.76",
+  "concurrency": 200,
+  "read_ratio": 0.9,
+  "duration": 30,
+  "summary": {
+    "duration_seconds": 34.1,
+    "total_requests": 0,
+    "total_errors": 81,
+    "reads": {},
+    "writes": {},
+    "by_endpoint": {}
+  },
+  "db_stats_before": {
+    "active": 1,
+    "total": 7,
+    "max": 20
+  },
+  "db_stats_during": {
+    "active": 1,
+    "total": 9,
+    "max": 20
+  }
+}

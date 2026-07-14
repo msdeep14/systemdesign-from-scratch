@@ -215,9 +215,17 @@
 *   **Actions:**
     *   **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring a user can only see public photos, their own photos, or photos in communities they are a member of. Imported `CommunityMembership`.
 
-## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [pending], triggered by chapter04, Model: Gemini 3.1 Pro (High))
+## Phase: PgBouncer Connection Pooling (Date: 2026-07-13, Commit: [d1c0a317acea8d31ec34ea7752710173750b2955], triggered by chapter04, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Adding PgBouncer to multiplex 1000+ app connections down to 20 Postgres connections to solve connection limit saturation and OOM thrashing on the DB instance.
 *   **Actions:**
     *   **docker-compose-db.yml**: Added `pgbouncer` service mapping port 6432 to `db:5432`. Added `max_connections=20` to `db`.
     *   **docker-compose-app.yml**: Appended `POSTGRES_PORT=6432` to the environment block of `web`.
     *   **docker-compose.yml**: Added `pgbouncer` integration to the local unified dev setup.
+
+## Phase: PgBouncer Auth Query Implementation (Date: 2026-07-14, Commit: [pending], Model: Gemini 3.1 Pro (High))
+- **Goal**: Harden PgBouncer authentication by using `scram-sha-256` instead of `plain` text, following Enterprise best practices.
+- **Analysis**: Instead of manually managing SCRAM hashes in `userlist.txt` or relying on bypassing authentication with `trust`, we configured PgBouncer to use `auth_query`. This allows PgBouncer to dynamically query Postgres for the SCRAM hash of connecting users, allowing for robust password rotation and True Zero Trust authentication.
+- **Actions**:
+    - Created `photoz/postgres-init/01-pgbouncer-auth.sql` to initialize a `pgbouncer` user and a `SECURITY DEFINER` function for querying `pg_shadow`.
+    - Created `photoz/pgbouncer/pgbouncer.ini` and `userlist.txt` for custom `edoburu` image configuration.
+    - Updated `photoz/docker-compose.yml` and `photoz/docker-compose-db.yml` to remove `POSTGRES_HOST_AUTH_METHOD=trust` and instead mount the new init scripts and config files.

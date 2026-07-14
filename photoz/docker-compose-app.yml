@@ -4,8 +4,9 @@ services:
   web:
     build: .
     restart: always
+    # Override port to 5432 just for migrations to bypass PgBouncer (transaction mode breaks migrations)
     command: >
-      bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 30 bses.wsgi:application"
+      bash -c "POSTGRES_PORT=5432 python manage.py migrate && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 2 --threads 30 bses.wsgi:application"
     volumes:
       - .:/app
     expose:

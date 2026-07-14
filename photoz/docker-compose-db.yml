@@ -9,28 +9,19 @@ services:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
     restart: always
-    environment:
-      - DB_USER=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - DB_HOST=db
-      - DB_NAME=${POSTGRES_DB}
-      # AUTH_TYPE=plain resolves a mismatch where Postgres 15 expects scram-sha-256.
-      # Safe for PhotoZ as traffic is isolated within private VPC/Docker networks.
-      # Recommendation: For strict Zero Trust compliance, use scram-sha-256 and enforce TLS.
-      # https://www.cybertec-postgresql.com/en/pgbouncer-authentication-made-easy/
-      - AUTH_TYPE=plain
-      - POOL_MODE=transaction
-      - MAX_CLIENT_CONN=1000
-      - DEFAULT_POOL_SIZE=10
-      - LISTEN_PORT=6432
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
     ports:
       - "6432:6432"
+
     depends_on:
       - db
 
