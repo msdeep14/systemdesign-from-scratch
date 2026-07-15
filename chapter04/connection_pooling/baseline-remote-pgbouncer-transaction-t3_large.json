@@ -1,0 +1,528 @@
+{
+  "timestamp": "2026-07-15T11:08:24.162024",
+  "target": "http://13.127.68.133",
+  "concurrency": 50,
+  "read_ratio": 0.9,
+  "duration": 30,
+  "summary": {
+    "duration_seconds": 57.5,
+    "total_requests": 1771,
+    "total_errors": 0,
+    "reads": {
+      "count": 1117,
+      "avg_ms": 1254.8,
+      "p50_ms": 546.2,
+      "p95_ms": 4444.4,
+      "p99_ms": 7401.6,
+      "rps": 19.4,
+      "errors_5xx": 32
+    },
+    "writes": {
+      "count": 654,
+      "avg_ms": 229.9,
+      "p50_ms": 187.1,
+      "p95_ms": 516.3,
+      "p99_ms": 1037.7,
+      "rps": 11.4,
+      "errors_5xx": 24
+    },
+    "by_endpoint": {
+      "/photos/61832/comment/": {
+        "count": 18,
+        "avg_ms": 281.8,
+        "p50_ms": 219.4,
+        "p95_ms": 924.9,
+        "p99_ms": 924.9,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/57791/like/": {
+        "count": 17,
+        "avg_ms": 161.4,
+        "p50_ms": 136.8,
+        "p95_ms": 447.0,
+        "p99_ms": 447.0,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/photos/55986/like/": {
+        "count": 14,
+        "avg_ms": 197.9,
+        "p50_ms": 132.9,
+        "p95_ms": 758.3,
+        "p99_ms": 758.3,
+        "rps": 0.2,
+        "errors_5xx": 4
+      },
+      "/photos/73352/comment/": {
+        "count": 24,
+        "avg_ms": 237.4,
+        "p50_ms": 211.4,
+        "p95_ms": 582.9,
+        "p99_ms": 731.1,
+        "rps": 0.4,
+        "errors_5xx": 0
+      },
+      "/photos/33662/comment/": {
+        "count": 20,
+        "avg_ms": 185.3,
+        "p50_ms": 158.7,
+        "p95_ms": 587.9,
+        "p99_ms": 587.9,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/users/kendall_jones_2142/": {
+        "count": 42,
+        "avg_ms": 536.1,
+        "p50_ms": 383.0,
+        "p95_ms": 1250.9,
+        "p99_ms": 3915.6,
+        "rps": 0.7,
+        "errors_5xx": 0
+      },
+      "/photos/8823/comment/": {
+        "count": 19,
+        "avg_ms": 200.1,
+        "p50_ms": 185.6,
+        "p95_ms": 328.7,
+        "p99_ms": 328.7,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/6210/like/": {
+        "count": 14,
+        "avg_ms": 226.5,
+        "p50_ms": 190.1,
+        "p95_ms": 898.8,
+        "p99_ms": 898.8,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/users/phoenix_miller_8345/": {
+        "count": 64,
+        "avg_ms": 411.0,
+        "p50_ms": 295.7,
+        "p95_ms": 1202.1,
+        "p99_ms": 2777.6,
+        "rps": 1.1,
+        "errors_5xx": 0
+      },
+      "/photos/74355/like/": {
+        "count": 18,
+        "avg_ms": 216.2,
+        "p50_ms": 161.7,
+        "p95_ms": 905.0,
+        "p99_ms": 905.0,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/93246/like/": {
+        "count": 17,
+        "avg_ms": 272.4,
+        "p50_ms": 231.6,
+        "p95_ms": 762.4,
+        "p99_ms": 762.4,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/photos/96400/like/": {
+        "count": 18,
+        "avg_ms": 201.7,
+        "p50_ms": 178.0,
+        "p95_ms": 380.6,
+        "p99_ms": 380.6,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/photos/77587/comment/": {
+        "count": 13,
+        "avg_ms": 152.6,
+        "p50_ms": 147.2,
+        "p95_ms": 285.4,
+        "p99_ms": 285.4,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/photos/61832/like/": {
+        "count": 18,
+        "avg_ms": 194.0,
+        "p50_ms": 182.2,
+        "p95_ms": 400.5,
+        "p99_ms": 400.5,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/photos/60402/like/": {
+        "count": 17,
+        "avg_ms": 204.3,
+        "p50_ms": 182.2,
+        "p95_ms": 451.2,
+        "p99_ms": 451.2,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/93877/comment/": {
+        "count": 11,
+        "avg_ms": 159.9,
+        "p50_ms": 172.2,
+        "p95_ms": 233.9,
+        "p99_ms": 233.9,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/photos/85688/comment/": {
+        "count": 11,
+        "avg_ms": 249.7,
+        "p50_ms": 230.7,
+        "p95_ms": 457.6,
+        "p99_ms": 457.6,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/users/avery_anderson_3929/": {
+        "count": 65,
+        "avg_ms": 552.7,
+        "p50_ms": 358.1,
+        "p95_ms": 1762.2,
+        "p99_ms": 4718.7,
+        "rps": 1.1,
+        "errors_5xx": 1
+      },
+      "/photos/16473/comment/": {
+        "count": 24,
+        "avg_ms": 238.6,
+        "p50_ms": 217.7,
+        "p95_ms": 505.8,
+        "p99_ms": 579.2,
+        "rps": 0.4,
+        "errors_5xx": 1
+      },
+      "/users/blake_thompson_2277/": {
+        "count": 49,
+        "avg_ms": 455.8,
+        "p50_ms": 322.9,
+        "p95_ms": 1528.9,
+        "p99_ms": 1807.2,
+        "rps": 0.9,
+        "errors_5xx": 3
+      },
+      "/users/test_user/": {
+        "count": 46,
+        "avg_ms": 562.2,
+        "p50_ms": 389.9,
+        "p95_ms": 2444.6,
+        "p99_ms": 3472.3,
+        "rps": 0.8,
+        "errors_5xx": 1
+      },
+      "/photos/93246/comment/": {
+        "count": 16,
+        "avg_ms": 298.0,
+        "p50_ms": 278.3,
+        "p95_ms": 1066.1,
+        "p99_ms": 1066.1,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/users/sawyer_anderson_5810/": {
+        "count": 76,
+        "avg_ms": 389.3,
+        "p50_ms": 273.4,
+        "p95_ms": 1267.4,
+        "p99_ms": 2944.7,
+        "rps": 1.3,
+        "errors_5xx": 4
+      },
+      "/photos/8823/like/": {
+        "count": 12,
+        "avg_ms": 306.6,
+        "p50_ms": 294.3,
+        "p95_ms": 873.5,
+        "p99_ms": 873.5,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/85688/like/": {
+        "count": 24,
+        "avg_ms": 326.3,
+        "p50_ms": 211.3,
+        "p95_ms": 1007.3,
+        "p99_ms": 1139.6,
+        "rps": 0.4,
+        "errors_5xx": 0
+      },
+      "/photos/6210/comment/": {
+        "count": 23,
+        "avg_ms": 229.9,
+        "p50_ms": 231.0,
+        "p95_ms": 365.5,
+        "p99_ms": 462.6,
+        "rps": 0.4,
+        "errors_5xx": 1
+      },
+      "/users/harper_anderson_4574/": {
+        "count": 33,
+        "avg_ms": 758.9,
+        "p50_ms": 381.7,
+        "p95_ms": 4211.4,
+        "p99_ms": 5146.3,
+        "rps": 0.6,
+        "errors_5xx": 0
+      },
+      "/users/jamie_thompson_9466/": {
+        "count": 66,
+        "avg_ms": 476.0,
+        "p50_ms": 288.4,
+        "p95_ms": 1421.4,
+        "p99_ms": 6829.7,
+        "rps": 1.1,
+        "errors_5xx": 1
+      },
+      "/photos/57791/comment/": {
+        "count": 14,
+        "avg_ms": 210.6,
+        "p50_ms": 199.6,
+        "p95_ms": 415.6,
+        "p99_ms": 415.6,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/users/cameron_jackson_812/": {
+        "count": 48,
+        "avg_ms": 739.6,
+        "p50_ms": 396.7,
+        "p95_ms": 2965.9,
+        "p99_ms": 4847.1,
+        "rps": 0.8,
+        "errors_5xx": 5
+      },
+      "/photos/93877/like/": {
+        "count": 12,
+        "avg_ms": 197.4,
+        "p50_ms": 144.4,
+        "p95_ms": 451.7,
+        "p99_ms": 451.7,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/73352/like/": {
+        "count": 19,
+        "avg_ms": 206.4,
+        "p50_ms": 188.5,
+        "p95_ms": 403.4,
+        "p99_ms": 403.4,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/74355/comment/": {
+        "count": 21,
+        "avg_ms": 312.2,
+        "p50_ms": 214.7,
+        "p95_ms": 685.0,
+        "p99_ms": 1324.7,
+        "rps": 0.4,
+        "errors_5xx": 0
+      },
+      "/photos/21883/like/": {
+        "count": 25,
+        "avg_ms": 208.3,
+        "p50_ms": 201.2,
+        "p95_ms": 363.4,
+        "p99_ms": 484.0,
+        "rps": 0.4,
+        "errors_5xx": 0
+      },
+      "/photos/60402/comment/": {
+        "count": 13,
+        "avg_ms": 196.2,
+        "p50_ms": 189.6,
+        "p95_ms": 364.9,
+        "p99_ms": 364.9,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/21883/comment/": {
+        "count": 9,
+        "avg_ms": 393.4,
+        "p50_ms": 220.5,
+        "p95_ms": 1108.0,
+        "p99_ms": 1108.0,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/62384/comment/": {
+        "count": 16,
+        "avg_ms": 206.8,
+        "p50_ms": 149.8,
+        "p95_ms": 587.9,
+        "p99_ms": 587.9,
+        "rps": 0.3,
+        "errors_5xx": 0
+      },
+      "/photos/55986/comment/": {
+        "count": 16,
+        "avg_ms": 209.2,
+        "p50_ms": 166.2,
+        "p95_ms": 516.3,
+        "p99_ms": 516.3,
+        "rps": 0.3,
+        "errors_5xx": 2
+      },
+      "/photos/56527/like/": {
+        "count": 14,
+        "avg_ms": 188.6,
+        "p50_ms": 180.4,
+        "p95_ms": 479.8,
+        "p99_ms": 479.8,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/photos/77587/like/": {
+        "count": 14,
+        "avg_ms": 231.4,
+        "p50_ms": 146.9,
+        "p95_ms": 1209.2,
+        "p99_ms": 1209.2,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/62384/like/": {
+        "count": 12,
+        "avg_ms": 164.5,
+        "p50_ms": 132.3,
+        "p95_ms": 341.1,
+        "p99_ms": 341.1,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/": {
+        "count": 231,
+        "avg_ms": 1236.6,
+        "p50_ms": 849.7,
+        "p95_ms": 3453.9,
+        "p99_ms": 5055.8,
+        "rps": 4.0,
+        "errors_5xx": 8
+      },
+      "/users/alex_thompson_2640/": {
+        "count": 58,
+        "avg_ms": 622.4,
+        "p50_ms": 405.9,
+        "p95_ms": 2797.2,
+        "p99_ms": 4364.3,
+        "rps": 1.0,
+        "errors_5xx": 1
+      },
+      "/photos/96400/comment/": {
+        "count": 12,
+        "avg_ms": 262.2,
+        "p50_ms": 235.7,
+        "p95_ms": 1012.6,
+        "p99_ms": 1012.6,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/56527/comment/": {
+        "count": 17,
+        "avg_ms": 252.3,
+        "p50_ms": 189.9,
+        "p95_ms": 1084.9,
+        "p99_ms": 1084.9,
+        "rps": 0.3,
+        "errors_5xx": 1
+      },
+      "/photos/48070/like/": {
+        "count": 21,
+        "avg_ms": 254.2,
+        "p50_ms": 251.9,
+        "p95_ms": 432.0,
+        "p99_ms": 1007.3,
+        "rps": 0.4,
+        "errors_5xx": 2
+      },
+      "/photos/57873/comment/": {
+        "count": 19,
+        "avg_ms": 177.9,
+        "p50_ms": 115.7,
+        "p95_ms": 607.2,
+        "p99_ms": 607.2,
+        "rps": 0.3,
+        "errors_5xx": 2
+      },
+      "/photos/48070/comment/": {
+        "count": 10,
+        "avg_ms": 206.5,
+        "p50_ms": 221.6,
+        "p95_ms": 440.4,
+        "p99_ms": 440.4,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/users/avery_johnson_9727/": {
+        "count": 42,
+        "avg_ms": 429.0,
+        "p50_ms": 332.9,
+        "p95_ms": 759.8,
+        "p99_ms": 3965.5,
+        "rps": 0.7,
+        "errors_5xx": 2
+      },
+      "/photos/16473/like/": {
+        "count": 14,
+        "avg_ms": 236.5,
+        "p50_ms": 195.1,
+        "p95_ms": 511.7,
+        "p99_ms": 511.7,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/57873/like/": {
+        "count": 14,
+        "avg_ms": 212.4,
+        "p50_ms": 176.6,
+        "p95_ms": 596.3,
+        "p99_ms": 596.3,
+        "rps": 0.2,
+        "errors_5xx": 1
+      },
+      "/photos/33662/like/": {
+        "count": 14,
+        "avg_ms": 311.0,
+        "p50_ms": 265.2,
+        "p95_ms": 804.0,
+        "p99_ms": 804.0,
+        "rps": 0.2,
+        "errors_5xx": 0
+      },
+      "/photos/search/?q=alex": {
+        "count": 236,
+        "avg_ms": 3220.9,
+        "p50_ms": 2879.0,
+        "p95_ms": 7347.8,
+        "p99_ms": 9074.7,
+        "rps": 4.1,
+        "errors_5xx": 5
+      },
+      "/users/logan_williams_4440/": {
+        "count": 61,
+        "avg_ms": 774.7,
+        "p50_ms": 328.3,
+        "p95_ms": 3451.8,
+        "p99_ms": 7401.6,
+        "rps": 1.1,
+        "errors_5xx": 1
+      }
+    }
+  },
+  "db_stats_before": {
+    "active": 1,
+    "total": 8,
+    "max": 20
+  },
+  "db_stats_during": {
+    "active": 1,
+    "total": 10,
+    "max": 20
+  }
+}
