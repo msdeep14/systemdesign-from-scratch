@@ -570,7 +570,7 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 - **Actions**:
     - **photoz/bses/settings.py**: Set `CONN_MAX_AGE` to 60 seconds (configurable via `.env`). This instructs Django to keep the TCP connections to PgBouncer alive, completely bypassing the connection and authentication overhead on subsequent requests.
 
-## Phase: PgBouncer Session Mode and App Thread Optimization (Date: 2026-07-15, Commit: [pending], Model: Antigravity)
+## Phase: PgBouncer Session Mode and App Thread Optimization (Date: 2026-07-15, Commit: [0ea0d9f3167b76439de81406383c8c6da241ed6f], Model: Gemini 3.1 Pro)
 - **Goal**: Resolve HTTP 500 errors and timeouts caused by Django's incompatibility with PgBouncer `transaction` mode while preventing CPU exhaustion on App nodes.
 - **Analysis**: Django explicitly forbids `CONN_MAX_AGE > 0` with PgBouncer's `transaction` pool mode, as PgBouncer constantly swaps the underlying server connection, causing transaction state corruption and `500` errors. We previously tried setting `CONN_MAX_AGE=0` to fix the 500 errors, but forcing Django to establish a new connection and compute the SCRAM-SHA-256 hash on *every single request* caused the App Node CPUs to lock up, resulting in 30-second timeouts. 
 To escape this trap, we realized that by artificially throttling Gunicorn concurrency (`--threads 5`), we reduced the maximum number of client connections to 10 across the entire cluster. Since 10 is well under Postgres's hard limit of 20, we no longer needed `transaction` multiplexing. Switching PgBouncer to `session` mode allowed us to safely re-enable persistent connections (`CONN_MAX_AGE=60`), completely eliminating the SCRAM CPU bottleneck on every request.

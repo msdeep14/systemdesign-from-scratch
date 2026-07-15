@@ -230,7 +230,7 @@
     - Created `photoz/pgbouncer/pgbouncer.ini` and `userlist.txt` for custom `edoburu` image configuration.
     - Updated `photoz/docker-compose.yml` and `photoz/docker-compose-db.yml` to remove `POSTGRES_HOST_AUTH_METHOD=trust` and instead mount the new init scripts and config files.
 
-## Phase: Django Persistent Connections (Date: 2026-07-14, Commit: [pending], Model: Antigravity)
+## Phase: Django Persistent Connections (Date: 2026-07-14, Commit: [0ea0d9f3167b76439de81406383c8c6da241ed6f], Model: Gemini 3.1 Pro)
 - **Goal**: Fix 100% CPU bottleneck on App Nodes during load testing caused by TCP and SCRAM-SHA-256 overhead.
 - **Analysis**: By default, Django (`CONN_MAX_AGE=0`) tears down and rebuilds the database connection on every HTTP request. With PgBouncer auth set to `scram-sha-256`, this meant Django was forced to perform expensive cryptographic hashing 200 times per second during load testing. The App Nodes maxed out at 100% CPU, while the database remained idle.
 - **Actions**:
