@@ -37,9 +37,12 @@ services:
     environment:
       - POSTGRES_HOST=pgbouncer
       - POSTGRES_PORT=6432
+      - REPLICA_DB_HOST=pgbouncer-replica
+      - REPLICA_DB_PORT=6432
     depends_on:
       - db
       - pgbouncer
+      - pgbouncer-replica
 
   nginx:
     build: ./nginx
@@ -52,6 +55,31 @@ services:
     depends_on:
       - web
 
+  db-replica:
+    image: postgres:15
+    environment:
+      PRIMARY_DB_HOST: db
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres-replica/docker-entrypoint-replica.sh:/docker-entrypoint-replica.sh:ro
+    entrypoint: ["bash", "/docker-entrypoint-replica.sh"]
+    command: ["postgres", "-c", "max_connections=20"]
+    depends_on:
+      - db
+    ports:
+      - "5433:5432"
+
+  pgbouncer-replica:
+    image: edoburu/pgbouncer:latest
+    volumes:
+      - ./pgbouncer/pgbouncer-replica.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    ports:
+      - "6433:6432"
+    depends_on:
+      - db-replica
+
 volumes:
   postgres_data:
   static_volume:
+  postgres_replica_data:

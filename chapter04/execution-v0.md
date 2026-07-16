@@ -602,3 +602,15 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 - **How it works**: PgBouncer assigns a dedicated server connection to the client for the *entire lifespan of the client's connection*.
 - **When it's preferred**: When you want to use **Persistent Connections** (e.g. Django `CONN_MAX_AGE=60`) to completely eliminate the CPU/TCP overhead of connecting to the database on every HTTP request.
 - **The Catch**: It provides a strict 1:1 mapping between active App threads and Database connections. You must strictly limit your App Node concurrency (e.g. Gunicorn `--threads 5`) so that the total number of threads across your entire cluster never exceeds the Postgres `max_connections` limit.
+
+---
+
+## Phase: Read Replicas - Baseline Bottleneck (Date: 2026-07-16, Commit: pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** Single-node database bottleneck under a read-heavy workload (90% reads, 10% writes). The primary database was constrained to 0.5 CPU cores and 20 max connections to simulate resource exhaustion at scale.
+
+**Actions:**
+- Updated `docker-compose-db.yml` to set `cpus: '0.5'` on the `db` service.
+- Executed `benchmark_db_load.py` with 50 concurrent users and `--read-ratio 0.9` against the single instance.
+- Created `chapter04/read_replicas/README.md` to document the findings: Average read latency severely degraded to ~2.2s (p95: ~5.2s), while overall RPS dropped to ~13.6. 
+- **Root Cause Analysis:** The test revealed a dual bottleneck. First, the database hit its 50% Docker CPU limit, causing queries to slow down. Second, as queries backed up, PgBouncer's pool (`default_pool_size=18`) exceeded PostgreSQL's available connection slots (`max_connections=20` minus 3 reserved for superusers = 17 available). This triggered `FATAL: sorry, too many clients already` errors in the DB logs, which cascaded up to the App Servers, exhausting Gunicorn threads and causing 380 `5xx` HTTP timeouts.

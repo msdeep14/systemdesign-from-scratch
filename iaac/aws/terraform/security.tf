@@ -128,6 +128,44 @@ resource "aws_security_group" "db" {
     cidr_blocks = [local.my_ip_cidr]
   }
 
+  ingress {
+    description     = "Postgres from Replica (Streaming WAL)"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.db_replica[0].id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "db_replica" {
+  count       = var.create_security_groups ? 1 : 0
+  name        = "photoz-db-replica-sg"
+  description = "Allow Postgres traffic for Replica"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description     = "PgBouncer from App"
+    from_port       = 6432
+    to_port         = 6432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app[0].id]
+  }
+
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

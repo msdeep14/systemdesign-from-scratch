@@ -128,3 +128,9 @@ variable "github_token" {
   sensitive   = true
   default     = ""
 }
+
+variable "db_replica_count" {
+  description = "Number of database read replicas"
+  type        = number
+  default     = 1
+}

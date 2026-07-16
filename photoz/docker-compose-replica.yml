@@ -1,0 +1,33 @@
+services:
+  db-replica:
+    image: postgres:15
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+    env_file:
+      - .env
+    environment:
+      - PRIMARY_DB_HOST=${PRIMARY_DB_HOST:-db}
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+      - ./postgres-replica/docker-entrypoint-replica.sh:/docker-entrypoint-replica.sh:ro
+    entrypoint: ["bash", "/docker-entrypoint-replica.sh"]
+    command: ["postgres", "-c", "max_connections=20"]
+    ports:
+      - "5432:5432"
+
+  pgbouncer-replica:
+    image: edoburu/pgbouncer:latest
+    restart: always
+    volumes:
+      - ./pgbouncer/pgbouncer-replica.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    ports:
+      - "6432:6432"
+    depends_on:
+      - db-replica
+
+volumes:
+  postgres_replica_data:

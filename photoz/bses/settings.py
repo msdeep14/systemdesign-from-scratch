@@ -103,8 +103,22 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'disable',
         },
+    },
+    'replica': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('POSTGRES_DB', 'bses'),
+        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+        'HOST': os.environ.get('REPLICA_DB_HOST', 'localhost'),
+        'PORT': os.environ.get('REPLICA_DB_PORT', '5433'),
+        'CONN_MAX_AGE': 0,
+        'OPTIONS': {
+            'sslmode': 'disable',
+        },
     }
 }
+
+DATABASE_ROUTERS = ['bses.routers.PrimaryReplicaRouter']
 
 
 # Password validation

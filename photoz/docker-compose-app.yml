@@ -29,6 +29,8 @@ services:
       - .env
     environment:
       - POSTGRES_PORT=6432
+      - REPLICA_DB_HOST=pgbouncer-replica
+      - REPLICA_DB_PORT=6433
 
   consul-agent:
     image: hashicorp/consul:latest

@@ -87,6 +87,48 @@ resource "aws_instance" "db_node" {
   tags = { Name = "photoz-db-node" }
 }
 
+resource "aws_instance" "db_replica" {
+  count                  = var.db_replica_count
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.db_instance_type
+  subnet_id              = local.subnet_ids[count.index % length(local.subnet_ids)]
+  key_name               = var.key_name
+  vpc_security_group_ids = [aws_security_group.db_replica[0].id]
+  iam_instance_profile   = local.iam_instance_profile
+
+  user_data = <<-EOF
+    #!/bin/bash
+    sudo apt-get update && sudo apt-get install -y git
+    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+    chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
+    cd /home/ubuntu/systemdesign-from-scratch/photoz
+    
+    chmod +x configure_dependencies.sh
+    sudo ./configure_dependencies.sh
+
+    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
+    cat <<ENV > .env
+    POSTGRES_DB=bses
+    POSTGRES_USER=postgres
+    POSTGRES_PASSWORD=${var.db_password}
+    USE_S3=True
+    AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+    AWS_S3_REGION_NAME=${var.aws_region}
+    AWS_REGION=${var.aws_region}
+    DEBUG_MODE=False
+    AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
+    AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
+    SECRET_KEY=${var.django_secret_key}
+    PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
+    NODE_IP=$LOCAL_IP
+    ENV
+
+    docker compose -f docker-compose-replica.yml up -d
+  EOF
+
+  tags = { Name = "photoz-db-replica-$${count.index + 1}" }
+}
+
 resource "aws_launch_template" "app_node" {
   name_prefix   = "photoz-app-node-"
   image_id      = data.aws_ami.ubuntu.id
