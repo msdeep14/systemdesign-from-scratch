@@ -114,7 +114,13 @@ variable "app_instance_type" {
 variable "db_instance_type" {
   type        = string
   default     = "t3.micro"
-  description = "EC2 instance type for the Database node"
+  description = "EC2 instance type for the Primary Database node"
+}
+
+variable "db_replica_instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for the Database Replica nodes"
 }
 
 variable "s3_bucket_name" {

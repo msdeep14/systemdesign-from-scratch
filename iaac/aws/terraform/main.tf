@@ -101,7 +101,7 @@ resource "aws_instance" "db_node" {
 resource "aws_instance" "db_replica" {
   count                  = var.db_replica_count
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.db_instance_type
+  instance_type          = var.db_replica_instance_type
   subnet_id              = local.subnet_ids[count.index % length(local.subnet_ids)]
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.db_replica[0].id]
