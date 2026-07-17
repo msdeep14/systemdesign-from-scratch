@@ -8,32 +8,52 @@ All Terraform changes (Replica EC2 instances and Security Groups) have been impl
 
 ---
 
-## 2. Live Migration Steps (The Runbook)
+## 2. Deploying to AWS
 
-To ensure zero data loss and avoid unexpected scenarios, follow step-wise sequence:
+Depending on your current state, there are two ways to deploy this architecture.
 
-**Step 1: Apply Terraform Changes**
-Run Terraform to provision the new Security Group rules and the new Replica EC2 instance. 
+### Scenario A: Clean Deployment (Starting from Scratch)
+If you are provisioning a brand new AWS environment, the entire primary-replica architecture is 100% automated via Terraform. 
+
+1. Ensure `db_replica_count = 1` in your `terraform.tfvars`.
+2. Run Terraform:
 ```bash
 cd iaac/aws/terraform
-terraform plan
 terraform apply -auto-approve
 ```
-*(Take note of the `database_replica_private_ips` in the output, you will need it for Step 5).*
+**That's it!** The Terraform `user_data` script will automatically boot the Primary Database, configure streaming replication (`wal_level=replica`), create the users, and then automatically clone the data to the Replica instance on boot.
+
+---
+
+### Scenario B: Live Migration (Adding Replicas to an Existing Environment)
+If your application is already running in production with a single Database node, you must perform a brief maintenance window to manually configure the Primary database for replication before Terraform provisions the new replicas.
+
+To ensure zero data loss, follow this strict sequence:
+
+**Step 1: Commit and Push Changes**
+Because Terraform's EC2 startup script clones your repository directly from GitHub to configure the new replicas, you MUST commit and push all Read Replica code changes to your `main` branch *before* proceeding.
+```bash
+git add .
+git commit -m "add read replicas"
+git push origin main
+```
 
 **Step 2: Stop Traffic (Maintenance Window Begins)**
-SSH into the Load Balancer (Nginx) EC2 instance and stop the nginx container, or SSH into the App Servers and stop the web service to ensure no new writes occur while the primary is restarting.
+SSH into the App Servers and stop the web service to ensure no new writes occur while the primary is restarting.
 ```bash
 # On App EC2 Instances:
-cd ~/photoz
+cd systemdesign-from-scratch/photoz/
 docker compose -f docker-compose-app.yml stop web
 ```
 
-**Step 3: Prepare the Primary**
+**Step 3: Prepare the Primary DB**
+Configure the Primary database to support streaming replication.
 1. SSH into the Primary DB EC2 instance.
-2. Run the `setup-replication.sh` script to set `wal_level = replica` and create the `replicator` user:
+2. Pull the latest code and execute the replication script:
 ```bash
 # On Primary DB EC2 Instance:
+cd systemdesign-from-scratch/photoz/
+git pull origin main
 docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
 ```
 3. **Restart** the PostgreSQL container on the Primary instance. This is strictly required for the `wal_level` change to take effect:
@@ -42,16 +62,24 @@ docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
 docker compose -f docker-compose-db.yml restart db
 ```
 
-**Step 4: Bootstrap the Replica**
-You don't need to do anything! The `aws_instance.db_replica` startup script automatically clones the repo and runs `docker compose -f docker-compose-replica.yml up -d`. The entrypoint script will automatically wait for the primary, run `pg_basebackup` to copy the data, and start PostgreSQL in standby mode.
+**Step 4: Apply Terraform & Bootstrap Replicas**
+Run Terraform to provision the new Security Group rules and the new Replica EC2 instance. 
+Because the Primary DB is already prepared, the Replica EC2's startup script will automatically clone the repository, run `pg_basebackup`, and start streaming immediately.
+```bash
+cd iaac/aws/terraform
+terraform plan
+terraform apply -auto-approve
+```
+*(Take note of the `database_replica_private_ips` in the output, you will need it for Step 5).*
 
 **Step 5: Update and Restart App Servers**
 1. SSH into the App Server EC2 instances.
-2. Update the `.env` file to point to the new replica's private IP (which was outputted in Step 1):
+2. Update the `.env` file to point to the new replica's private IP (which was outputted in Step 4):
 ```bash
 # On App EC2 Instances:
-echo "REPLICA_DB_HOST=<REPLICA_IP_FROM_TERRAFORM_OUTPUT>" >> .env
-echo "REPLICA_DB_PORT=6432" >> .env
+cd systemdesign-from-scratch/photoz/
+sudo bash -c 'echo "REPLICA_DB_HOST=<REPLICA_IP_FROM_TERRAFORM_OUTPUT>" >> .env'
+sudo bash -c 'echo "REPLICA_DB_PORT=6432" >> .env'
 ```
 3. Pull the latest code and restart the Gunicorn/Django containers:
 ```bash
@@ -61,7 +89,7 @@ docker compose -f docker-compose-app.yml up -d --build
 ```
 
 **Step 6: Restore Traffic**
-If you stopped the Nginx container on the Load Balancer, start it back up. Monitor the Replica EC2 instance metrics to ensure read traffic is flowing successfully. (Maintenance Window Ends).
+Monitor the Replica EC2 instance metrics and the App Server logs to ensure read traffic is flowing successfully. (Maintenance Window Ends).
 
 ---
 

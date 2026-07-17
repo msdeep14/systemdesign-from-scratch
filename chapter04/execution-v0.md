@@ -614,3 +614,21 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 - Executed `benchmark_db_load.py` with 50 concurrent users and `--read-ratio 0.9` against the single instance.
 - Created `chapter04/read_replicas/README.md` to document the findings: Average read latency severely degraded to ~2.2s (p95: ~5.2s), while overall RPS dropped to ~13.6. 
 - **Root Cause Analysis:** The test revealed a dual bottleneck. First, the database hit its 50% Docker CPU limit, causing queries to slow down. Second, as queries backed up, PgBouncer's pool (`default_pool_size=18`) exceeded PostgreSQL's available connection slots (`max_connections=20` minus 3 reserved for superusers = 17 available). This triggered `FATAL: sorry, too many clients already` errors in the DB logs, which cascaded up to the App Servers, exhausting Gunicorn threads and causing 380 `5xx` HTTP timeouts.
+
+---
+
+## Phase: Read Replicas Implementation (Date: 2026-07-16, Commit: d5440e8, Model: Gemini 3.1 Pro (High))
+
+**Analysis:** To scale out the read-heavy workload, we implemented PostgreSQL streaming replication with one primary node (handling writes) and a read replica (handling reads). The Django application routes reads to the replica and writes to the primary.
+
+**Actions:**
+- **Primary Setup:** Created `02-setup-replication.sh` to configure `wal_level = replica` and add a `replicator` user in `pg_hba.conf`.
+- **Replica Setup:** Created `docker-compose-replica.yml` to run a read replica container with an identical PgBouncer setup in front of it. Created `docker-entrypoint-replica.sh` to automatically run `pg_basebackup` on initial boot and configure `standby.signal`.
+- **App Setup:** Created `bses/db_router.py` to route `db_for_read` to the `replica` database and `db_for_write` to the `default` (primary) database. Updated `DATABASES` in `settings.py` to define both connections.
+- **IaC Automation:** Updated `iaac/aws/terraform` to automatically provision `aws_instance.db_replica` and Security Group rules. Used Terraform `user_data` to automatically clone the repo, inject `PRIMARY_DB_HOST` into `.env`, and start the replica containers.
+- **Graceful Error Handling:** Implemented `templates/500.html` and configured `nginx.conf.local` to proxy 502/504 errors to a generic user-friendly 500 error page when the backend is unreachable.
+
+**Bugs & Edge Cases Addressed:**
+1. **PGBouncer Replica Authentication Failure:** The Replica's PgBouncer was unable to authenticate against its backend because the `user_data` script didn't interpolate the `.env` variable correctly for `PRIMARY_DB_HOST`, causing the replica to fall back to `db` instead of the primary's IP address. This was fixed by rewriting the deployment runbook (`AWS_DEPLOYMENT.md`) to enforce a strict sequence where the Primary is fully configured *before* the Terraform apply step is run.
+2. **Local Hardcoded IP Bug:** In `docker-compose-app.yml`, the `REPLICA_DB_HOST` was hardcoded to `pgbouncer-replica`, which broke the application when running on AWS. Fixed by removing the variable from the compose file entirely so it defaults to the `.env` file configuration on EC2.
+3. **Template Syntax Error:** A typo in `feed.html` (`{% url 'search_users' %}`) caused a `NoReverseMatch` server crash. Fixed to use the correct `search` URL pattern.

@@ -56,6 +56,17 @@ resource "aws_instance" "db_node" {
 
     docker compose -f docker-compose-db.yml up -d
 
+    # Wait for DB to be fully ready before setting up replication
+    sudo apt-get install -y postgresql-client
+    until pg_isready -h 127.0.0.1 -U postgres; do
+      echo "Waiting for postgres to start..."
+      sleep 2
+    done
+
+    # Automate Replication Setup for Clean Deployments
+    docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
+    docker compose -f docker-compose-db.yml restart db
+
     # Setup automated S3 backups
     cat <<'CRON' > /etc/cron.daily/db_backup
     #!/bin/bash

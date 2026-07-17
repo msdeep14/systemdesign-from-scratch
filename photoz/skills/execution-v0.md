@@ -235,3 +235,12 @@
 - **Analysis**: By default, Django (`CONN_MAX_AGE=0`) tears down and rebuilds the database connection on every HTTP request. With PgBouncer auth set to `scram-sha-256`, this meant Django was forced to perform expensive cryptographic hashing 200 times per second during load testing. The App Nodes maxed out at 100% CPU, while the database remained idle.
 - **Actions**:
     - **photoz/bses/settings.py**: Set `CONN_MAX_AGE` to 60 seconds (configurable via `.env`). This instructs Django to keep the TCP connections to PgBouncer alive, completely bypassing the connection and authentication overhead on subsequent requests.
+
+## Phase: Read Replicas Bug Fixes (Date: 2026-07-16, Commit: d5440e8, Model: Gemini 3.1 Pro (High))
+- **Goal**: Fix UI errors and deployment misconfigurations discovered during the Read Replicas deployment.
+- **Analysis**: During testing, several application-level bugs surfaced. First, when PgBouncer failed to connect, the application threw an unhandled 500 error page. Second, the `feed.html` template contained a typo causing a `NoReverseMatch`. Third, `docker-compose-app.yml` had a hardcoded `REPLICA_DB_HOST` which overrode the environment variables on EC2.
+- **Actions**:
+    - **photoz/templates/500.html**: Created a graceful 500 error page template.
+    - **photoz/nginx/nginx.conf.local**: Configured local Nginx to intercept 502/504 Bad Gateway/Timeout errors and serve the `500.html` template instead of the default white screen.
+    - **photoz/newsfeed/templates/newsfeed/feed.html**: Fixed `{% url 'search_users' %}` typo to `{% url 'search' %}`.
+    - **photoz/docker-compose-app.yml**: Removed the hardcoded `REPLICA_DB_HOST` environment variable so that it correctly inherits from `.env` on AWS instances.
