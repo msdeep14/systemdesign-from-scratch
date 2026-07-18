@@ -182,7 +182,7 @@ resource "aws_launch_template" "app_node" {
     POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
     REPLICA_DB_HOST=${var.db_replica_count > 0 ? aws_instance.db_replica[0].private_ip : (var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip)}
     REPLICA_DB_PORT=6432
-    CONSUL_SERVER_IP=${aws_instance.consul_server.private_ip}
+    CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
     NODE_IP=$$LOCAL_IP
 ENV
 
