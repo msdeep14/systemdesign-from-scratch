@@ -159,7 +159,7 @@ resource "aws_launch_template" "app_node" {
   user_data = base64encode(<<-EOF
     #!/bin/bash
     sudo apt-get update && sudo apt-get install -y git
-    git clone https://${var.github_token}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
     chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
     cd /home/ubuntu/systemdesign-from-scratch/photoz
     

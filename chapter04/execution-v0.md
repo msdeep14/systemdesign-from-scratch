@@ -633,7 +633,7 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 2. **Local Hardcoded IP Bug:** In `docker-compose-app.yml`, the `REPLICA_DB_HOST` was hardcoded to `pgbouncer-replica`, which broke the application when running on AWS. Fixed by removing the variable from the compose file entirely so it defaults to the `.env` file configuration on EC2.
 3. **Template Syntax Error:** A typo in `feed.html` (`{% url 'search_users' %}`) caused a `NoReverseMatch` server crash. Fixed to use the correct `search` URL pattern.
 
-## Phase: Application-Level Multi-Replica Routing (Date: 2026-07-18, Commit: 8a016bb, Model: Antigravity)
+## Phase: Application-Level Multi-Replica Routing (Date: 2026-07-18, Commit: d6c302fe10f638a4ef436a9358b40dbfb568cb64, Model: Gemini 3.1 Pro)
 * **Analysis**: The architecture was previously hardcoded to route all read queries to a single replica instance (`aws_instance.db_replica[0]`), leaving secondary replicas completely idle. The user requested to implement application-level routing to distribute the load across all available replicas.
 * **Actions Taken**:
   * Updated `iaac/aws/terraform/main.tf` to join all replica private IPs into a comma-separated list and inject it as `REPLICA_DB_HOSTS` inside the `.env` file.
