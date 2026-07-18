@@ -179,6 +179,8 @@ resource "aws_launch_template" "app_node" {
     AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
     SECRET_KEY=${var.django_secret_key}
     POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
+    REPLICA_DB_HOST=${var.db_replica_count > 0 ? aws_instance.db_replica[0].private_ip : (var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip)}
+    REPLICA_DB_PORT=6432
     NODE_IP=$LOCAL_IP
     CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
     ENV
@@ -205,6 +207,13 @@ resource "aws_autoscaling_group" "app_nodes" {
   launch_template {
     id      = aws_launch_template.app_node.id
     version = "$Latest"
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+    }
   }
 
   tag {
