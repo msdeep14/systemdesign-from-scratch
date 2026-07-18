@@ -37,8 +37,8 @@ resource "aws_instance" "db_node" {
     chmod +x configure_dependencies.sh
     sudo ./configure_dependencies.sh
 
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    cat <<ENV > .env
+    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
+    cat <<-ENV > .env
     POSTGRES_DB=bses
     POSTGRES_USER=postgres
     POSTGRES_PASSWORD=${var.db_password}
@@ -51,8 +51,8 @@ resource "aws_instance" "db_node" {
     AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
     SECRET_KEY=${var.django_secret_key}
     POSTGRES_HOST=127.0.0.1
-    NODE_IP=$LOCAL_IP
-    ENV
+    NODE_IP=$$LOCAL_IP
+ENV
 
     docker compose -f docker-compose-db.yml up -d
 
@@ -118,7 +118,7 @@ resource "aws_instance" "db_replica" {
     sudo ./configure_dependencies.sh
 
     LOCAL_IP=$$(hostname -I | awk '{print $$1}')
-    cat <<ENV > .env
+    cat <<-ENV > .env
     POSTGRES_DB=bses
     POSTGRES_USER=postgres
     POSTGRES_PASSWORD=${var.db_password}
@@ -131,13 +131,14 @@ resource "aws_instance" "db_replica" {
     AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
     SECRET_KEY=${var.django_secret_key}
     PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
-    NODE_IP=$LOCAL_IP
-    ENV
+    REPLICA_SLOT_NAME=replica_$${count.index + 1}
+    NODE_IP=$$LOCAL_IP
+ENV
 
     docker compose -f docker-compose-replica.yml up -d
   EOF
 
-  tags = { Name = "photoz-db-replica-$${count.index + 1}" }
+  tags = { Name = "photoz-db-replica-${count.index + 1}" }
 }
 
 resource "aws_launch_template" "app_node" {
@@ -165,8 +166,8 @@ resource "aws_launch_template" "app_node" {
     chmod +x configure_dependencies.sh
     sudo ./configure_dependencies.sh
 
-    LOCAL_IP=$(hostname -I | awk '{print $1}')
-    cat <<ENV > .env
+    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
+    cat <<-ENV > .env
     POSTGRES_DB=bses
     POSTGRES_USER=postgres
     POSTGRES_PASSWORD=${var.db_password}
@@ -181,9 +182,9 @@ resource "aws_launch_template" "app_node" {
     POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
     REPLICA_DB_HOST=${var.db_replica_count > 0 ? aws_instance.db_replica[0].private_ip : (var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip)}
     REPLICA_DB_PORT=6432
-    NODE_IP=$LOCAL_IP
-    CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
-    ENV
+    CONSUL_SERVER_IP=${aws_instance.consul_server.private_ip}
+    NODE_IP=$$LOCAL_IP
+ENV
 
     docker compose -f docker-compose-app.yml up -d
   EOF

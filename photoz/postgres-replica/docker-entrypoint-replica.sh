@@ -17,8 +17,7 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
   # -vP: verbose and progress
   # -R: creates postgresql.auto.conf and standby.signal for replication
   # -X stream: streams WAL files while backup is taken
-  # -C -S replica_1: create a replication slot named replica_1
-  pg_basebackup -h ${PRIMARY_DB_HOST:-db} -p 5432 -D ${PGDATA} -U replicator -vP -R -X stream -C -S replica_1
+  pg_basebackup -h ${PRIMARY_DB_HOST:-db} -p 5432 -D ${PGDATA} -U replicator -vP -R -X stream -C -S ${REPLICA_SLOT_NAME:-replica_1}
   
   echo ">>> pg_basebackup complete. Starting replica..."
 fi

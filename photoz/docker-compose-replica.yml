@@ -8,8 +8,6 @@ services:
           cpus: '0.5'
     env_file:
       - .env
-    environment:
-      - PRIMARY_DB_HOST=${PRIMARY_DB_HOST:-db}
     volumes:
       - postgres_replica_data:/var/lib/postgresql/data
       - ./postgres-replica/docker-entrypoint-replica.sh:/docker-entrypoint-replica.sh:ro
