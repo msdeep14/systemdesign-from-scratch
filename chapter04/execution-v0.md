@@ -632,3 +632,11 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 1. **PGBouncer Replica Authentication Failure:** The Replica's PgBouncer was unable to authenticate against its backend because the `user_data` script didn't interpolate the `.env` variable correctly for `PRIMARY_DB_HOST`, causing the replica to fall back to `db` instead of the primary's IP address. This was fixed by rewriting the deployment runbook (`AWS_DEPLOYMENT.md`) to enforce a strict sequence where the Primary is fully configured *before* the Terraform apply step is run.
 2. **Local Hardcoded IP Bug:** In `docker-compose-app.yml`, the `REPLICA_DB_HOST` was hardcoded to `pgbouncer-replica`, which broke the application when running on AWS. Fixed by removing the variable from the compose file entirely so it defaults to the `.env` file configuration on EC2.
 3. **Template Syntax Error:** A typo in `feed.html` (`{% url 'search_users' %}`) caused a `NoReverseMatch` server crash. Fixed to use the correct `search` URL pattern.
+
+## Phase: Application-Level Multi-Replica Routing (Date: 2026-07-18, Commit: 8a016bb, Model: Antigravity)
+* **Analysis**: The architecture was previously hardcoded to route all read queries to a single replica instance (`aws_instance.db_replica[0]`), leaving secondary replicas completely idle. The user requested to implement application-level routing to distribute the load across all available replicas.
+* **Actions Taken**:
+  * Updated `iaac/aws/terraform/main.tf` to join all replica private IPs into a comma-separated list and inject it as `REPLICA_DB_HOSTS` inside the `.env` file.
+  * Modified `photoz/bses/settings.py` to parse `REPLICA_DB_HOSTS` (falling back to single-node configuration for safety) and dynamically generate `DATABASES` keys (`replica_1`, `replica_2`, etc.).
+  * Updated `photoz/bses/routers.py`'s `PrimaryReplicaRouter` to dynamically detect all aliases starting with `replica_` on initialization, and implemented `random.choice()` in `db_for_read` to evenly load balance traffic across them.
+* **Errors & Edge Cases**: Handled the edge case where `db_replica_count = 0` by providing safe fallbacks directly to the primary database in both Django settings and Terraform.

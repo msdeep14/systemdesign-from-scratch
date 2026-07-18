@@ -103,20 +103,36 @@ DATABASES = {
         'OPTIONS': {
             'sslmode': 'disable',
         },
-    },
-    'replica': {
+    }
+}
+
+# Dynamically add replica databases
+replica_hosts_str = os.environ.get('REPLICA_DB_HOSTS', '')
+if replica_hosts_str:
+    replica_hosts = [h.strip() for h in replica_hosts_str.split(',') if h.strip()]
+else:
+    # Fallback for single node or older env files
+    single_host = os.environ.get('REPLICA_DB_HOST')
+    replica_hosts = [single_host] if single_host else []
+
+for i, host in enumerate(replica_hosts):
+    DATABASES[f'replica_{i+1}'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('POSTGRES_DB', 'bses'),
         'USER': os.environ.get('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('REPLICA_DB_HOST', 'localhost'),
-        'PORT': os.environ.get('REPLICA_DB_PORT', '5433'),
+        'HOST': host,
+        'PORT': os.environ.get('REPLICA_DB_PORT', '6432'), # PgBouncer proxy port
         'CONN_MAX_AGE': 0,
         'OPTIONS': {
             'sslmode': 'disable',
         },
+        # Tell Django test runner not to create separate blank test databases for replicas. 
+        # Instead, just route all replica test queries to the 'default' test database so tests pass seamlessly.
+        'TEST': {
+            'MIRROR': 'default',
+        }
     }
-}
 
 DATABASE_ROUTERS = ['bses.routers.PrimaryReplicaRouter']
 

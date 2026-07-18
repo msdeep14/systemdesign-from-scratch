@@ -244,3 +244,11 @@
     - **photoz/nginx/nginx.conf.local**: Configured local Nginx to intercept 502/504 Bad Gateway/Timeout errors and serve the `500.html` template instead of the default white screen.
     - **photoz/newsfeed/templates/newsfeed/feed.html**: Fixed `{% url 'search_users' %}` typo to `{% url 'search' %}`.
     - **photoz/docker-compose-app.yml**: Removed the hardcoded `REPLICA_DB_HOST` environment variable so that it correctly inherits from `.env` on AWS instances.
+
+## Phase: Application-Level Multi-Replica Routing (Date: 2026-07-18, Commit: 8a016bb, Model: Antigravity)
+* **Analysis**: The architecture was previously hardcoded to route all read queries to a single replica instance (`aws_instance.db_replica[0]`), leaving secondary replicas completely idle. The user requested to implement application-level routing to distribute the load across all available replicas.
+* **Actions Taken**:
+  * Updated `iaac/aws/terraform/main.tf` to join all replica private IPs into a comma-separated list and inject it as `REPLICA_DB_HOSTS` inside the `.env` file.
+  * Modified `photoz/bses/settings.py` to parse `REPLICA_DB_HOSTS` (falling back to single-node configuration for safety) and dynamically generate `DATABASES` keys (`replica_1`, `replica_2`, etc.).
+  * Updated `photoz/bses/routers.py`'s `PrimaryReplicaRouter` to dynamically detect all aliases starting with `replica_` on initialization, and implemented `random.choice()` in `db_for_read` to evenly load balance traffic across them.
+* **Errors & Edge Cases**: Handled the edge case where `db_replica_count = 0` by providing safe fallbacks directly to the primary database in both Django settings and Terraform.
