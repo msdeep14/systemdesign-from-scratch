@@ -28,72 +28,72 @@ resource "aws_instance" "db_node" {
   iam_instance_profile   = local.iam_instance_profile
 
   user_data = <<-EOF
-    #!/bin/bash
-    sudo apt-get update && sudo apt-get install -y git
-    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
-    chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
-    cd /home/ubuntu/systemdesign-from-scratch/photoz
-    
-    chmod +x configure_dependencies.sh
-    sudo ./configure_dependencies.sh
+#!/bin/bash
+sudo apt-get update && sudo apt-get install -y git
+git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
+cd /home/ubuntu/systemdesign-from-scratch/photoz
 
-    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
-    cat <<-ENV > .env
-    POSTGRES_DB=bses
-    POSTGRES_USER=postgres
-    POSTGRES_PASSWORD=${var.db_password}
-    USE_S3=True
-    AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
-    AWS_S3_REGION_NAME=${var.aws_region}
-    AWS_REGION=${var.aws_region}
-    DEBUG_MODE=False
-    AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-    AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-    SECRET_KEY=${var.django_secret_key}
-    POSTGRES_HOST=127.0.0.1
-    NODE_IP=$$LOCAL_IP
+chmod +x configure_dependencies.sh
+sudo ./configure_dependencies.sh
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+cat <<-ENV > .env
+POSTGRES_DB=bses
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=${var.db_password}
+USE_S3=True
+AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_S3_REGION_NAME=${var.aws_region}
+AWS_REGION=${var.aws_region}
+DEBUG_MODE=False
+AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
+AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
+SECRET_KEY=${var.django_secret_key}
+POSTGRES_HOST=127.0.0.1
+NODE_IP=$LOCAL_IP
 ENV
 
-    docker compose -f docker-compose-db.yml up -d
+docker compose -f docker-compose-db.yml up -d
 
-    # Wait for DB to be fully ready before setting up replication
-    sudo apt-get install -y postgresql-client
-    until pg_isready -h 127.0.0.1 -U postgres; do
-      echo "Waiting for postgres to start..."
-      sleep 2
-    done
+# Wait for DB to be fully ready before setting up replication
+sudo apt-get install -y postgresql-client
+until pg_isready -h 127.0.0.1 -U postgres; do
+  echo "Waiting for postgres to start..."
+  sleep 2
+done
 
-    # Automate Replication Setup for Clean Deployments
-    docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
-    docker compose -f docker-compose-db.yml restart db
+# Automate Replication Setup for Clean Deployments
+docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
+docker compose -f docker-compose-db.yml restart db
 
-    # Setup automated S3 backups
-    cat <<'CRON' > /etc/cron.daily/db_backup
-    #!/bin/bash
-    docker exec photoz-db pg_dump -U postgres bses > /tmp/bses_backup.sql
-    aws s3 cp /tmp/bses_backup.sql s3://${var.s3_bucket_name}/db_backups/bses_backup_\$(date +%F).sql
-    CRON
-    chmod +x /etc/cron.daily/db_backup
+# Setup automated S3 backups
+cat <<'CRON' > /etc/cron.daily/db_backup
+#!/bin/bash
+docker exec photoz-db pg_dump -U postgres bses > /tmp/bses_backup.sql
+aws s3 cp /tmp/bses_backup.sql s3://${var.s3_bucket_name}/db_backups/bses_backup_\$(date +%F).sql
+CRON
+chmod +x /etc/cron.daily/db_backup
 
-    if [ "${var.seed_database}" = "true" ]; then
-      echo "Seeding database..."
-      sudo apt-get install -y python3-venv libpq-dev postgresql-client
-      python3 -m venv venv
-      source venv/bin/activate
-      pip install -r requirements.txt
-      
-      # Wait for DB to be fully ready to accept connections
-      until pg_isready -h 127.0.0.1 -U postgres; do
-        echo "Waiting for postgres to start..."
-        sleep 2
-      done
-      
-      # Ensure schema exists before seeding
-      python manage.py migrate
-      
-      python ../chapter04/query_optimization/seed_data.py --reset
-    fi
-  EOF
+if [ "${var.seed_database}" = "true" ]; then
+  echo "Seeding database..."
+  sudo apt-get install -y python3-venv libpq-dev postgresql-client
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -r requirements.txt
+  
+  # Wait for DB to be fully ready to accept connections
+  until pg_isready -h 127.0.0.1 -U postgres; do
+    echo "Waiting for postgres to start..."
+    sleep 2
+  done
+  
+  # Ensure schema exists before seeding
+  python manage.py migrate
+  
+  python ../chapter04/query_optimization/seed_data.py --reset
+fi
+EOF
 
   tags = { Name = "photoz-db-node" }
 }
@@ -108,35 +108,35 @@ resource "aws_instance" "db_replica" {
   iam_instance_profile   = local.iam_instance_profile
 
   user_data = <<-EOF
-    #!/bin/bash
-    sudo apt-get update && sudo apt-get install -y git
-    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
-    chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
-    cd /home/ubuntu/systemdesign-from-scratch/photoz
-    
-    chmod +x configure_dependencies.sh
-    sudo ./configure_dependencies.sh
+#!/bin/bash
+sudo apt-get update && sudo apt-get install -y git
+git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
+cd /home/ubuntu/systemdesign-from-scratch/photoz
 
-    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
-    cat <<-ENV > .env
-    POSTGRES_DB=bses
-    POSTGRES_USER=postgres
-    POSTGRES_PASSWORD=${var.db_password}
-    USE_S3=True
-    AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
-    AWS_S3_REGION_NAME=${var.aws_region}
-    AWS_REGION=${var.aws_region}
-    DEBUG_MODE=False
-    AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-    AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-    SECRET_KEY=${var.django_secret_key}
-    PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
-    REPLICA_SLOT_NAME=replica_$${count.index + 1}
-    NODE_IP=$$LOCAL_IP
+chmod +x configure_dependencies.sh
+sudo ./configure_dependencies.sh
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+cat <<-ENV > .env
+POSTGRES_DB=bses
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=${var.db_password}
+USE_S3=True
+AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_S3_REGION_NAME=${var.aws_region}
+AWS_REGION=${var.aws_region}
+DEBUG_MODE=False
+AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
+AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
+SECRET_KEY=${var.django_secret_key}
+PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
+REPLICA_SLOT_NAME=replica_${count.index + 1}
+NODE_IP=$LOCAL_IP
 ENV
 
-    docker compose -f docker-compose-replica.yml up -d
-  EOF
+docker compose -f docker-compose-replica.yml up -d
+EOF
 
   tags = { Name = "photoz-db-replica-${count.index + 1}" }
 }
@@ -156,38 +156,38 @@ resource "aws_launch_template" "app_node" {
     name = local.iam_instance_profile
   }
 
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    sudo apt-get update && sudo apt-get install -y git
-    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
-    chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
-    cd /home/ubuntu/systemdesign-from-scratch/photoz
-    
-    chmod +x configure_dependencies.sh
-    sudo ./configure_dependencies.sh
+  user_data = base64encode(<<EOF
+#!/bin/bash
+sudo apt-get update && sudo apt-get install -y git
+git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
+cd /home/ubuntu/systemdesign-from-scratch/photoz
 
-    LOCAL_IP=$$(hostname -I | awk '{print $$1}')
-    cat <<-ENV > .env
-    POSTGRES_DB=bses
-    POSTGRES_USER=postgres
-    POSTGRES_PASSWORD=${var.db_password}
-    USE_S3=True
-    AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
-    AWS_S3_REGION_NAME=${var.aws_region}
-    AWS_REGION=${var.aws_region}
-    DEBUG_MODE=False
-    AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-    AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-    SECRET_KEY=${var.django_secret_key}
-    POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
-    REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[*].private_ip) : ""}
-    REPLICA_DB_PORT=6432
-    CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
-    NODE_IP=$$LOCAL_IP
+chmod +x configure_dependencies.sh
+sudo ./configure_dependencies.sh
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+cat <<-ENV > .env
+POSTGRES_DB=bses
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=${var.db_password}
+USE_S3=True
+AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_S3_REGION_NAME=${var.aws_region}
+AWS_REGION=${var.aws_region}
+DEBUG_MODE=False
+AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
+AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
+SECRET_KEY=${var.django_secret_key}
+POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
+REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[*].private_ip) : ""}
+REPLICA_DB_PORT=6432
+CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
+NODE_IP=$LOCAL_IP
 ENV
 
-    docker compose -f docker-compose-app.yml up -d
-  EOF
+docker compose -f docker-compose-app.yml up -d
+EOF
   )
 
   tag_specifications {
@@ -285,22 +285,23 @@ resource "aws_instance" "lb_node" {
   iam_instance_profile   = local.iam_instance_profile
 
   user_data = <<-EOF
-    #!/bin/bash
-    sudo apt-get update && sudo apt-get install -y git
-    git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
-    chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
-    cd /home/ubuntu/systemdesign-from-scratch/photoz
-    
-    chmod +x configure_dependencies.sh
-    sudo ./configure_dependencies.sh
+#!/bin/bash
+sudo apt-get update && sudo apt-get install -y git
+git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
+cd /home/ubuntu/systemdesign-from-scratch/photoz
 
-    cat <<ENV > .env
-    AWS_REGION=${var.aws_region}
-    NODE_IP=\$(hostname -I | awk '{print \$1}')
-    ENV
+chmod +x configure_dependencies.sh
+sudo ./configure_dependencies.sh
 
-    docker compose -f docker-compose-lb.yml up -d
-  EOF
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+cat <<ENV > .env
+AWS_REGION=${var.aws_region}
+NODE_IP=$LOCAL_IP
+ENV
+
+docker compose -f docker-compose-lb.yml up -d
+EOF
 
   tags = { Name = "photoz-lb-node" }
 }

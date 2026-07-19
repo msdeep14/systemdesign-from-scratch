@@ -5,10 +5,6 @@ services:
     image: postgres:15
     restart: always
     command: [ "postgres", "-c", "max_connections=20" ]
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
     env_file:
       - .env
     volumes:

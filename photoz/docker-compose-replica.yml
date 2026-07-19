@@ -2,10 +2,6 @@ services:
   db-replica:
     image: postgres:15
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
     env_file:
       - .env
     volumes:
