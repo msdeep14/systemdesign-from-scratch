@@ -541,14 +541,13 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 
 ---
 
-## Phase: Crunch Benchmark Baselines (Date: 2026-07-21, Commit: HEAD, Model: Gemini 3.1 Pro (High))
+## Phase: Crunch Benchmark Baselines (Date: 2026-07-21, Commit: NA, Model: Gemini 3.1 Pro (High))
 
 **Analysis:**
 Consolidated baseline JSON files from `connection_pooling` and `read_replicas` tests into a central summary to free up repository space. The data highlights the bottlenecks experienced with single remote instances, the performance lift and connection-drop using PgBouncer, and the throughput improvements when scaling out with read replicas.
 
 **Actions:**
 - Extracted and aggregated performance metrics from 7 baseline JSON files across different configuration states (local, remote single DB, PgBouncer poolers, and Read Replicas).
-- Deleted the raw JSON baseline files to keep the repository clean.
 
 **Benchmark Results Summary:**
 

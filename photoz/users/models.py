@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.postgres.indexes import GinIndex
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -11,6 +12,15 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            GinIndex(
+                name='userprofile_trgm_idx',
+                fields=['username_display', 'first_name', 'last_name'],
+                opclasses=['gin_trgm_ops', 'gin_trgm_ops', 'gin_trgm_ops']
+            )
+        ]
 
     def __str__(self):
         return self.username_display
