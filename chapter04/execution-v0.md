@@ -537,7 +537,35 @@ PostgreSQL was chosen because the current requirement is simple (exact hashtag s
 - We need to enforce standard PhotoZ visibility rules: a user can see public photos (no community), photos in communities they have 'accepted' status in, and their own photos.
 
 **Actions:**
-- **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring only authorized photos are returned in search results. Imported `CommunityMembership`.
+- **photos/views.py**: Updated `_search_photos_by_hashtag` to include a `visibility_q` filter ensuring only photos that are either public, belong to the user, or belong to an accepted community are returned.
+
+---
+
+## Phase: Crunch Benchmark Baselines (Date: 2026-07-21, Commit: HEAD, Model: Gemini 3.1 Pro (High))
+
+**Analysis:**
+Consolidated baseline JSON files from `connection_pooling` and `read_replicas` tests into a central summary to free up repository space. The data highlights the bottlenecks experienced with single remote instances, the performance lift and connection-drop using PgBouncer, and the throughput improvements when scaling out with read replicas.
+
+**Actions:**
+- Extracted and aggregated performance metrics from 7 baseline JSON files across different configuration states (local, remote single DB, PgBouncer poolers, and Read Replicas).
+- Deleted the raw JSON baseline files to keep the repository clean.
+
+**Benchmark Results Summary:**
+
+### 1. Connection Pooling & Remote Database Benchmarks
+| Configuration | Concurrency | Read RPS | Read P95 Latency | Write RPS | Write P95 Latency | 5xx Errors | Max DB Conns |
+|---------------|-------------|----------|------------------|-----------|-------------------|------------|--------------|
+| Local DB (Baseline) | 100 | 588.2 | 4.6 ms | 0.0 | - | 31,722 | 33 |
+| Remote DB (No pooling) | 200 | 0.5 | 3,488.0 ms | 0.3 | 956.6 ms | 1 | 98 |
+| Remote DB (PgBouncer) | 200 | 20.8 | 4,375.8 ms | 2.7 | 3,339.1 ms | 867 | 19 |
+| Remote DB (PgBouncer Transaction, t3.large) | 50 | 19.4 | 4,444.4 ms | 11.4 | 516.3 ms | 56 | 10 |
+
+### 2. Read Replicas Benchmarks
+| Configuration | Concurrency | Read RPS | Read P95 Latency | Write RPS | Write P95 Latency | 5xx Errors | Max DB Conns |
+|---------------|-------------|----------|------------------|-----------|-------------------|------------|--------------|
+| Single DB | 150 | 9.5 | 967.4 ms | 0.0 | - | 380 | - |
+| DB with Replica | 50 | 8.2 | 876.8 ms | 0.0 | - | 219 | 10 |
+| DB with Replica | 150 | 13.3 | 2,297.4 ms | 7.5 | 168.4 ms | 44 | 10 |
 
 ---
 
@@ -640,3 +668,10 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
   * Modified `photoz/bses/settings.py` to parse `REPLICA_DB_HOSTS` (falling back to single-node configuration for safety) and dynamically generate `DATABASES` keys (`replica_1`, `replica_2`, etc.).
   * Updated `photoz/bses/routers.py`'s `PrimaryReplicaRouter` to dynamically detect all aliases starting with `replica_` on initialization, and implemented `random.choice()` in `db_for_read` to evenly load balance traffic across them.
 * **Errors & Edge Cases**: Handled the edge case where `db_replica_count = 0` by providing safe fallbacks directly to the primary database in both Django settings and Terraform.
+
+## Phase: Read Replica Performance Tuning & Benchmark (Date: 2026-07-19, Commit: ea8f870e82c238c084338f74d4912b722cde6065, Model: Claude 3.5 Sonnet)
+* **Analysis**: Initial benchmark with read replicas showed severe degradation (4.5s latency, high 5xx) compared to the single-db baseline. Discovered that the app nodes (`t3.micro`) were CPU throttling due to high concurrency configurations (30 threads per worker) and constant connection churn. After fixing those, found that threads=8 caused request queueing and high 5xx rate. Finally stabilized at threads=16 which balanced CPU usage and queueing, resulting in 0 read 5xx errors and a 47% reduction in read latency compared to the baseline.
+* **Actions Taken**:
+  * Configured `CONN_MAX_AGE = 60` in `photoz/bses/settings.py` for both default and replica databases to enable PgBouncer connection reuse and reduce CPU connection overhead.
+  * Restored `default_pool_size = 18` in `photoz/pgbouncer/pgbouncer-replica.ini` to ensure replicas had enough active database connections.
+  * Adjusted Gunicorn threads in `photoz/docker-compose-app.yml` from 30 down to 16 to reduce context-switching overhead on limited vCPUs while providing enough slots for 150 concurrent users.

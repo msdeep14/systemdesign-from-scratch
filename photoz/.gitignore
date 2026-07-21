@@ -25,3 +25,6 @@ media/
 *.log
 logs/
 staticfiles/
+
+# Benchmarks
+baseline*.json
