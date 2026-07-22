@@ -64,9 +64,18 @@ until pg_isready -h 127.0.0.1 -U postgres; do
 done
 
 # Automate Replication Setup for Clean Deployments
-# Pass REPLICA_COUNT so the init script creates exactly the right number of slots.
-REPLICA_COUNT=${var.db_replica_count} docker exec -i -e REPLICA_COUNT=${var.db_replica_count} photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
+docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
 docker compose -f docker-compose-db.yml restart db
+
+# Wait for the DB to come back up after restart
+until pg_isready -h 127.0.0.1 -U postgres; do
+  echo "Waiting for postgres to restart..."
+  sleep 2
+done
+
+# Create one physical replication slot per replica.
+# See postgres-init/03-create-replication-slots.sh for manual usage.
+REPLICA_COUNT=${var.db_replica_count} bash ./postgres-init/03-create-replication-slots.sh
 
 # Setup automated S3 backups
 cat <<'CRON' > /etc/cron.daily/db_backup
