@@ -64,7 +64,8 @@ until pg_isready -h 127.0.0.1 -U postgres; do
 done
 
 # Automate Replication Setup for Clean Deployments
-docker exec -i photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
+# Pass REPLICA_COUNT so the init script creates exactly the right number of slots.
+REPLICA_COUNT=${var.db_replica_count} docker exec -i -e REPLICA_COUNT=${var.db_replica_count} photoz-db-1 bash < ./postgres-init/02-setup-replication.sh
 docker compose -f docker-compose-db.yml restart db
 
 # Setup automated S3 backups

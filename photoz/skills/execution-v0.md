@@ -253,8 +253,7 @@
   * Updated `photoz/bses/routers.py`'s `PrimaryReplicaRouter` to dynamically detect all aliases starting with `replica_` on initialization, and implemented `random.choice()` in `db_for_read` to evenly load balance traffic across them.
 * **Errors & Edge Cases**: Handled the edge case where `db_replica_count = 0` by providing safe fallbacks directly to the primary database in both Django settings and Terraform.
 
-## Phase: User Search Query Optimization (Date: 2026-07-21, Commit: Pending, Model: Gemini 3.1 Pro (High))
+## Phase: User Search Query Optimization (Date: 2026-07-21, Commit: 9edf3cd77c0c9a264d9a9f5ab86ce3f8cb4e0ae0, Model: Gemini 3.1 Pro (High))
 * **Analysis**: During the final load test, the `/photos/search/?q=alex` endpoint averaged 1865ms, significantly skewing the overall read latency average. The search view queried the `UserProfile` model using `icontains` on `username_display`, `first_name`, and `last_name` without a trigram index, forcing PostgreSQL to perform a full table scan.
 * **Actions**:
   * Modified `photoz/users/models.py` to add `GinIndex` with `gin_trgm_ops` to the `UserProfile` fields (`username_display`, `first_name`, `last_name`).
-* **Notes/Edge Cases**: Created the code changes, pending execution of `makemigrations` and `migrate` commands by the user.
