@@ -1,5 +1,6 @@
 import random
 from django.conf import settings
+from bses.ryw_middleware import is_primary_forced
 
 class PrimaryReplicaRouter:
     """
@@ -18,8 +19,11 @@ class PrimaryReplicaRouter:
 
     def db_for_read(self, model, **hints):
         """
-        Reads go to a random replica.
+        Reads go to a random replica, unless the RYW middleware has set the
+        force-primary flag for this thread (meaning the client just wrote data).
         """
+        if is_primary_forced():
+            return 'default'
         return random.choice(self.replicas)
 
     def db_for_write(self, model, **hints):

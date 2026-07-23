@@ -674,3 +674,15 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
   * Configured `CONN_MAX_AGE = 60` in `photoz/bses/settings.py` for both default and replica databases to enable PgBouncer connection reuse and reduce CPU connection overhead.
   * Restored `default_pool_size = 18` in `photoz/pgbouncer/pgbouncer-replica.ini` to ensure replicas had enough active database connections.
   * Adjusted Gunicorn threads in `photoz/docker-compose-app.yml` from 30 down to 16 to reduce context-switching overhead on limited vCPUs while providing enough slots for 150 concurrent users.
+
+## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+
+**Analysis**: In the primary-replica setup, writes go to the primary and reads randomly go to replicas. PostgreSQL streaming replication has a small but non-zero lag. This causes a specific consistency violation: a user posts a comment, the page reloads, and the comment is missing because the replica hasn't caught up yet. The fix uses a cookie-based approach — only the user who just wrote gets their reads pinned to the primary for 5 seconds, all other users keep reading from replicas.
+
+**Key design decision**: The database router (`routers.py`) has no access to the HTTP request. The standard pattern to bridge this gap is a thread-local variable: the middleware writes it, the router reads it. This avoids coupling Django's DB layer to the HTTP layer.
+
+**Actions Taken**:
+- Created `photoz/bses/ryw_middleware.py` — `ReadYourWritesMiddleware` reads the `force_primary` cookie at the start of each request and sets a thread-local flag that expires in 5 seconds. On write requests (POST/PUT/PATCH/DELETE), it also sets the flag immediately (covers reads within the same write request) and writes the cookie to the response. A module-level `is_primary_forced()` function is exported for the router to call.
+- Updated `photoz/bses/routers.py` — `PrimaryReplicaRouter.db_for_read()` now calls `is_primary_forced()` and returns `'default'` (primary) when the flag is active.
+- Updated `photoz/bses/settings.py` — Registered `bses.ryw_middleware.ReadYourWritesMiddleware` in `MIDDLEWARE` immediately after `SessionMiddleware` so cookies are readable when the middleware runs.
+

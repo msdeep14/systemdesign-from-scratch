@@ -257,3 +257,24 @@
 * **Analysis**: During the final load test, the `/photos/search/?q=alex` endpoint averaged 1865ms, significantly skewing the overall read latency average. The search view queried the `UserProfile` model using `icontains` on `username_display`, `first_name`, and `last_name` without a trigram index, forcing PostgreSQL to perform a full table scan.
 * **Actions**:
   * Modified `photoz/users/models.py` to add `GinIndex` with `gin_trgm_ops` to the `UserProfile` fields (`username_display`, `first_name`, `last_name`).
+
+## Phase: Replication Slot Crash Loop Fix (Date: 2026-07-22, Commit: e01fad9c6c0676f6c170af0b33f2c737bd89bb7b, Model: Claude Sonnet 4.6 (Thinking))
+* **Analysis**: On fresh infrastructure launch, the replica database container entered an infinite crash loop. The error was `pg_basebackup: error: replication slot "replica_N" already exists` (first deployment) and later `replication slot "replica_N" does not exist` (after fix attempt). Root cause had two layers:
+  1. `pg_basebackup -C -S replica_N` creates the slot AND takes the backup atomically. If the backup fails mid-run, it wipes `PGDATA` but leaves the slot behind on the primary. On the next container restart, `PGDATA` is empty so the script tries again and fails because the slot already exists. Infinite loop.
+  2. The slot creation was moved into `02-setup-replication.sh` (which runs automatically during Docker's initdb phase) without `REPLICA_COUNT` being injectable at that point. Docker's initdb only creates `replica_1` (default). When Terraform then ran the same script again to create more slots, `set -e` caused it to crash on `CREATE USER replicator` (already exists) before reaching slot creation. So `replica_2` was never created.
+* **Actions**:
+  * Removed `-C` flag from `pg_basebackup` in `photoz/postgres-replica/docker-entrypoint-replica.sh` so it uses a pre-existing slot instead of trying to create one.
+  * Restored `photoz/postgres-init/02-setup-replication.sh` to only handle `postgresql.conf` configuration and replicator user creation (no slot creation), since this script runs during Docker initdb where `REPLICA_COUNT` cannot be injected.
+  * Created `photoz/postgres-init/03-create-replication-slots.sh`: a standalone script that creates `replica_1..replica_N` slots based on `REPLICA_COUNT`. Can be called both from Terraform and manually over SSH.
+  * Updated `iaac/aws/terraform/main.tf` to call `03-create-replication-slots.sh` after the DB restarts (with `wal_level=replica` active), passing `REPLICA_COUNT=${var.db_replica_count}`.
+
+## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+
+**Analysis**: Async replication lag causes the "read your writes" violation — a user writes data, and their immediate next read hits a replica that hasn't received the write yet. The session-cookie approach pins only the writing user's reads to primary for 5 seconds (enough for replication to catch up), so all other users continue reading from replicas.
+
+**Actions**:
+- Created `bses/ryw_middleware.py` — `ReadYourWritesMiddleware` uses a thread-local variable to communicate the "force primary" signal to the DB router. On write requests, sets the flag and drops the `force_primary` cookie (max_age=5s). On any request with the cookie, sets the flag so in-request reads also go to primary.
+- Updated `bses/routers.py` — `db_for_read()` calls `is_primary_forced()` and returns `'default'` if true.
+- Updated `bses/settings.py` — Added `bses.ryw_middleware.ReadYourWritesMiddleware` to `MIDDLEWARE` after `SessionMiddleware`.
+
+
