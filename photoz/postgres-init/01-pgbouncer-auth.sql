@@ -1,3 +1,7 @@
+-- Enable pg_stat_statements so benchmark scripts can inspect per-query execution counts.
+-- This is a standard PostgreSQL extension included in the postgres image.
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 -- Create the pgbouncer user for auth_query
 CREATE ROLE pgbouncer LOGIN PASSWORD 'pgbouncer_password';
 

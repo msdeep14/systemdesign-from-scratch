@@ -3,11 +3,13 @@ set -e
 
 echo ">>> Configuring Primary Node for Replication..."
 
-# Configure postgresql.conf for streaming replication
+# Configure postgresql.conf for streaming replication and query statistics
 cat >> ${PGDATA}/postgresql.conf <<EOF
 wal_level = replica
 max_wal_senders = 10
 max_replication_slots = 10
+shared_preload_libraries = 'pg_stat_statements'
+pg_stat_statements.track = all
 EOF
 
 # Create a dedicated replication user
