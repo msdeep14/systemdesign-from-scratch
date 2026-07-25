@@ -11,7 +11,8 @@ from .models import Photo, Like, Comment
 from .forms import PhotoUploadForm
 from notifications.models import Notification
 from communities.models import Community, CommunityMembership
-from users.models import UserProfile
+from users.models import UserProfile, Follow
+from django.core.cache import cache
 import logging
 
 logger = logging.getLogger('bses')
@@ -34,6 +35,24 @@ def upload_photo(request):
             if community:
                 photo.community = community
             photo.save()
+            
+            # Redis Fan-out on write
+            try:
+                if hasattr(cache, 'client') and hasattr(cache.client, 'get_client'):
+                    client = cache.client.get_client()
+                    def add_to_feed_cache(u_id, p_id):
+                        cache_key = f"feed:{u_id}"
+                        if client.exists(cache_key):
+                            client.lpush(cache_key, p_id)
+                            client.ltrim(cache_key, 0, 999)
+                    
+                    add_to_feed_cache(request.user.id, photo.id)
+                    follower_ids = Follow.objects.filter(following=request.user).values_list('follower_id', flat=True)
+                    for f_id in follower_ids:
+                        add_to_feed_cache(f_id, photo.id)
+            except Exception as e:
+                logger.error(f"Failed to update redis cache on upload: {e}")
+            
             client_compressed = request.POST.get('client_compressed', 'false')
             logger.info(f"Photo uploaded successfully by {request.user.username} (Photo ID: {photo.id}, Client Compressed: {client_compressed})")
             messages.success(request, "Photo uploaded successfully!")

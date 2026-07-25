@@ -151,6 +151,28 @@ EOF
   tags = { Name = "photoz-db-replica-${count.index + 1}" }
 }
 
+resource "aws_instance" "redis_node" {
+  count                  = var.create_redis_node ? 1 : 0
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.redis_instance_type
+  subnet_id              = local.subnet_ids[0]
+  key_name               = var.key_name
+  vpc_security_group_ids = [local.redis_sg_id]
+  iam_instance_profile   = local.iam_instance_profile
+
+  user_data = <<-EOF
+#!/bin/bash
+sudo apt-get update
+sudo apt-get install -y redis-server
+sudo sed -i 's/^bind 127.0.0.1 -::1/bind 0.0.0.0/' /etc/redis/redis.conf
+sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+sudo systemctl restart redis-server
+sudo systemctl enable redis-server
+EOF
+
+  tags = { Name = "photoz-redis-node" }
+}
+
 resource "aws_launch_template" "app_node" {
   name_prefix   = "photoz-app-node-"
   image_id      = data.aws_ami.ubuntu.id
@@ -194,6 +216,7 @@ REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[
 REPLICA_DB_PORT=6432
 CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
 NODE_IP=$LOCAL_IP
+REDIS_URL=${var.create_redis_node ? "redis://${aws_instance.redis_node[0].private_ip}:6379/1" : ""}
 ENV
 
 docker compose -f docker-compose-app.yml up -d

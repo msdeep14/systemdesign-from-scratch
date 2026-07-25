@@ -703,3 +703,14 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 - `pg_stat_statements` requires both a `shared_preload_libraries` entry (needs DB restart) and `CREATE EXTENSION` (runs at init). Handled safely in the init scripts.
 - The WAL benchmark creates a temporary table `_wal_benchmark_tmp` to avoid polluting production data and uses direct DB connection (bypasses PgBouncer).
 - Benchmarks are executed sequentially to ensure accuracy over concurrency.
+
+## Phase: Newsfeed Caching (Part 1 - Redis) (Date: 2026-07-25, Commit: pending, Model: Gemini 3.1 Pro (High))
+*   **Analysis:** Newsfeed was generating on the fly for every read, taxing DB CPU and causing repeated disk reads. Implemented Redis caching using a Pull/Push (Fan-out on write) pattern.
+*   **Decisions:**
+    *   Chose Redis over Memcached for its `LIST` data structures, which allow O(1) prepend operations for timeline updates.
+    *   Chose self-managed EC2 instance for Redis deployment to optimize infrastructure costs over ElastiCache.
+*   **Actions:**
+    *   **Terraform (`iaac/aws/terraform`):** Added `aws_security_group.redis` and `aws_instance.redis_node` to `main.tf`. Updated `variables.tf` with `create_redis_node`. Injected `REDIS_URL` into `app_node` user data.
+    *   **Settings (`photoz/bses/settings.py`):** Added `django-redis` to `requirements.txt` and configured `CACHES` backend with `REDIS_URL` and `LocMemCache` fallback.
+    *   **Pull Pattern (`photoz/newsfeed/views.py`):** Refactored `newsfeed` view to check `feed:{user_id}` in cache. On cache miss, it computes the top 1000 IDs and caches them. Pagination then slices these cached IDs, and fetches only the relevant objects from the database.
+    *   **Push Pattern (`photoz/photos/views.py`):** Refactored `upload_photo` to implement fan-out on write. When a photo is uploaded, its ID is prepended to the author's and followers' `feed:{user_id}` Redis lists (capped at 1000 items).

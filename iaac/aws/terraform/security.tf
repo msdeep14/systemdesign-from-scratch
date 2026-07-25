@@ -179,3 +179,37 @@ locals {
   app_sg_id = var.create_security_groups ? aws_security_group.app[0].id : var.existing_app_sg_id
   db_sg_id  = var.create_security_groups ? aws_security_group.db[0].id : var.existing_db_sg_id
 }
+
+resource "aws_security_group" "redis" {
+  count       = var.create_security_groups && var.create_redis_node ? 1 : 0
+  name        = "photoz-redis-sg"
+  description = "Allow Redis traffic from App"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description     = "Redis from App"
+    from_port       = 6379
+    to_port         = 6379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app[0].id]
+  }
+
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+locals {
+  redis_sg_id = var.create_security_groups && var.create_redis_node ? aws_security_group.redis[0].id : ""
+}

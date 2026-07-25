@@ -140,3 +140,15 @@ variable "db_replica_count" {
   type        = number
   default     = 1
 }
+
+variable "create_redis_node" {
+  type        = bool
+  default     = true
+  description = "Set to true to provision a standalone Redis node"
+}
+
+variable "redis_instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for the Redis node"
+}
