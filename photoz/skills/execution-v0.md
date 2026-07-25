@@ -268,7 +268,7 @@
   * Created `photoz/postgres-init/03-create-replication-slots.sh`: a standalone script that creates `replica_1..replica_N` slots based on `REPLICA_COUNT`. Can be called both from Terraform and manually over SSH.
   * Updated `iaac/aws/terraform/main.tf` to call `03-create-replication-slots.sh` after the DB restarts (with `wal_level=replica` active), passing `REPLICA_COUNT=${var.db_replica_count}`.
 
-## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: 2287a7c85248edaf847a3f0fdd8b73d619c0d888, Model: Claude Sonnet 4.6 (Thinking))
 
 **Analysis**: Async replication lag causes the "read your writes" violation — a user writes data, and their immediate next read hits a replica that hasn't received the write yet. The session-cookie approach pins only the writing user's reads to primary for 5 seconds (enough for replication to catch up), so all other users continue reading from replicas.
 
@@ -276,5 +276,17 @@
 - Created `bses/ryw_middleware.py` — `ReadYourWritesMiddleware` uses a thread-local variable to communicate the "force primary" signal to the DB router. On write requests, sets the flag and drops the `force_primary` cookie (max_age=5s). On any request with the cookie, sets the flag so in-request reads also go to primary.
 - Updated `bses/routers.py` — `db_for_read()` calls `is_primary_forced()` and returns `'default'` if true.
 - Updated `bses/settings.py` — Added `bses.ryw_middleware.ReadYourWritesMiddleware` to `MIDDLEWARE` after `SessionMiddleware`.
+
+---
+
+## Phase: Caching — Part 1 Postgres Init Changes (Date: 2026-07-23, Commit: Pending, Model: Claude Sonnet 4.6 (Thinking))
+
+**Analysis**: `benchmark_repeated_reads.py` needs `pg_stat_statements` on the primary to count per-query execution statistics. This extension requires two separate steps: preloading it via `shared_preload_libraries` in `postgresql.conf` (requires restart), and running `CREATE EXTENSION` once per database. Both are added to the init scripts so any fresh deployment has them automatically.
+
+**Actions**:
+- Updated `postgres-init/01-pgbouncer-auth.sql` — added `CREATE EXTENSION IF NOT EXISTS pg_stat_statements` at the top of the init SQL so the extension is created when the DB initializes for the first time.
+- Updated `postgres-init/02-setup-replication.sh` — added `shared_preload_libraries = 'pg_stat_statements'` and `pg_stat_statements.track = all` to the `postgresql.conf` block so the extension is preloaded at server start.
+
+
 
 

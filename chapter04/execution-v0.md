@@ -675,7 +675,7 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
   * Restored `default_pool_size = 18` in `photoz/pgbouncer/pgbouncer-replica.ini` to ensure replicas had enough active database connections.
   * Adjusted Gunicorn threads in `photoz/docker-compose-app.yml` from 30 down to 16 to reduce context-switching overhead on limited vCPUs while providing enough slots for 150 concurrent users.
 
-## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+## Phase: Read Your Writes Consistency Fix (Date: 2026-07-22, Commit: 2287a7c85248edaf847a3f0fdd8b73d619c0d888, Model: Claude Sonnet 4.6 (Thinking))
 
 **Analysis**: In the primary-replica setup, writes go to the primary and reads randomly go to replicas. PostgreSQL streaming replication has a small but non-zero lag. This causes a specific consistency violation: a user posts a comment, the page reloads, and the comment is missing because the replica hasn't caught up yet. The fix uses a cookie-based approach — only the user who just wrote gets their reads pinned to the primary for 5 seconds, all other users keep reading from replicas.
 
@@ -686,3 +686,20 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
 - Updated `photoz/bses/routers.py` — `PrimaryReplicaRouter.db_for_read()` now calls `is_primary_forced()` and returns `'default'` (primary) when the flag is active.
 - Updated `photoz/bses/settings.py` — Registered `bses.ryw_middleware.ReadYourWritesMiddleware` in `MIDDLEWARE` immediately after `SessionMiddleware` so cookies are readable when the middleware runs.
 
+---
+
+## Phase: Caching — Part 1 Bottleneck Proofs (Date: 2026-07-23, Commit: Pending, Model: Claude Sonnet 4.6 (Thinking))
+
+**Analysis**: 
+- See `chapter04/caching/README.md` for a complete analysis of the two fundamental read replica bottlenecks: **Repeated disk reads** and **WAL sender overhead (replica ceiling)**. 
+- The benchmarks are designed to run on AWS rather than locally to capture realistic `walsender` lag under load and prove the bottlenecks empirically.
+
+**Actions Taken**:
+- Created `chapter04/caching/benchmark_repeated_reads.py` and `chapter04/caching/benchmark_wal_sender_overhead.py` to measure and prove these bottlenecks.
+- Created `chapter04/caching/README.md` to document the bottlenecks, benchmark instructions, and result analysis.
+- Updated `photoz/postgres-init/01-pgbouncer-auth.sql` and `02-setup-replication.sh` to enable the `pg_stat_statements` extension required for the benchmarks.
+
+**Edge cases**:
+- `pg_stat_statements` requires both a `shared_preload_libraries` entry (needs DB restart) and `CREATE EXTENSION` (runs at init). Handled safely in the init scripts.
+- The WAL benchmark creates a temporary table `_wal_benchmark_tmp` to avoid polluting production data and uses direct DB connection (bypasses PgBouncer).
+- Benchmarks are executed sequentially to ensure accuracy over concurrency.
