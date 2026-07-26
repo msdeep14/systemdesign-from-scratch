@@ -193,6 +193,39 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
             query_text = query_text.replace("\n", " ").strip()
             print(f"  {calls:<8} {total_ms:<12} {avg_ms:<10} {min_ms:<10} {max_ms:<10} {query_text[:60]}...")
 
+    # Explicit Cache Verification
+    print("\n" + "=" * 100)
+    print("  CACHE VERIFICATION")
+    print("=" * 100)
+    
+    with conn.cursor() as cur:
+        # Check heavy feed query (looking for ORDER BY created_at)
+        cur.execute("""
+            SELECT SUM(calls) FROM pg_stat_statements 
+            WHERE upper(query) LIKE '%PHOTOS_PHOTO%' 
+            AND upper(query) LIKE '%ORDER BY%CREATED_AT%DESC%'
+        """)
+        heavy_calls = cur.fetchone()[0] or 0
+        
+        # Check fast pagination query (looking for WHERE id IN (...))
+        cur.execute("""
+            SELECT SUM(calls) FROM pg_stat_statements 
+            WHERE upper(query) LIKE 'SELECT%PHOTOS_PHOTO%WHERE%ID%IN%'
+        """)
+        fast_calls = cur.fetchone()[0] or 0
+
+    print(f"  Total HTTP Requests made: {n_requests * len(urls_to_hit)}")
+    print(f"  Heavy Feed Queries Executed (Cache Misses): {heavy_calls}")
+    print(f"  Fast Pagination Queries Executed (Write-Around): {fast_calls}")
+    print()
+    
+    if heavy_calls <= 1 and n_requests > 5:
+        print("  ✅ SUCCESS: Redis caching is active! The heavy feed calculation was skipped")
+        print("     for almost all requests, falling back safely to fast pagination queries.")
+    elif heavy_calls > 1:
+        print("  ❌ WARNING: The heavy feed query ran multiple times. Caching might be failing")
+        print("     or falling back to LocMemCache (per-worker cache).")
+        
     conn.close()
 
     print("\n" + "=" * 100)

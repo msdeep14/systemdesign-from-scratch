@@ -7,12 +7,33 @@ from photos.models import Photo, Like, Comment
 from users.models import Follow
 from communities.models import CommunityMembership
 
+import logging
 from django.core.cache import cache
+
+logger = logging.getLogger('bses')
 
 @login_required
 def newsfeed(request):
-    cache_key = f"feed:{request.user.id}"
-    photo_ids = cache.get(cache_key)
+    has_redis = hasattr(cache, 'client') and hasattr(cache.client, 'get_client')
+    cache_key = f":1:feed:{request.user.id}" if has_redis else f"feed:{request.user.id}"
+    
+    photo_ids = None
+    client = None
+    
+    if has_redis:
+        try:
+            client = cache.client.get_client()
+            # If the old pickled string exists, delete it to prevent WRONGTYPE errors
+            if client.type(cache_key) == b'string':
+                client.delete(cache_key)
+                
+            photo_ids_raw = client.lrange(cache_key, 0, -1)
+            if photo_ids_raw:
+                photo_ids = [int(pid) for pid in photo_ids_raw]
+        except Exception as e:
+            logger.error(f"Redis lrange failed for {cache_key}: {e}")
+    else:
+        photo_ids = cache.get(cache_key)
     
     if photo_ids is None:
         followed_users = Follow.objects.filter(follower=request.user).values_list('following', flat=True)
@@ -25,7 +46,17 @@ def newsfeed(request):
         ).order_by('-created_at').distinct()[:1000]
         
         photo_ids = list(feed_qs.values_list('id', flat=True))
-        cache.set(cache_key, photo_ids, timeout=3600)
+        
+        if has_redis and client:
+            try:
+                if photo_ids:
+                    client.delete(cache_key) # Ensure clean list
+                    client.rpush(cache_key, *photo_ids)
+                    client.expire(cache_key, 3600)
+            except Exception as e:
+                logger.error(f"Redis rpush failed for {cache_key}: {e}")
+        else:
+            cache.set(cache_key, photo_ids, timeout=3600)
     
     paginator = Paginator(photo_ids, getattr(settings, 'BSES_PAGE_SIZE', 20))
     page_number = request.GET.get('page')

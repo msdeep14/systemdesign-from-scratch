@@ -41,10 +41,14 @@ def upload_photo(request):
                 if hasattr(cache, 'client') and hasattr(cache.client, 'get_client'):
                     client = cache.client.get_client()
                     def add_to_feed_cache(u_id, p_id):
-                        cache_key = f"feed:{u_id}"
+                        cache_key = f":1:feed:{u_id}"
                         if client.exists(cache_key):
-                            client.lpush(cache_key, p_id)
-                            client.ltrim(cache_key, 0, 999)
+                            if client.type(cache_key) == b'list':
+                                client.lpush(cache_key, p_id)
+                                client.ltrim(cache_key, 0, 999)
+                            else:
+                                logger.warning(f"Cache key {cache_key} is not a list. Deleting.")
+                                client.delete(cache_key)
                     
                     add_to_feed_cache(request.user.id, photo.id)
                     follower_ids = Follow.objects.filter(following=request.user).values_list('follower_id', flat=True)
