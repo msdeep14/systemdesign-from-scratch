@@ -220,10 +220,10 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
     print()
     
     if heavy_calls <= 1 and n_requests > 5:
-        print("  ✅ SUCCESS: Redis caching is active! The heavy feed calculation was skipped")
+        print("  SUCCESS: Redis caching is active! The heavy feed calculation was skipped")
         print("     for almost all requests, falling back safely to fast pagination queries.")
     elif heavy_calls > 1:
-        print("  ❌ WARNING: The heavy feed query ran multiple times. Caching might be failing")
+        print("  WARNING: The heavy feed query ran multiple times. Caching might be failing")
         print("     or falling back to LocMemCache (per-worker cache).")
         
     conn.close()

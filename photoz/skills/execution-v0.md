@@ -287,7 +287,7 @@
 - Updated `postgres-init/01-pgbouncer-auth.sql` — added `CREATE EXTENSION IF NOT EXISTS pg_stat_statements` at the top of the init SQL so the extension is created when the DB initializes for the first time.
 - Updated `postgres-init/02-setup-replication.sh` — added `shared_preload_libraries = 'pg_stat_statements'` and `pg_stat_statements.track = all` to the `postgresql.conf` block so the extension is preloaded at server start.
 
-## Phase: Newsfeed Caching (Part 1 - Redis) (Date: 2026-07-25, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: Newsfeed Caching (Part 1 - Redis) (Date: 2026-07-25, Commit: 634eb3b2d3389583c112e22aec80fe01806e5aa4, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Newsfeed was generating on the fly for every read, taxing DB CPU and causing repeated disk reads. Implemented Redis caching using a Pull/Push (Fan-out on write) pattern.
 *   **Decisions:**
     *   Chose Redis over Memcached for its `LIST` data structures, which allow O(1) prepend operations for timeline updates.
