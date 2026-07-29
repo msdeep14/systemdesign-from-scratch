@@ -44,6 +44,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def login(base_url, username, password):
     session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
     session.headers.update({"User-Agent": "PhotoZ-ThunderingHerd/1.0"})
     
     login_url = f"{base_url}/users/login/"
@@ -89,6 +92,11 @@ def reset_pg_stat_statements(conn):
 
 def get_user_id(conn, username):
     with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM users_userprofile WHERE username_display = %s;", (username,))
+        row = cur.fetchone()
+        if row:
+            return row[0]
+        
         cur.execute("SELECT id FROM auth_user WHERE username = %s;", (username,))
         row = cur.fetchone()
         return row[0] if row else None
@@ -110,7 +118,16 @@ def fetch_cache_stats(conn):
             WHERE upper(query) LIKE 'SELECT%PHOTOS_PHOTO%WHERE%ID%IN%'
         """)
         fast_calls = cur.fetchone()[0] or 0
-        return heavy_calls, fast_calls
+        
+        # Fetch the actual top queries related to photos
+        cur.execute("""
+            SELECT calls, query FROM pg_stat_statements
+            WHERE upper(query) LIKE '%PHOTOS_PHOTO%'
+            ORDER BY calls DESC LIMIT 5
+        """)
+        top_queries = cur.fetchall()
+
+        return heavy_calls, fast_calls, top_queries
 
 
 def fetch_url(session, url, request_id):
@@ -118,10 +135,10 @@ def fetch_url(session, url, request_id):
     try:
         resp = session.get(url, timeout=30)
         elapsed_ms = (time.time() - start) * 1000
-        return request_id, resp.status_code, elapsed_ms
+        return request_id, resp.status_code, elapsed_ms, len(resp.text)
     except Exception as e:
         elapsed_ms = (time.time() - start) * 1000
-        return request_id, str(e), elapsed_ms
+        return request_id, str(e), elapsed_ms, 0
 
 
 def print_separator(char="-", width=100):
@@ -156,7 +173,14 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
         
     cache_key = f":1:feed:{user_id}"
 
-    # 3. Connect to Redis and Clear Cache
+    # 3. Login once to get the session cookie
+    print(f"  [HTTP] Logging in as '{username}'...")
+    session = login(base_url, username, password)
+    if not session:
+        sys.exit(1)
+    print("  [HTTP] Login OK.\n")
+
+    # 4. Connect to Redis and Clear Cache
     try:
         r = redis.Redis(host=redis_host, port=redis_port, db=1)
         r.ping()
@@ -167,21 +191,9 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
         print("       Is the SSH tunnel to Redis on port 6379 open? Run: pip install redis")
         sys.exit(1)
 
-    # 4. Login once to get the session cookie
-    print(f"  [HTTP] Logging in as '{username}'...")
-    session = login(base_url, username, password)
-    if not session:
-        sys.exit(1)
-    print("  [HTTP] Login OK.\n")
-
     # 5. Reset DB stats
     reset_pg_stat_statements(conn)
     print("  [DB] pg_stat_statements reset.")
-    
-    # Wait a few seconds to let any Read-Your-Writes middleware lock expire 
-    # (so we don't accidentally force all requests to primary due to the login POST)
-    print("  [WAIT] Sleeping for 6 seconds to let Read-Your-Writes lock expire...")
-    time.sleep(6)
 
     # 6. Fire Concurrent Requests
     newsfeed_url = f"{base_url}/"
@@ -199,29 +211,39 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
             results.append(future.result())
             
     total_time = time.time() - start_time
-    print(f"  Finished {concurrency} requests in {total_time:.2f} seconds.")
+    
+    success_count = sum(1 for r in results if r[1] == 200)
+    latencies = [r[2] for r in results]
+    sizes = [r[3] for r in results if len(r) == 4]
+    
+    avg_latency = sum(latencies) / len(latencies) if latencies else 0
+    max_latency = max(latencies) if latencies else 0
+    avg_size = sum(sizes) / len(sizes) if sizes else 0
 
-    # Sort results by ID
-    results.sort(key=lambda x: x[0])
-    
-    latencies = [res[2] for res in results]
-    successes = len([res for res in results if res[1] == 200])
-    
-    print(f"  Successful requests (HTTP 200): {successes}/{concurrency}")
-    print(f"  Avg latency: {sum(latencies)/len(latencies):.1f} ms | Max latency: {max(latencies):.1f} ms\n")
+    print(f"  Finished {concurrency} requests in {total_time:.2f} seconds.")
+    print(f"  Successful requests (HTTP 200): {success_count}/{concurrency}")
+    print(f"  Avg latency: {avg_latency:.1f} ms | Max latency: {max_latency:.1f} ms")
+    print(f"  Avg response size: {avg_size:.0f} bytes")
 
     # 7. Check DB Stats (The Thundering Herd Verification)
     print("=" * 100)
     print("  CACHE VERIFICATION (pg_stat_statements)")
     print("=" * 100)
     
-    heavy_calls, fast_calls = fetch_cache_stats(conn)
+    heavy_calls, fast_calls, top_queries = fetch_cache_stats(conn)
     
     print(f"  Concurrent HTTP Requests made: {concurrency}")
     print(f"  Heavy Feed Queries Executed:   {heavy_calls}")
     print()
     
-    if heavy_calls >= (concurrency * 0.5):
+    if top_queries:
+        print("  Top Queries executed during benchmark:")
+        for calls, query in top_queries:
+            short_query = query[:150].replace('\n', ' ') + ('...' if len(query) > 150 else '')
+            print(f"    - [{calls} times] {short_query}")
+        print()
+    
+    if heavy_calls > 5:
         print("  [ERROR] THUNDERING HERD DETECTED")
         print(f"     The database was hammered with {heavy_calls} identical heavy queries")
         print("     at the exact same time because everyone missed the cache simultaneously!")
@@ -240,7 +262,7 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
 def main():
     parser = argparse.ArgumentParser(description="Benchmark Thundering Herd caching issue")
     parser.add_argument("--url", default="http://localhost")
-    parser.add_argument("--username", default="test_user")
+    parser.add_argument("--username", default="super_follower")
     parser.add_argument("--password", default="password123")
     parser.add_argument("--concurrency", type=int, default=50,
                         help="Number of concurrent requests (default: 50)")

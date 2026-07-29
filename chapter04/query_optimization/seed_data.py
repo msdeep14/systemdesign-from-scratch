@@ -36,7 +36,7 @@ from photos.models import Photo, Like, Comment
 from communities.models import Community, CommunityMembership
 from notifications.models import Notification
 
-NUM_USERS = 10000
+NUM_USERS = 25000
 NUM_COMMUNITIES = 200
 NUM_PHOTOS = 100000
 NUM_LIKES = 400000
@@ -137,6 +137,9 @@ def seed_users():
             if i == 0:
                 first = "Test"
                 last = "User"
+            elif i == 1:
+                first = "Super"
+                last = "Follower"
             else:
                 first = random.choice(FIRST_NAMES)
                 last = random.choice(LAST_NAMES)
@@ -150,7 +153,12 @@ def seed_users():
 
         profiles = []
         for i, user in enumerate(users):
-            username_display = "test_user" if i == 0 else f"{user.first_name.lower()}_{user.last_name.lower()}_{i}"
+            if i == 0:
+                username_display = "test_user"
+            elif i == 1:
+                username_display = "super_follower"
+            else:
+                username_display = f"{user.first_name.lower()}_{user.last_name.lower()}_{i}"
             profiles.append(UserProfile(
                 user=user,
                 username_display=username_display,
@@ -253,10 +261,15 @@ def seed_follows(users):
         user_ids = [u.id for u in users]
 
         total = 0
-        for user in users:
-            num_to_follow = random.randint(10, 50)
-            target_ids = random.sample(user_ids, num_to_follow + 1)
-            target_ids = [tid for tid in target_ids if tid != user.id][:num_to_follow]
+        for i, user in enumerate(users):
+            if i == 1:
+                # super_follower follows EVERYONE
+                target_ids = [tid for tid in user_ids if tid != user.id]
+            else:
+                num_to_follow = random.randint(10, 50)
+                target_ids = random.sample(user_ids, num_to_follow + 1)
+                target_ids = [tid for tid in target_ids if tid != user.id][:num_to_follow]
+                
             for tid in target_ids:
                 key = (user.id, tid)
                 if key not in follow_set:

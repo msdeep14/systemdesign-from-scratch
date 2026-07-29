@@ -3,14 +3,9 @@ output "load_balancer_public_ip" {
   description = "The public IP address of the Nginx Load Balancer. Access the app here via HTTP."
 }
 
-output "database_private_ip" {
-  value       = try(aws_instance.db_node[0].private_ip, var.existing_db_private_ip)
-  description = "The private IP address of the Primary Database Node."
-}
-
-output "database_replica_private_ips" {
-  value       = aws_instance.db_replica[*].private_ip
-  description = "The private IP addresses of the Database Replicas."
+output "redis_public_ip" {
+  value       = try(aws_instance.redis_node[0].public_ip, "N/A")
+  description = "The public IP address of the Redis Node."
 }
 
 output "app_server_asg_name" {

@@ -299,3 +299,10 @@
     *   **Push Pattern (`photoz/photos/views.py`):** Refactored `upload_photo` to implement fan-out on write. When a photo is uploaded, its ID is prepended to the author's and followers' `feed:{user_id}` Redis lists (capped at 1000 items).
     *   **Bug Fix (Date: 2026-07-26):** Discovered that `cache.set` serializes data as a Pickled String, which breaks `client.lpush` (which requires a Redis List structure). Refactored both Push and Pull views to bypass `cache.set` and directly use native `client.rpush()` and `client.lrange()` with the `:1:` prefix to ensure true Fan-out on Write compatibility.
     *   **Thundering Herd Fix (Date: 2026-07-27, Commit: pending):** Added a "Cache Promise" (Mutex/Lease) using a short-lived Redis lock (`SETNX`). On a cache miss, only the first request is granted the lock to query the database. The remaining concurrent requests ("the herd") enter a short polling loop (max 1 second) waiting for the cache to be populated, safely falling back to an empty feed if the timeout is breached to protect the database.
+
+## Phase: Debug Thundering Herd Benchmark (Date: 2026-07-28, Commit: None, Model: Gemini 3.1 Pro)
+*   **Analysis:** The benchmark script for testing the Thundering Herd cache promise pattern was returning 0 heavy queries. 
+    *   Found that `time.sleep(6)` caused the RYW `force_primary` cookie to expire, routing all read queries to the Replica DB. Since the script queried `pg_stat_statements` on the Primary DB, the queries were invisible.
+*   **Actions Taken:**
+    *   Removed the `time.sleep(6)` from `chapter04/caching/benchmark_thundering_herd.py` to keep the RYW lock active.
+    *   Increased `urllib3` connection pool size in `benchmark_thundering_herd.py` to ensure 50 true concurrent connections.

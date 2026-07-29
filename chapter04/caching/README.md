@@ -146,7 +146,7 @@ To manually inspect the data inside Redis (to prove the caching architecture is 
 ssh -i ~/.ssh/id_rsa ubuntu@<app-node-public-ip>
 
 # 2. Enter the running Django container
-docker exec -it photoz-app-1 bash
+docker exec -it photoz-web-1 bash
 
 # 3. Open the Django python shell
 python manage.py shell
