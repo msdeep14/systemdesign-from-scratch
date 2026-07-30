@@ -300,9 +300,22 @@
     *   **Bug Fix (Date: 2026-07-26):** Discovered that `cache.set` serializes data as a Pickled String, which breaks `client.lpush` (which requires a Redis List structure). Refactored both Push and Pull views to bypass `cache.set` and directly use native `client.rpush()` and `client.lrange()` with the `:1:` prefix to ensure true Fan-out on Write compatibility.
     *   **Thundering Herd Fix (Date: 2026-07-27, Commit: pending):** Added a "Cache Promise" (Mutex/Lease) using a short-lived Redis lock (`SETNX`). On a cache miss, only the first request is granted the lock to query the database. The remaining concurrent requests ("the herd") enter a short polling loop (max 1 second) waiting for the cache to be populated, safely falling back to an empty feed if the timeout is breached to protect the database.
 
-## Phase: Debug Thundering Herd Benchmark (Date: 2026-07-28, Commit: None, Model: Gemini 3.1 Pro)
+## Phase: Debug Thundering Herd Benchmark (Date: 2026-07-28, Commit: 30de301d36491dd9c0f88af4f159fb7f78f35f89, Model: Gemini 3.1 Pro)
 *   **Analysis:** The benchmark script for testing the Thundering Herd cache promise pattern was returning 0 heavy queries. 
     *   Found that `time.sleep(6)` caused the RYW `force_primary` cookie to expire, routing all read queries to the Replica DB. Since the script queried `pg_stat_statements` on the Primary DB, the queries were invisible.
 *   **Actions Taken:**
     *   Removed the `time.sleep(6)` from `chapter04/caching/benchmark_thundering_herd.py` to keep the RYW lock active.
     *   Increased `urllib3` connection pool size in `benchmark_thundering_herd.py` to ensure 50 true concurrent connections.
+
+## Cache Promise Implementation (Date: 2026-07-29, Commit: 8ba86c42cf3fc4eebdd4627d4b2dd1088d0b753a, Model: Gemini 3.1 Pro)
+*   **Analysis:** Fixed the Thundering Herd issue by implementing a cache promise pattern in the newsfeed view.
+*   **Actions Taken:**
+    *   Refactored `photoz/newsfeed/views.py` to implement a cache promise pattern.
+    *   Added a Redis lock to ensure only one request can query the database at a time.
+
+## Phase: Device Caching Fallback and RYW Edge Case Discovery (Date: 2026-07-30, Commit: pending, Model: Gemini 3.1 Pro)
+*   **Analysis:** If the Cache Promise times out (e.g., polling fails to find the generated cache), returning a `200 OK` with an empty array wipes the user's screen. Instead, we want the browser/device to preserve the stale feed HTML. During benchmark testing with an artificial 15-second sleep, we also validated a beautiful edge case involving the Read-Your-Writes middleware.
+*   **Actions Taken:**
+    *   **Device Caching:** Added `@cache_control(private=True, max_age=60, stale_if_error=86400)` to the `newsfeed` view to explicitly allow client-side caching.
+    *   **Fallback Response:** Modified the timeout block in `newsfeed/views.py` to return an `HTTP 503 Service Unavailable`. This prevents the browser from overwriting the currently rendered HTML with an empty list, and instructs compatible CDNs/browsers to serve the stale feed.
+    *   **RYW Edge Case (Validation):** Validated that an artificial 15-second generation delay correctly causes the 5-second RYW `force_primary` lock to expire. The heavy feed query was automatically routed to the Replica DB, perfectly bypassing the Primary DB's `pg_stat_statements`. This proves the resilience of both the Cache Promise and the Replica DB routing logic.

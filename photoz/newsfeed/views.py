@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import cache_control
+from django.http import HttpResponse
 from django.core.paginator import Paginator
 from django.conf import settings
 from django.db.models import Count, Q
@@ -14,6 +16,7 @@ logger = logging.getLogger('bses')
 
 import time
 
+@cache_control(private=True, max_age=60, stale_if_error=86400)
 @login_required
 def newsfeed(request):
     has_redis = hasattr(cache, 'client') and hasattr(cache.client, 'get_client')
@@ -75,6 +78,8 @@ def newsfeed(request):
                     client.delete(lock_key)
         else:
             # We didn't get the lock. Wait for the promise (cache population).
+            # better use Redis pub-sub; instead of polling - https://redis.io/blog/caches-promises-locks/
+            # As part of Chapter 6, we'll implement Redis pub-sub
             polled = False
             for _ in range(20): # Max 1 second wait (20 * 50ms)
                 time.sleep(0.05)
@@ -88,9 +93,12 @@ def newsfeed(request):
                     break
             
             if not polled:
-                # Database protection > UX. Return empty feed on timeout.
-                logger.warning(f"Cache promise timeout for {cache_key}. Returning empty feed to prevent Thundering Herd.")
-                photo_ids = []
+                # Device Caching Fallback: Instead of returning an empty feed (HTTP 200)
+                # which wipes the user's screen, we return a 503 Service Unavailable.
+                # The browser/CDN (if it supports stale-if-error) will serve the cached feed.
+                # If not, it safely prevents overwriting the DOM with an empty list.
+                logger.warning(f"Cache promise timeout for {cache_key}. Returning 503 to prevent Thundering Herd and preserve device cache.")
+                return HttpResponse("Feed is currently generating. Please try again in a moment.", status=503)
     
     paginator = Paginator(photo_ids, getattr(settings, 'BSES_PAGE_SIZE', 20))
     page_number = request.GET.get('page')
