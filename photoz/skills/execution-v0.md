@@ -320,7 +320,7 @@
     *   **Fallback Response:** Modified the timeout block in `newsfeed/views.py` to return an `HTTP 503 Service Unavailable`. This prevents the browser from overwriting the currently rendered HTML with an empty list, and instructs compatible CDNs/browsers to serve the stale feed.
     *   **RYW Edge Case (Validation):** Validated that an artificial 15-second generation delay correctly causes the 5-second RYW `force_primary` lock to expire. The heavy feed query was automatically routed to the Replica DB, perfectly bypassing the Primary DB's `pg_stat_statements`. This proves the resilience of both the Cache Promise and the Replica DB routing logic.
 
-## Phase: CloudFront CDN Integration (Date: 2026-08-01, Model: Claude Opus 4.6)
+## Phase: CloudFront CDN Integration (Date: 2026-08-01, Commit: 37facce11475b0d47191b89671d0306853e05dc7, Model: Claude Opus 4.6)
 *   **Analysis:** Photos were being fetched directly from S3 on every request. Users far from ap-south-1 experiences high latency. Added CloudFront CDN in front of S3 to cache photos at edge locations worldwide.
 *   **Actions Taken:**
     *   Added `AWS_S3_CUSTOM_DOMAIN` and `CLOUDFRONT_DISTRIBUTION_ID` to `bses/settings.py` inside the `USE_S3` block.
@@ -331,3 +331,15 @@
     *   CDN invalidation logic extracted into a separate `cdn.py` wrapper instead of inlining boto3 calls in views.py. Keeps views clean and makes the CDN layer reusable.
     *   Community photos use UUID-in-path approach (no signed URLs). Acceptable for current requirements.
     *   Photos have unique filenames (UUID + epoch), so CDN caching is safe — re-uploads never collide with cached paths.
+
+## Phase: Cache Invalidation Fix (Date: 2026-14-01, Commit: pending, Model: Gemini 3.1 Pro (High))
+    * Analysis: Identified that follow/unfollow actions in users/views.py did not invalidate the newsfeed cache, leading to stale data.
+    * Actions:
+        * Modified photoz/users/views.py to import django.core.cache.cache.
+        * Added cache.delete("feed:{request.user.id}") to toggle_follow_view.
+
+    * Analysis: Identified three additional areas causing cache staleness/pagination gaps: Community joining, photo deletion, and account deletion.
+    * Actions:
+        * Modified photoz/communities/views.py to invalidate cache upon accepting an invitation.
+        * Modified photoz/users/views.py to invalidate followers' caches before account deletion.
+        * Modified photoz/photos/views.py to invalidate followers' caches before photo deletion.

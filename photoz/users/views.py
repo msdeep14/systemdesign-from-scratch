@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.forms import AuthenticationForm
 import uuid
 import logging
+from django.core.cache import cache
 
 logger = logging.getLogger('bses')
 
@@ -141,6 +142,11 @@ def delete_account_view(request, username):
     user = request.user
     logger.info(f"Account deleted: {username}")
     logout(request)
+    follower_ids = list(user.followers.values_list('follower_id', flat=True))
+    for f_id in follower_ids:
+        cache.delete(f"feed:{f_id}")
+    cache.delete(f"feed:{user.id}")
+    
     user.delete()
     messages.success(request, "Your account has been deleted.")
     return redirect('login')
@@ -164,6 +170,8 @@ def toggle_follow_view(request, username):
         Follow.objects.create(follower=request.user, following=target_user)
         is_following = True
         logger.info(f"User {request.user.username} followed {target_user.username}")
+        
+    cache.delete(f"feed:{request.user.id}")
         
     followers_count = target_user.followers.count()
     

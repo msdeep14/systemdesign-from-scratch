@@ -9,9 +9,12 @@ What it measures:
     - Prints a comparison table showing the latency reduction from CDN caching.
 
 Usage:
+
+    export S3_URL="https://s3.ap-south-1.amazonaws.com/s3_bucket/photos/1/photo_3453543434.jpg"
+    export CDN_URL="https://d36666abc.cloudfront.net/photos/1/photo_3453543434.jpg"
     python chapter04/caching/cdn/benchmark_cdn.py \
-        --s3-url "https://s3.ap-south-1.amazonaws.com/bucket/photos/42/photo_abc.jpg" \
-        --cdn-url "https://d1234abcdef.cloudfront.net/photos/42/photo_abc.jpg" \
+        --s3-url "$S3_URL" \
+        --cdn-url "$CDN_URL" \
         --requests 20
 
 How to get the URLs:

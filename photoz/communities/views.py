@@ -7,6 +7,7 @@ from .models import Community, CommunityMembership
 from .forms import CommunityForm
 from notifications.models import Notification
 import logging
+from django.core.cache import cache
 
 logger = logging.getLogger('bses')
 
@@ -133,6 +134,10 @@ def respond_invitation(request, id):
     if action == 'accept':
         membership.status = 'accepted'
         membership.save()
+        
+        # Invalidate newsfeed cache so new community posts show up
+        cache.delete(f"feed:{request.user.id}")
+        
         logger.info(f"User {request.user.username} accepted invitation to community {membership.community.id}")
         messages.success(request, f"You have joined {membership.community.name}!")
         return redirect('community_detail', id=membership.community.id)

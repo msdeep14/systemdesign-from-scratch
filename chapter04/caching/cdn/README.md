@@ -6,6 +6,19 @@ Without a CDN, every image load is a direct S3 fetch from `ap-south-1` (Mumbai)
 
 CloudFront has 600+ edge locations (Points of Presence). After the first request, the photo is cached at the nearest edge. Subsequent requests from the same region never touch S3.
 
+### Benchmark Results
+
+*Run from local machine to `ap-south-1` region.*
+
+| Metric | S3 Direct | CloudFront | Reduction |
+|---|---|---|---|
+| Avg TTFB (ms) | 458 ms (403 Forbidden)* | 214 ms | 53.2% |
+| Median TTFB (ms) | 190 ms | 123 ms | 35.2% |
+| P95 TTFB (ms) | 4443 ms | 1128 ms | 74.6% |
+| Cache HIT Ratio | N/A | 95.0% | — |
+
+*\*Note: S3 Direct returns a 403 Forbidden because Origin Access Control (OAC) correctly blocks all direct public access, forcing traffic through the CDN.*
+
 ## How It Works
 
 ### Origin Access Control (OAC)
