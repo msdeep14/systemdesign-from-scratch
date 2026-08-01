@@ -39,6 +39,7 @@ For security, avoid using an Administrator account. Instead, log into the AWS IA
 *   **`IAMFullAccess`** (To create the CloudWatch logging roles and Instance Profiles)
 *   **`AmazonS3FullAccess`** (For S3 access and management)
 *   **`CloudWatchLogsFullAccess`** (To create and manage log groups)
+*   **`CloudFrontFullAccess`** (To provision the CDN Distribution and Origin Access Controls)
 
 ### 2. Install Terraform
 Before you can spin up the infrastructure, you must have Terraform installed on your machine. Terraform is a standalone binary (not a Python package), so you cannot install it via `pip`.

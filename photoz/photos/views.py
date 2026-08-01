@@ -8,6 +8,7 @@ from django.core.paginator import Paginator
 from django.conf import settings
 import json
 from .models import Photo, Like, Comment
+from .cdn import invalidate_cache
 from .forms import PhotoUploadForm
 from notifications.models import Notification
 from communities.models import Community, CommunityMembership
@@ -94,8 +95,10 @@ def delete_photo(request, id):
     if photo.user != request.user:
         logger.warning(f"Unauthorized photo deletion attempt by {request.user.username} on photo {id}")
         return JsonResponse({'error': 'Unauthorized'}, status=403)
-        
+
+    image_path = photo.image.name
     photo.delete()
+    invalidate_cache(image_path)
     logger.info(f"Photo {id} deleted by {request.user.username}")
     messages.success(request, "Photo deleted.")
     return redirect('profile', username=request.user.profile.username_display)

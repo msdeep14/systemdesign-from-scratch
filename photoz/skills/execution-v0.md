@@ -313,9 +313,21 @@
     *   Refactored `photoz/newsfeed/views.py` to implement a cache promise pattern.
     *   Added a Redis lock to ensure only one request can query the database at a time.
 
-## Phase: Device Caching Fallback and RYW Edge Case Discovery (Date: 2026-07-30, Commit: pending, Model: Gemini 3.1 Pro)
+## Phase: Device Caching Fallback and RYW Edge Case Discovery (Date: 2026-07-30, Commit: 58f24a44ad6f3947e9636e03a50512b260bd63b3, Model: Gemini 3.1 Pro)
 *   **Analysis:** If the Cache Promise times out (e.g., polling fails to find the generated cache), returning a `200 OK` with an empty array wipes the user's screen. Instead, we want the browser/device to preserve the stale feed HTML. During benchmark testing with an artificial 15-second sleep, we also validated a beautiful edge case involving the Read-Your-Writes middleware.
 *   **Actions Taken:**
     *   **Device Caching:** Added `@cache_control(private=True, max_age=60, stale_if_error=86400)` to the `newsfeed` view to explicitly allow client-side caching.
     *   **Fallback Response:** Modified the timeout block in `newsfeed/views.py` to return an `HTTP 503 Service Unavailable`. This prevents the browser from overwriting the currently rendered HTML with an empty list, and instructs compatible CDNs/browsers to serve the stale feed.
     *   **RYW Edge Case (Validation):** Validated that an artificial 15-second generation delay correctly causes the 5-second RYW `force_primary` lock to expire. The heavy feed query was automatically routed to the Replica DB, perfectly bypassing the Primary DB's `pg_stat_statements`. This proves the resilience of both the Cache Promise and the Replica DB routing logic.
+
+## Phase: CloudFront CDN Integration (Date: 2026-08-01, Model: Claude Opus 4.6)
+*   **Analysis:** Photos were being fetched directly from S3 on every request. Users far from ap-south-1 experiences high latency. Added CloudFront CDN in front of S3 to cache photos at edge locations worldwide.
+*   **Actions Taken:**
+    *   Added `AWS_S3_CUSTOM_DOMAIN` and `CLOUDFRONT_DISTRIBUTION_ID` to `bses/settings.py` inside the `USE_S3` block.
+    *   Created `photos/cdn.py` — a wrapper module with `invalidate_cache(path)` that calls CloudFront's `CreateInvalidation` API via boto3. No-op when `CLOUDFRONT_DISTRIBUTION_ID` is not set.
+    *   Updated `photos/views.py` `delete_photo` view to capture `photo.image.name` before deletion, then call `cdn.invalidate_cache()` to purge the cached copy from CloudFront edge locations.
+    * `CloudFrontFullAccess` policy for aws iam user.
+*   **Design Decisions:**
+    *   CDN invalidation logic extracted into a separate `cdn.py` wrapper instead of inlining boto3 calls in views.py. Keeps views clean and makes the CDN layer reusable.
+    *   Community photos use UUID-in-path approach (no signed URLs). Acceptable for current requirements.
+    *   Photos have unique filenames (UUID + epoch), so CDN caching is safe — re-uploads never collide with cached paths.

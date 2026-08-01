@@ -217,6 +217,8 @@ REPLICA_DB_PORT=6432
 CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
 NODE_IP=$LOCAL_IP
 REDIS_URL=${var.create_redis_node ? "redis://${aws_instance.redis_node[0].private_ip}:6379/1" : ""}
+AWS_S3_CUSTOM_DOMAIN=${aws_cloudfront_distribution.photoz_cdn.domain_name}
+CLOUDFRONT_DISTRIBUTION_ID=${aws_cloudfront_distribution.photoz_cdn.id}
 ENV
 
 docker compose -f docker-compose-app.yml up -d

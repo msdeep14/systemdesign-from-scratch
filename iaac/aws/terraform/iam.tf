@@ -28,6 +28,23 @@ resource "aws_iam_role_policy_attachment" "s3_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
+resource "aws_iam_role_policy" "cloudfront_invalidation" {
+  count = var.create_iam_role ? 1 : 0
+  name  = "cloudfront-invalidation"
+  role  = aws_iam_role.photoz_ec2_role[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "cloudfront:CreateInvalidation"
+        Resource = aws_cloudfront_distribution.photoz_cdn.arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "photoz_profile" {
   count = var.create_iam_role ? 1 : 0
   name  = "photoz-ec2-profile"

@@ -42,3 +42,13 @@ output "test_user_credentials" {
   value       = var.seed_database ? "Username: test_user | Password: password123" : "Database not seeded"
   description = "Login credentials for the test user if seed_database is true"
 }
+
+output "cloudfront_domain" {
+  value       = aws_cloudfront_distribution.photoz_cdn.domain_name
+  description = "The CloudFront distribution domain name. Set this as AWS_S3_CUSTOM_DOMAIN in the app .env"
+}
+
+output "cloudfront_distribution_id" {
+  value       = aws_cloudfront_distribution.photoz_cdn.id
+  description = "The CloudFront distribution ID. Needed for cache invalidation on photo delete."
+}
