@@ -714,3 +714,34 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
     *   **Settings (`photoz/bses/settings.py`):** Added `django-redis` to `requirements.txt` and configured `CACHES` backend with `REDIS_URL` and `LocMemCache` fallback.
     *   **Pull Pattern (`photoz/newsfeed/views.py`):** Refactored `newsfeed` view to check `feed:{user_id}` in cache. On cache miss, it computes the top 1000 IDs and caches them. Pagination then slices these cached IDs, and fetches only the relevant objects from the database.
     *   **Push Pattern (`photoz/photos/views.py`):** Refactored `upload_photo` to implement fan-out on write. When a photo is uploaded, its ID is prepended to the author's and followers' `feed:{user_id}` Redis lists (capped at 1000 items).
+
+## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+
+**Analysis:** The current implementation computes `likes_count` and `comments_count` at read time via SQL `COUNT(*)` queries. Two patterns exist: (1) decoupled `COUNT GROUP BY` in newsfeed and search views (2 queries per page load), (2) `photo.likes.count()` N+1 calls in photo detail and profile views. The plan is to add `likes_count` and `comments_count` columns directly on the `Photo` table and maintain them via `F()` atomic increments on write. Phase 1 establishes the baseline before any model changes.
+
+**Actions:**
+- Created `chapter04/denormalization/` directory.
+- Created `chapter04/denormalization/benchmark_before.py` -- Django ORM script measuring raw DB query cost (query count + total DB time) for 3 scenarios: newsfeed, profile, photo detail. Tests locally against the DB directly.
+- Created `chapter04/denormalization/benchmark_before_http.py` -- HTTP-based benchmark against the live AWS deployment. Uses `requests.Session` + CSRF login (same pattern as `chapter04/caching/benchmark_thundering_herd.py`). Measures end-to-end latency (min, avg, p50, p95, p99, max) through Nginx, Gunicorn, Redis, and Postgres as a real user would experience. Supports `--concurrency` for concurrent user simulation.
+
+**Why two benchmark scripts:**
+- `benchmark_before.py` isolates raw DB cost. Useful for understanding query-level impact.
+- `benchmark_before_http.py` measures real-world user impact on AWS -- captures cache effects, connection pooling, and network latency that the ORM script cannot see.
+
+**Migration strategy:** Two-stage deploy (Option C). Stage 1: add columns + backfill via migration while app still reads COUNT. Stage 2: deploy code reading from new columns after backfill verified. Users never see `likes_count=0`.
+
+**Baseline Benchmark Results (AWS, 20 iterations, concurrency=5):**
+
+| Scenario | Avg | p50 | p95 | p99 | Max |
+|---|---|---|---|---|---|
+| Newsfeed page load | 376ms | 342ms | 823ms | 823ms | 823ms |
+| Profile page | 175ms | 121ms | 1133ms | 1133ms | 1133ms |
+| Photo detail | 228ms | 109ms | 2001ms | 2001ms | 2001ms |
+
+**Reading the numbers:**
+- p50 is acceptable (109–342ms) because the newsfeed benefits from Redis-cached feed IDs and individual pages are small. The COUNT queries are fast in isolation.
+- p95 is where the problem shows up: 823ms–2001ms under concurrent load. The COUNT queries on `Like` and `Comment` tables create row-level read contention when 5 concurrent requests all scan the same tables simultaneously.
+- Photo detail p95 of 2001ms is notably bad -- a single `photo.likes.count()` on a hot photo (one with many likes) under concurrent load takes 2 seconds at the 95th percentile.
+- The p99 == p95 in all cases because with only 20 iterations, the percentile calculation defaults to max.
+
+**Expected outcome after denormalization:** p50 should stay similar (the queries are already fast). p95/p99 should drop significantly because COUNT queries are removed from the hot read path entirely -- replaced by a single column read on the `Photo` row that is already fetched.

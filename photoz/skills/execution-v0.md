@@ -344,9 +344,18 @@
         * Modified photoz/users/views.py to invalidate followers' caches before account deletion.
         * Modified photoz/photos/views.py to invalidate followers' caches before photo deletion.
 
-## Phase: Fix Cache Race Condition in delete_photo (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6)
+## Phase: Fix Cache Race Condition in delete_photo (Date: 2026-08-02, Commit: 934c7ded8bed7045b1b19270ca1ed861e102c7f7, Model: Claude Sonnet 4.6)
 
 - **Analysis:** `delete_photo` was clearing the feed cache before deleting the photo from the DB. In that brief gap, a concurrent read would find a cache miss, rebuild the cache from DB (photo still there), and then the photo would be deleted, leaving a ghost entry in the rebuilt cache. Fix: DB delete must come before cache invalidation.
 - **Actions:**
     - Modified `photoz/photos/views.py`: moved `photo.delete()` and `invalidate_cache()` to before the `cache.delete()` calls in `delete_photo`.
 - **Edge Cases:** follower_ids list is collected before deletion (follower relationships are unaffected by photo deletion), but cache invalidation is deferred until after the DB write. This is the correct order.
+
+## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+
+- **Analysis:** `likes_count` and `comments_count` are computed at read time via SQL `COUNT(*)`. Adding them as columns on the `Photo` table will eliminate these queries from hot paths. Phase 1 creates the baseline benchmarks before any model changes.
+- **Actions:**
+    - Created `chapter04/denormalization/benchmark_before.py` -- Django ORM script for local DB baseline (query count + DB time).
+    - Created `chapter04/denormalization/benchmark_before_http.py` -- HTTP-based benchmark against live AWS deployment. Measures p50/p95/p99 latency end-to-end through Nginx, Gunicorn, Redis, and Postgres. Same auth pattern as `chapter04/caching/benchmark_thundering_herd.py`.
+- **Edge Cases:** Benchmark results to be recorded after running against AWS deployment.
+
