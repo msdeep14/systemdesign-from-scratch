@@ -14,21 +14,29 @@ def backfill_counts(apps, schema_editor):
         Comment.objects.values('photo_id').annotate(c=Count('id')).values_list('photo_id', 'c')
     )
 
-    batch = []
-    for photo in Photo.objects.all().iterator(chunk_size=500):
-        photo.likes_count = like_counts.get(photo.id, 0)
-        photo.comments_count = comment_counts.get(photo.id, 0)
-        batch.append(photo)
-        if len(batch) == 500:
-            # Commit each batch in its own transaction.
-            # This keeps individual transactions short (500 rows each), so
-            # Postgres connection slots are not held for the full backfill duration.
-            with transaction.atomic():
-                Photo.objects.bulk_update(batch, ['likes_count', 'comments_count'])
-            batch = []
-    if batch:
+    # Use ID-based pagination instead of iterator(chunk_size=...).
+    #
+    # iterator(chunk_size=N) opens a named PostgreSQL server-side cursor.
+    # When transaction.atomic() commits inside the loop, the transaction ends
+    # and Postgres invalidates the cursor -- causing InvalidCursorName errors
+    # when the next fetchmany() is called (especially through PgBouncer).
+    #
+    # ID-based pagination issues a plain SELECT per batch with no named cursor,
+    # so commits inside the loop are safe.
+    last_id = 0
+    while True:
+        batch_ids = list(
+            Photo.objects.filter(id__gt=last_id).order_by('id').values_list('id', flat=True)[:500]
+        )
+        if not batch_ids:
+            break
+        batch = list(Photo.objects.filter(id__in=batch_ids))
+        for photo in batch:
+            photo.likes_count = like_counts.get(photo.id, 0)
+            photo.comments_count = comment_counts.get(photo.id, 0)
         with transaction.atomic():
             Photo.objects.bulk_update(batch, ['likes_count', 'comments_count'])
+        last_id = batch_ids[-1]
 
 
 class Migration(migrations.Migration):

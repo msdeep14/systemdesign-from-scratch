@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.contrib import messages
-from django.db.models import Q, Count
+from django.db.models import Q, F
 from django.core.paginator import Paginator
 from django.conf import settings
 import json
@@ -77,13 +77,13 @@ def photo_detail(request, id):
         Photo.objects.select_related('user__profile', 'community'),
         id=id
     )
-    likes_count = photo.likes.count()
     has_liked = photo.likes.filter(user=request.user).exists()
     comments = photo.comments.select_related('user__profile').order_by('created_at')
-    
+
     return render(request, 'photos/detail.html', {
         'photo': photo,
-        'likes_count': likes_count,
+        'likes_count': photo.likes_count,
+        'comments_count': photo.comments_count,
         'has_liked': has_liked,
         'comments': comments
     })
@@ -118,16 +118,18 @@ def delete_photo(request, id):
 def toggle_like(request, id):
     photo = get_object_or_404(Photo, id=id)
     like_obj = Like.objects.filter(user=request.user, photo=photo).first()
-    
+
     if like_obj:
         like_obj.delete()
+        Photo.objects.filter(id=photo.id).update(likes_count=F('likes_count') - 1)
         has_liked = False
         logger.info(f"User {request.user.username} unliked photo {id}")
     else:
         Like.objects.create(user=request.user, photo=photo)
+        Photo.objects.filter(id=photo.id).update(likes_count=F('likes_count') + 1)
         has_liked = True
         logger.info(f"User {request.user.username} liked photo {id}")
-        
+
         # Create notification
         if photo.user != request.user:
             Notification.objects.create(
@@ -137,9 +139,9 @@ def toggle_like(request, id):
                 message=f"{request.user.profile.first_name} liked your photo.",
                 photo=photo
             )
-            
-    likes_count = photo.likes.count()
-    return JsonResponse({'has_liked': has_liked, 'likes_count': likes_count})
+
+    photo.refresh_from_db(fields=['likes_count'])
+    return JsonResponse({'has_liked': has_liked, 'likes_count': photo.likes_count})
 
 @login_required
 @require_POST
@@ -154,8 +156,9 @@ def add_comment(request, id):
     if not text:
         logger.warning(f"Empty comment attempt by {request.user.username} on photo {id}")
         return JsonResponse({'error': 'Comment cannot be empty'}, status=400)
-        
+
     comment = Comment.objects.create(user=request.user, photo=photo, text=text)
+    Photo.objects.filter(id=photo.id).update(comments_count=F('comments_count') + 1)
     logger.info(f"Comment added by {request.user.username} on photo {id}")
     
     # Create notification
@@ -229,26 +232,6 @@ def _search_photos_by_hashtag(request, query):
     page_obj = paginator.get_page(page_number)
 
     photo_ids = [p.id for p in page_obj.object_list]
-    
-    # Decoupled aggregations: We query likes and comments separately for the 
-    # photos on the current page to avoid generating massive, slow SQL JOINs 
-    # (a Cartesian product) that occur when using multiple .annotate() calls 
-    # on the main Photo query.
-    likes_counts = dict(
-        Like.objects.filter(photo_id__in=photo_ids)
-        .values('photo_id')
-        .annotate(count=Count('id'))
-        .values_list('photo_id', 'count')
-    )
-    comments_counts = dict(
-        Comment.objects.filter(photo_id__in=photo_ids)
-        .values('photo_id')
-        .annotate(count=Count('id'))
-        .values_list('photo_id', 'count')
-    )
-    for photo in page_obj.object_list:
-        photo.likes_count = likes_counts.get(photo.id, 0)
-        photo.comments_count = comments_counts.get(photo.id, 0)
 
     liked_photo_ids = set(
         request.user.like_set.filter(photo_id__in=photo_ids).values_list('photo_id', flat=True)

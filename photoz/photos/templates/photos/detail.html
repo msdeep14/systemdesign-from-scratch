@@ -51,7 +51,7 @@
         {% endif %}
         
         <div class="comments-section">
-            <h4 class="mb-2">Comments (<span id="comments-count">{{ comments.count }}</span>)</h4>
+            <h4 class="mb-2">Comments (<span id="comments-count">{{ comments_count }}</span>)</h4>
             <div id="comments-list" style="margin-bottom: 1.5rem; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;">
                 {% for comment in comments %}
                     <div>

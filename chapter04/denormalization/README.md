@@ -34,35 +34,38 @@ cd systemdesign-from-scratch
 git pull origin main
 ```
 
-**Step 2: Run the migration inside the web container**
+**Step 2: Run migration 0006 — ADD COLUMN only**
 
-The app runs in Docker. There is no venv on the EC2 host. Use `docker compose exec` to run the migration inside the running `web` container.
+The app runs in Docker. Use `docker compose exec` to run inside the running `web` container.
 
-Django migrations must bypass PgBouncer — PgBouncer's transaction pooling mode does not support the DDL statements Django issues during migrations. Connect directly to Postgres instead.
+Django migrations must bypass PgBouncer — PgBouncer's transaction pooling mode does not support the DDL statements Django issues. Connect directly to Postgres instead.
 
-First, find the actual Postgres host (it differs between local and AWS deployments):
+Find the actual Postgres host:
 
 ```bash
+cd photoz
 docker compose exec web env | grep POSTGRES
 ```
 
-Then run the migration with the DB host and port pointing directly at Postgres (not PgBouncer):
+Run the migration (replace `<DB_HOST>` with the value from above):
 
 ```bash
-# Replace <DB_HOST> with the value of POSTGRES_HOST from the env output above
-# Replace <DB_PORT> with 5432 (direct Postgres, not 6432 which is PgBouncer)
 docker compose exec -e POSTGRES_HOST=<DB_HOST> -e POSTGRES_PORT=5432 web python manage.py migrate photos 0006
 ```
 
-What the migration does:
-1. `ALTER TABLE photos_photo ADD COLUMN likes_count integer DEFAULT 0 NOT NULL` — fast on Postgres, no table rewrite.
-2. `ALTER TABLE photos_photo ADD COLUMN comments_count integer DEFAULT 0 NOT NULL` — same.
-3. `RunPython` backfill — reads all Photo rows in batches of 500 and writes the correct counts from `Like` and `Comment` tables.
+This only runs `ALTER TABLE ADD COLUMN` — it commits in under 1 second with no table rewrite.
 
-Estimated time: 30–90 seconds depending on DB load and number of photos. The app stays running throughout — users see no change.
+The migration has `lock_timeout = 2s`. If there is an active transaction holding the table when you run it, the migration fails immediately with `canceling statement due to lock timeout`. This is correct behavior — no traffic was blocked. Just retry the command until it prints `OK`.
 
-**Step 3: Verify the backfill**
+**Step 3: Run migration 0007 — backfill existing data**
 
+```bash
+docker compose exec -e POSTGRES_HOST=<DB_HOST> -e POSTGRES_PORT=5432 web python manage.py migrate photos 0007
+```
+
+This reads all Photo rows and writes the correct `likes_count` and `comments_count` from the `Like` and `Comment` tables. It commits every 500 rows independently, so it does not hold a long-running transaction. Estimated time: 60–90 seconds for 100,000 photos.
+
+**Step 4: Verify the backfill**
 
 ```bash
 docker compose exec web python -c "
@@ -77,7 +80,6 @@ print('Most liked photo:', p2.id, '| Column:', p2.likes_count, '| Real:', p2.lik
 "
 ```
 
-
 Both lines should show matching numbers. If they match, Stage 1 is complete.
 
 ---
@@ -89,6 +91,81 @@ Stage 2 updates the application code to read from the new columns and maintain t
 Stage 2 is not yet implemented. It will be added here once Phases 4 and 5 are complete.
 
 ---
+
+## Troubleshooting: Killing a Stuck Migration Session
+
+If a migration was cancelled mid-run (e.g. killed with Ctrl+C, or timed out), the Postgres transaction may not have rolled back yet. The open transaction holds a lock on `photos_photo`, blocking all subsequent DDL.
+
+Symptoms: every retry of the migration immediately fails with `canceling statement due to lock timeout`.
+
+**Option A: From the app node (via docker exec into the web container)**
+
+```bash
+docker compose exec -e POSTGRES_HOST=<DB_HOST> -e POSTGRES_PORT=5432 web python -c "
+import psycopg2
+conn = psycopg2.connect(host='<DB_HOST>', port=5432, dbname='bses', user='postgres', password='postgres')
+conn.autocommit = True
+cur = conn.cursor()
+
+# Show all long-running queries (older than 30 seconds)
+cur.execute('''
+    SELECT pid, now() - query_start AS duration, state, query
+    FROM pg_stat_activity
+    WHERE state != 'idle'
+      AND query_start < now() - interval '30 seconds'
+    ORDER BY duration DESC;
+''')
+for row in cur.fetchall():
+    print(row)
+"
+```
+
+Once you identify the stuck PID, terminate it:
+
+```bash
+docker compose exec -e POSTGRES_HOST=<DB_HOST> -e POSTGRES_PORT=5432 web python -c "
+import psycopg2
+conn = psycopg2.connect(host='<DB_HOST>', port=5432, dbname='bses', user='postgres', password='postgres')
+conn.autocommit = True
+cur = conn.cursor()
+
+# Terminate all long-running transactions touching photos_photo
+cur.execute('''
+    SELECT pg_terminate_backend(pid)
+    FROM pg_stat_activity
+    WHERE state != 'idle'
+      AND query_start < now() - interval '30 seconds'
+      AND query LIKE '%photos_photo%';
+''')
+print('Terminated:', cur.fetchall())
+"
+```
+
+**Option B: From the DB node directly**
+
+```bash
+ssh -i <key.pem> ubuntu@<DB_EC2_PUBLIC_IP>
+docker compose exec db psql -U postgres -d bses
+```
+
+Then inside psql:
+
+```sql
+-- Find the stuck session
+SELECT pid, now() - query_start AS duration, state, left(query, 100)
+FROM pg_stat_activity
+WHERE state != 'idle'
+  AND query_start < now() - interval '30 seconds'
+ORDER BY duration DESC;
+
+-- Terminate it by PID
+SELECT pg_terminate_backend(<pid>);
+```
+
+After termination, retry migration 0006. The `lock_timeout = 2s` ensures the retry is safe — it either succeeds quickly or fails fast without blocking traffic.
+
+---
+
 
 ## Running the Benchmarks
 
