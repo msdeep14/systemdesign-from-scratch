@@ -97,14 +97,18 @@ def delete_photo(request, id):
         return JsonResponse({'error': 'Unauthorized'}, status=403)
 
     image_path = photo.image.name
-    
     follower_ids = list(request.user.followers.values_list('follower_id', flat=True))
+
+    # Delete from DB first, then invalidate cache.
+    # Reversing this order creates a race: cache cleared -> concurrent read rebuilds
+    # cache from DB (photo still exists) -> photo.delete() runs -> stale ghost in cache.
+    photo.delete()
+    invalidate_cache(image_path)
+
     for f_id in follower_ids:
         cache.delete(f"feed:{f_id}")
     cache.delete(f"feed:{request.user.id}")
-    
-    photo.delete()
-    invalidate_cache(image_path)
+
     logger.info(f"Photo {id} deleted by {request.user.username}")
     messages.success(request, "Photo deleted.")
     return redirect('profile', username=request.user.profile.username_display)

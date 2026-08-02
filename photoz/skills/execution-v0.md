@@ -332,7 +332,7 @@
     *   Community photos use UUID-in-path approach (no signed URLs). Acceptable for current requirements.
     *   Photos have unique filenames (UUID + epoch), so CDN caching is safe — re-uploads never collide with cached paths.
 
-## Phase: Cache Invalidation Fix (Date: 2026-14-01, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: Cache Invalidation Fix (Date: 2026-14-01, Commit: d31a3a70d05e949ada035eee5325da20459876e7, Model: Gemini 3.1 Pro (High))
     * Analysis: Identified that follow/unfollow actions in users/views.py did not invalidate the newsfeed cache, leading to stale data.
     * Actions:
         * Modified photoz/users/views.py to import django.core.cache.cache.
@@ -343,3 +343,10 @@
         * Modified photoz/communities/views.py to invalidate cache upon accepting an invitation.
         * Modified photoz/users/views.py to invalidate followers' caches before account deletion.
         * Modified photoz/photos/views.py to invalidate followers' caches before photo deletion.
+
+## Phase: Fix Cache Race Condition in delete_photo (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6)
+
+- **Analysis:** `delete_photo` was clearing the feed cache before deleting the photo from the DB. In that brief gap, a concurrent read would find a cache miss, rebuild the cache from DB (photo still there), and then the photo would be deleted, leaving a ghost entry in the rebuilt cache. Fix: DB delete must come before cache invalidation.
+- **Actions:**
+    - Modified `photoz/photos/views.py`: moved `photo.delete()` and `invalidate_cache()` to before the `cache.delete()` calls in `delete_photo`.
+- **Edge Cases:** follower_ids list is collected before deletion (follower relationships are unaffected by photo deletion), but cache invalidation is deferred until after the DB write. This is the correct order.
