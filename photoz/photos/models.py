@@ -9,7 +9,9 @@ class Photo(models.Model):
     image = models.ImageField(upload_to=photo_upload_path)
     caption = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+    likes_count = models.PositiveIntegerField(default=0)
+    comments_count = models.PositiveIntegerField(default=0)
+
     class Meta:
         indexes = [
             models.Index(fields=['user', '-created_at'], name='idx_photo_user_created'),

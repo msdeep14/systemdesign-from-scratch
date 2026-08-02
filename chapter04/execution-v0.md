@@ -715,7 +715,7 @@ When implementing PgBouncer in Django (or any framework with persistent connecti
     *   **Pull Pattern (`photoz/newsfeed/views.py`):** Refactored `newsfeed` view to check `feed:{user_id}` in cache. On cache miss, it computes the top 1000 IDs and caches them. Pagination then slices these cached IDs, and fetches only the relevant objects from the database.
     *   **Push Pattern (`photoz/photos/views.py`):** Refactored `upload_photo` to implement fan-out on write. When a photo is uploaded, its ID is prepended to the author's and followers' `feed:{user_id}` Redis lists (capped at 1000 items).
 
-## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: ef91f9c38a7f8d29b64f5f39b289747eb2ccae46, Model: Claude Sonnet 4.6 (Thinking))
 
 **Analysis:** The current implementation computes `likes_count` and `comments_count` at read time via SQL `COUNT(*)` queries. Two patterns exist: (1) decoupled `COUNT GROUP BY` in newsfeed and search views (2 queries per page load), (2) `photo.likes.count()` N+1 calls in photo detail and profile views. The plan is to add `likes_count` and `comments_count` columns directly on the `Photo` table and maintain them via `F()` atomic increments on write. Phase 1 establishes the baseline before any model changes.
 

@@ -351,7 +351,7 @@
     - Modified `photoz/photos/views.py`: moved `photo.delete()` and `invalidate_cache()` to before the `cache.delete()` calls in `delete_photo`.
 - **Edge Cases:** follower_ids list is collected before deletion (follower relationships are unaffected by photo deletion), but cache invalidation is deferred until after the DB write. This is the correct order.
 
-## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: pending, Model: Claude Sonnet 4.6 (Thinking))
+## Phase: Denormalization - Phase 1 Benchmark Scripts (Date: 2026-08-02, Commit: ef91f9c38a7f8d29b64f5f39b289747eb2ccae46, Model: Claude Sonnet 4.6 (Thinking))
 
 - **Analysis:** `likes_count` and `comments_count` are computed at read time via SQL `COUNT(*)`. Adding them as columns on the `Photo` table will eliminate these queries from hot paths. Phase 1 creates the baseline benchmarks before any model changes.
 - **Actions:**
