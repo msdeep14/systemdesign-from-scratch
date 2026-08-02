@@ -30,29 +30,42 @@ Stage 1 adds the columns and backfills them from existing data. The application 
 
 ```bash
 ssh -i <your_key.pem> ubuntu@<APP_EC2_PUBLIC_IP>
-cd systemdesignfromscratch
+cd systemdesign-from-scratch
 git pull origin main
 ```
 
-**Step 2: Run the migration**
+**Step 2: Run the migration inside the web container**
+
+The app runs in Docker. There is no venv on the EC2 host. Use `docker compose exec` to run the migration inside the running `web` container.
+
+Django migrations must bypass PgBouncer — PgBouncer's transaction pooling mode does not support the DDL statements Django issues during migrations. Connect directly to Postgres instead.
+
+First, find the actual Postgres host (it differs between local and AWS deployments):
 
 ```bash
-cd photoz
-source venv/bin/activate
-python manage.py migrate photos 0006
+docker compose exec web env | grep POSTGRES
 ```
 
-The migration runs two operations:
-1. `ALTER TABLE photos_photo ADD COLUMN likes_count integer DEFAULT 0 NOT NULL` — fast, no table rewrite on Postgres.
-2. `ALTER TABLE photos_photo ADD COLUMN comments_count integer DEFAULT 0 NOT NULL` — same.
-3. `RunPython` backfill — reads all Photo rows in batches of 500 and writes the correct counts from the `Like` and `Comment` tables.
+Then run the migration with the DB host and port pointing directly at Postgres (not PgBouncer):
 
-Estimated time: 30–90 seconds depending on DB load and number of photos.
+```bash
+# Replace <DB_HOST> with the value of POSTGRES_HOST from the env output above
+# Replace <DB_PORT> with 5432 (direct Postgres, not 6432 which is PgBouncer)
+docker compose exec -e POSTGRES_HOST=<DB_HOST> -e POSTGRES_PORT=5432 web python manage.py migrate photos 0006
+```
+
+What the migration does:
+1. `ALTER TABLE photos_photo ADD COLUMN likes_count integer DEFAULT 0 NOT NULL` — fast on Postgres, no table rewrite.
+2. `ALTER TABLE photos_photo ADD COLUMN comments_count integer DEFAULT 0 NOT NULL` — same.
+3. `RunPython` backfill — reads all Photo rows in batches of 500 and writes the correct counts from `Like` and `Comment` tables.
+
+Estimated time: 30–90 seconds depending on DB load and number of photos. The app stays running throughout — users see no change.
 
 **Step 3: Verify the backfill**
 
+
 ```bash
-python -c "
+docker compose exec web python -c "
 import django, os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bses.settings')
 django.setup()
@@ -63,6 +76,7 @@ p2 = Photo.objects.order_by('-likes_count').first()
 print('Most liked photo:', p2.id, '| Column:', p2.likes_count, '| Real:', p2.likes.count())
 "
 ```
+
 
 Both lines should show matching numbers. If they match, Stage 1 is complete.
 

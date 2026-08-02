@@ -33,6 +33,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Set lock_timeout before each ALTER TABLE.
+        #
+        # ALTER TABLE ADD COLUMN takes an ACCESS EXCLUSIVE lock on photos_photo.
+        # Without lock_timeout, if any active transaction holds the table,
+        # this DDL waits -- and every new query queues behind the DDL lock.
+        # With a 2-second lock_timeout: if the lock can't be grabbed in 2s,
+        # the migration fails fast (no queuing, no outage). Just retry.
+        migrations.RunSQL("SET lock_timeout = '2s'"),
         migrations.AddField(
             model_name='photo',
             name='likes_count',
@@ -43,5 +51,6 @@ class Migration(migrations.Migration):
             name='comments_count',
             field=models.PositiveIntegerField(default=0),
         ),
+        migrations.RunSQL("SET lock_timeout = 0"),
         migrations.RunPython(backfill_counts, reverse_code=migrations.RunPython.noop),
     ]
