@@ -114,6 +114,22 @@ The massive reduction in p50/p95 latency is due to the elimination of the comple
 
 ---
 
+## Edge Case: Zero-Downtime Data Consistency (The Dual-Write Pattern)
+
+In the two-stage rollout documented above, there is a small window where data can become stale on a live production system:
+
+1. The backfill script (`0007`) calculates the count for Photo #100 and updates the `likes_count` column.
+2. A user likes Photo #100. The old active code inserts a `Like` row, but it **does not** increment the `likes_count` column.
+3. You deploy Stage 2. The app now blindly reads the column, meaning the like that happened during the gap is permanently missing from the counter.
+
+To solve this and achieve a true zero-downtime, zero-data-loss denormalization, companies use a **Three-Stage Deploy** (Dual-Write pattern):
+
+1. **Stage 1 (Write Both, Read Old):** Add the columns. Deploy an app update that inserts the `Like` row AND increments the new `likes_count` column via `F() + 1`, but continues to read using the expensive `COUNT(*)` query.
+2. **Stage 2 (Backfill):** Run the backfill. Because Stage 1 code is already maintaining the counts for any new interactions, the backfill safely sweeps through and updates the older rows without missing anything.
+3. **Stage 3 (Write Both, Read New):** Deploy a final app update that stops running the `COUNT(*)` queries and exclusively reads from the perfectly accurate columns.
+
+---
+
 ## Troubleshooting: Killing a Stuck Migration Session
 
 If a migration was cancelled mid-run (e.g. killed with Ctrl+C, or timed out), the Postgres transaction may not have rolled back yet. The open transaction holds a lock on `photos_photo`, blocking all subsequent DDL.
