@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - staging
 
 jobs:
   test:
@@ -54,18 +55,18 @@ jobs:
 
   migrate:
     name: Run migrations
-    runs-on: self-hosted
+    runs-on: [self-hosted, "${{ github.ref_name == 'main' && 'prod' || 'staging' }}"]
     needs: test
-    # Only deploy from main branch
-    if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Write SSH key
+        env:
+          SSH_KEY: ${{ github.ref_name == 'main' && secrets.APP_NODE_SSH_KEY || secrets.APP_NODE_SSH_KEY_STAGING }}
         run: |
-          echo "${{ secrets.APP_NODE_SSH_KEY }}" > /tmp/deploy_key
+          echo "$SSH_KEY" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
       - name: Run migrations on one app node
@@ -73,8 +74,9 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
           # Dynamically get the private IP of one running app node
+          ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
           APP_NODE_IP=$(aws ec2 describe-instances \
-            --filters "Name=tag:aws:autoscaling:groupName,Values=photoz-app-asg" "Name=instance-state-name,Values=running" \
+            --filters "Name=tag:aws:autoscaling:groupName,Values=$ASG_NAME" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].PrivateIpAddress" \
             --output text)
             
@@ -88,7 +90,7 @@ jobs:
               -o StrictHostKeyChecking=no \
               ubuntu@$APP_NODE_IP \
               "cd /home/ubuntu/systemdesign-from-scratch/photoz && \
-               git pull origin main && \
+               git pull origin ${{ github.ref_name }} && \
                POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate"
 
 
@@ -96,7 +98,7 @@ jobs:
 
   deploy:
     name: Deploy via ASG Instance Refresh
-    runs-on: self-hosted
+    runs-on: [self-hosted, "${{ github.ref_name == 'main' && 'prod' || 'staging' }}"]
     needs: migrate
 
     steps:
@@ -105,6 +107,7 @@ jobs:
         env:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
+          ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
           aws autoscaling start-instance-refresh \
-            --auto-scaling-group-name photoz-app-asg \
+            --auto-scaling-group-name $ASG_NAME \
             --preferences MinHealthyPercentage=50,InstanceWarmup=120

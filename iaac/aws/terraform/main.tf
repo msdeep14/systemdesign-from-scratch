@@ -1,5 +1,8 @@
 locals {
   repo_url = var.github_token != "" ? "https://${var.github_token}@github.com/msdeep14/systemdesign-from-scratch.git" : "https://github.com/msdeep14/systemdesign-from-scratch.git"
+  env_suffix = terraform.workspace == "default" ? "" : "-${terraform.workspace}"
+  s3_bucket_name = "${var.s3_bucket_name}${local.env_suffix}"
+  runner_label = terraform.workspace == "default" ? "prod" : terraform.workspace
 }
 
 data "aws_ami" "ubuntu" {
@@ -47,7 +50,7 @@ POSTGRES_DB=bses
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${var.db_password}
 USE_S3=True
-AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
@@ -85,7 +88,7 @@ REPLICA_COUNT=${var.db_replica_count} bash ./postgres-init/03-create-replication
 cat <<'CRON' > /etc/cron.daily/db_backup
 #!/bin/bash
 docker exec photoz-db pg_dump -U postgres bses > /tmp/bses_backup.sql
-aws s3 cp /tmp/bses_backup.sql s3://${var.s3_bucket_name}/db_backups/bses_backup_\$(date +%F).sql
+aws s3 cp /tmp/bses_backup.sql s3://${local.s3_bucket_name}/db_backups/bses_backup_\$(date +%F).sql
 CRON
 chmod +x /etc/cron.daily/db_backup
 
@@ -109,7 +112,7 @@ if [ "${var.seed_database}" = "true" ]; then
 fi
 EOF
 
-  tags = { Name = "photoz-db-node" }
+  tags = { Name = "photoz-db-node${local.env_suffix}" }
 }
 
 resource "aws_instance" "db_replica" {
@@ -141,7 +144,7 @@ POSTGRES_DB=bses
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${var.db_password}
 USE_S3=True
-AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
@@ -156,7 +159,7 @@ ENV
 docker compose -f docker-compose-replica.yml up -d
 EOF
 
-  tags = { Name = "photoz-db-replica-${count.index + 1}" }
+  tags = { Name = "photoz-db-replica-${count.index + 1}${local.env_suffix}" }
 }
 
 resource "aws_instance" "redis_node" {
@@ -182,11 +185,11 @@ sudo systemctl restart redis-server
 sudo systemctl enable redis-server
 EOF
 
-  tags = { Name = "photoz-redis-node" }
+  tags = { Name = "photoz-redis-node${local.env_suffix}" }
 }
 
 resource "aws_launch_template" "app_node" {
-  name_prefix   = "photoz-app-node-"
+  name_prefix   = "photoz-app-node${local.env_suffix}-"
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.app_instance_type
   key_name      = var.app_key_name
@@ -216,7 +219,7 @@ POSTGRES_DB=bses
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=${var.db_password}
 USE_S3=True
-AWS_STORAGE_BUCKET_NAME=${var.s3_bucket_name}
+AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
@@ -240,13 +243,13 @@ EOF
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "photoz-app-node"
+      Name = "photoz-app-node${local.env_suffix}"
     }
   }
 }
 
 resource "aws_autoscaling_group" "app_nodes" {
-  name                = "photoz-app-asg"
+  name                = "photoz-app-asg${local.env_suffix}"
   vpc_zone_identifier = local.subnet_ids
   desired_capacity    = 2
   max_size            = 4
@@ -266,13 +269,13 @@ resource "aws_autoscaling_group" "app_nodes" {
 
   tag {
     key                 = "Name"
-    value               = "photoz-app-node"
+    value               = "photoz-app-node${local.env_suffix}"
     propagate_at_launch = true
   }
 }
 
 resource "aws_autoscaling_policy" "scale_up" {
-  name                   = "photoz-scale-up"
+  name                   = "photoz-scale-up${local.env_suffix}"
   scaling_adjustment     = 1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
@@ -280,7 +283,7 @@ resource "aws_autoscaling_policy" "scale_up" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  alarm_name          = "photoz-cpu-high"
+  alarm_name          = "photoz-cpu-high${local.env_suffix}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -298,7 +301,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high" {
 }
 
 resource "aws_autoscaling_policy" "scale_down" {
-  name                   = "photoz-scale-down"
+  name                   = "photoz-scale-down${local.env_suffix}"
   scaling_adjustment     = -1
   adjustment_type        = "ChangeInCapacity"
   cooldown               = 300
@@ -306,7 +309,7 @@ resource "aws_autoscaling_policy" "scale_down" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_low" {
-  alarm_name          = "photoz-cpu-low"
+  alarm_name          = "photoz-cpu-low${local.env_suffix}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -354,7 +357,7 @@ ENV
 docker compose -f docker-compose-lb.yml up -d
 EOF
 
-  tags = { Name = "photoz-lb-node" }
+  tags = { Name = "photoz-lb-node${local.env_suffix}" }
 }
 
 resource "aws_instance" "github_runner" {
@@ -389,7 +392,7 @@ cd /home/github/actions-runner
 # Configure Runner
 sudo -i -u github bash << 'RUNNER_EOF'
 cd actions-runner
-./config.sh --url https://github.com/msdeep14/systemdesign-from-scratch --token ${var.github_runner_token} --unattended --replace
+./config.sh --url https://github.com/msdeep14/systemdesign-from-scratch --token ${var.github_runner_token} --unattended --replace --labels ${local.runner_label}
 RUNNER_EOF
 
 # Install service (must be root)
@@ -398,5 +401,11 @@ cd /home/github/actions-runner
 ./svc.sh start
 EOF
 
-  tags = { Name = "photoz-github-runner" }
+  tags = { Name = "photoz-github-runner${local.env_suffix}" }
+}
+
+# Conditionally create S3 bucket for new workspaces (e.g., staging)
+resource "aws_s3_bucket" "photoz_storage" {
+  count  = terraform.workspace == "default" ? 0 : 1
+  bucket = local.s3_bucket_name
 }

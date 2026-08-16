@@ -1,5 +1,5 @@
 resource "aws_cloudfront_origin_access_control" "photoz" {
-  name                              = "photoz-s3-oac"
+  name                              = "photoz-s3-oac${local.env_suffix}"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -10,7 +10,7 @@ resource "aws_cloudfront_distribution" "photoz_cdn" {
   comment = "CDN for PhotoZ media files"
 
   origin {
-    domain_name              = "${var.s3_bucket_name}.s3.${var.aws_region}.amazonaws.com"
+    domain_name              = "${local.s3_bucket_name}.s3.${var.aws_region}.amazonaws.com"
     origin_id                = "S3-photoz-media"
     origin_access_control_id = aws_cloudfront_origin_access_control.photoz.id
   }
@@ -46,7 +46,7 @@ resource "aws_cloudfront_distribution" "photoz_cdn" {
 # S3 bucket policy: Allow only CloudFront OAC to read objects.
 # This means S3 does not need to be publicly accessible.
 resource "aws_s3_bucket_policy" "allow_cloudfront" {
-  bucket = var.s3_bucket_name
+  bucket = local.s3_bucket_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -56,7 +56,7 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
         Effect    = "Allow"
         Principal = { Service = "cloudfront.amazonaws.com" }
         Action    = "s3:GetObject"
-        Resource  = "arn:aws:s3:::${var.s3_bucket_name}/*"
+        Resource  = "arn:aws:s3:::${local.s3_bucket_name}/*"
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.photoz_cdn.arn

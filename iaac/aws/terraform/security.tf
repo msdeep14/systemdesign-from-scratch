@@ -8,7 +8,7 @@ locals {
 
 resource "aws_security_group" "lb" {
   count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-lb-sg"
+  name        = "photoz-lb-sg${local.env_suffix}"
   description = "Allow HTTP inbound traffic"
   vpc_id      = local.vpc_id
 
@@ -54,7 +54,7 @@ resource "aws_security_group" "lb" {
 
 resource "aws_security_group" "app" {
   count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-app-sg"
+  name        = "photoz-app-sg${local.env_suffix}"
   description = "Allow traffic from LB"
   vpc_id      = local.vpc_id
 
@@ -108,7 +108,7 @@ resource "aws_security_group" "app" {
 
 resource "aws_security_group" "db" {
   count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-db-sg"
+  name        = "photoz-db-sg${local.env_suffix}"
   description = "Allow Postgres traffic from App"
   vpc_id      = local.vpc_id
 
@@ -154,7 +154,7 @@ resource "aws_security_group" "db" {
 
 resource "aws_security_group" "db_replica" {
   count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-db-replica-sg"
+  name        = "photoz-db-replica-sg${local.env_suffix}"
   description = "Allow Postgres traffic for Replica"
   vpc_id      = local.vpc_id
 
@@ -190,7 +190,7 @@ locals {
 
 resource "aws_security_group" "redis" {
   count       = var.create_security_groups && var.create_redis_node ? 1 : 0
-  name        = "photoz-redis-sg"
+  name        = "photoz-redis-sg${local.env_suffix}"
   description = "Allow Redis traffic from App"
   vpc_id      = local.vpc_id
 
@@ -224,7 +224,7 @@ locals {
 
 resource "aws_security_group" "github_runner" {
   count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-github-runner-sg"
+  name        = "photoz-github-runner-sg${local.env_suffix}"
   description = "Security Group for GitHub Self-Hosted Runner"
   vpc_id      = local.vpc_id
 

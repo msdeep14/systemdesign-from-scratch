@@ -1,6 +1,6 @@
 resource "aws_iam_role" "photoz_ec2_role" {
   count = var.create_iam_role ? 1 : 0
-  name  = "photoz-ec2-role"
+  name  = "photoz-ec2-role${local.env_suffix}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -30,7 +30,7 @@ resource "aws_iam_role_policy_attachment" "s3_access" {
 
 resource "aws_iam_role_policy" "cloudfront_invalidation" {
   count = var.create_iam_role ? 1 : 0
-  name  = "cloudfront-invalidation"
+  name  = "cloudfront-invalidation${local.env_suffix}"
   role  = aws_iam_role.photoz_ec2_role[0].id
 
   policy = jsonencode({
@@ -47,7 +47,7 @@ resource "aws_iam_role_policy" "cloudfront_invalidation" {
 
 resource "aws_iam_role_policy" "runner_deploy_access" {
   count = var.create_iam_role ? 1 : 0
-  name  = "runner-deploy-access"
+  name  = "runner-deploy-access${local.env_suffix}"
   role  = aws_iam_role.photoz_ec2_role[0].id
 
   policy = jsonencode({
@@ -67,10 +67,14 @@ resource "aws_iam_role_policy" "runner_deploy_access" {
 
 resource "aws_iam_instance_profile" "photoz_profile" {
   count = var.create_iam_role ? 1 : 0
-  name  = "photoz-ec2-profile"
+  name  = "photoz-ec2-profile${local.env_suffix}"
   role  = aws_iam_role.photoz_ec2_role[0].name
 }
 
 locals {
   iam_instance_profile = var.create_iam_role ? aws_iam_instance_profile.photoz_profile[0].name : var.existing_iam_instance_profile_name
+}
+
+resource "aws_iam_user" "env_deployer" {
+  name = terraform.workspace == "default" ? "prod-user" : "${terraform.workspace}-user"
 }

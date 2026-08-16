@@ -59,9 +59,28 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Updated `aws_instance.github_runner` in `main.tf` to include `awscli` and `unzip` in the `apt-get install` user data script.
 
 
-### Phase: Fix GitHub Runner Dependencies and SSH (Date: 2026-08-16, Commit: Pending, Model: Gemini 3.1 Pro (High))
+### Phase: Fix GitHub Runner Dependencies and SSH (Date: 2026-08-16, Commit: 58c0c423906ac0456493fd61d42695facf73f0d8, Model: Gemini 3.1 Pro (High))
 - **Analysis**: The runner was failing to register with GitHub and the user was unable to SSH in to debug it. The registration failure was caused by missing .NET Core dependencies which are required by the GitHub Runner's `./config.sh` script. The SSH failure was due to the runner's Security Group having no inbound rules.
 - **Actions Taken**:
   - Updated `main.tf` to run `./bin/installdependencies.sh` as root before executing `./config.sh` to ensure all required libraries (like `libicu`) are installed.
   - Updated `security.tf` to add an ingress rule for port 22 from the developer's IP to the `photoz-github-runner-sg` to allow SSH access for troubleshooting.
 
+### Phase: Staging Environment Support (Date: 2026-08-16, Commit: [hash], Model: Gemini 3.1 Pro (High))
+- **Analysis**: Introduced Terraform workspaces to support a staging environment alongside production.
+- **Actions Taken**:
+  - Added `env_suffix` and `s3_bucket_name` to `locals` in `main.tf` to conditionally append the workspace name to resources.
+  - Added `default_tags` block to the AWS Provider in `provider.tf` to tag all resources with `Environment = staging/prod`.
+  - Modified resource names and tags across `iam.tf`, `security.tf`, `main.tf`, `network.tf`, `cloudwatch.tf`, and `cloudfront.tf` to append `${local.env_suffix}`.
+  - Modified `aws_s3_bucket_policy` to accept suffixed bucket names to restrict access to correct environment bucket.
+  - Updated Django `.env` injection in `user_data` of EC2 instances to use `local.s3_bucket_name`.
+  - Added `aws_iam_user` resource to create workspace-specific deployment users (`prod-user` or `staging-user`).
+  - Conditionally created `aws_s3_bucket.photoz_storage` in `main.tf` to automatically provision the S3 bucket for non-default workspaces, while leaving the manual production bucket untouched.
+  - Validated configuration with `terraform validate`.
+
+### Phase: CI/CD Branch Environments (Date: 2026-08-16, Commit: [hash], Model: Gemini 3.1 Pro)
+- **Analysis**: The `deploy.yml` file was hardcoded for the `main` branch and production resources, making it impossible to automatically deploy changes to the staging environment without manually modifying the pipeline file. Additionally, if multiple runners exist, GitHub randomly assigns jobs unless specific labels are used.
+- **Actions Taken**:
+  - Updated `main.tf` to assign dynamic labels (`prod` or `staging`) to the GitHub Runner registration command (`./config.sh --labels ...`) based on the Terraform workspace.
+  - Refactored `.github/workflows/deploy.yml` to trigger on both `main` and `staging` branches.
+  - Updated `deploy.yml` to dynamically select the runner label, target ASG name, SSH Key secret (`APP_NODE_SSH_KEY` vs `APP_NODE_SSH_KEY_STAGING`), and `git pull` branch based on `${{ github.ref_name }}`.
+  - Updated `chapter05/staging_env/README.md` to instruct the developer to add the new staging SSH key to GitHub Secrets.

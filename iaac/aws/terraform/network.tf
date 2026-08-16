@@ -3,13 +3,13 @@ resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "photoz-vpc" }
+  tags = { Name = "photoz-vpc${local.env_suffix}" }
 }
 
 resource "aws_internet_gateway" "main" {
   count  = var.create_vpc ? 1 : 0
   vpc_id = aws_vpc.main[0].id
-  tags = { Name = "photoz-igw" }
+  tags = { Name = "photoz-igw${local.env_suffix}" }
 }
 
 resource "aws_subnet" "public" {
@@ -18,7 +18,7 @@ resource "aws_subnet" "public" {
   cidr_block              = cidrsubnet(aws_vpc.main[0].cidr_block, 8, count.index)
   map_public_ip_on_launch = true
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  tags = { Name = "photoz-public-subnet-${count.index + 1}" }
+  tags = { Name = "photoz-public-subnet-${count.index + 1}${local.env_suffix}" }
 }
 
 resource "aws_route_table" "public" {
@@ -29,7 +29,7 @@ resource "aws_route_table" "public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main[0].id
   }
-  tags = { Name = "photoz-public-rt" }
+  tags = { Name = "photoz-public-rt${local.env_suffix}" }
 }
 
 resource "aws_route_table_association" "public" {
