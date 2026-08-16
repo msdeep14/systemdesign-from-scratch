@@ -25,7 +25,7 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
 - `InstanceWarmup=120` gives each new instance 2 minutes to pass health checks before AWS moves to the next one.
 
 
-### Phase: Implement Private Self-Hosted Runners for CI/CD (Date: 2026-08-16, Commit: Pending, Model: Gemini 3.1 Pro (High))
+### Phase: Implement Private Self-Hosted Runners for CI/CD (Date: 2026-08-16, Commit: 247f42b6ce84b04e46f92132d33ec15295436775, Model: Gemini 3.1 Pro (High))
 - **Analysis**: Running deployment commands directly from public GitHub runners requires exposing SSH ports to the internet (or dynamic whitelisting) and storing long-lived credentials in GitHub Secrets. To enhance security, we migrated to a self-hosted runner located within the private AWS VPC, avoiding public IP exposure.
 - **Actions Taken**:
   - Updated `variables.tf` with a new sensitive variable `github_runner_token` to hold the runner registration token.
@@ -35,7 +35,7 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Updated `chapter05/deployment_automation/README.md` with instructions on how to obtain and provide the runner token.
 
 
-### Phase: Eliminate AWS Credentials from GitHub (Date: 2026-08-16, Commit: Pending, Model: Gemini 3.1 Pro (High))
+### Phase: Eliminate AWS Credentials from GitHub (Date: 2026-08-16, Commit: 247f42b6ce84b04e46f92132d33ec15295436775, Model: Gemini 3.1 Pro (High))
 - **Analysis**: After implementing self-hosted runners, the GitHub Action workflow still required static AWS Access Keys in GitHub Secrets just to trigger the instance refresh and fetch the app node IP. Since the runner is an EC2 instance, it is a security best practice to rely entirely on its IAM Instance Profile instead of passing static credentials.
 - **Actions Taken**:
   - Updated `iam.tf` to create a new policy (`runner-deploy-access`) granting the `photoz-ec2-role` permissions for `ec2:DescribeInstances` and `autoscaling:StartInstanceRefresh`.
@@ -44,11 +44,24 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Refactored `chapter05/deployment_automation/README.md` to remove the AWS access keys from the required secrets list.
 
 
-### Phase: Segregate SSH Keys by Architectural Tier (Date: 2026-08-16, Commit: Pending, Model: Gemini 3.1 Pro (High))
+### Phase: Segregate SSH Keys by Architectural Tier (Date: 2026-08-16, Commit: 247f42b6ce84b04e46f92132d33ec15295436775, Model: Gemini 3.1 Pro (High))
 - **Analysis**: Using a single SSH key across all instances creates a massive blast radius. A compromise of the GitHub Actions pipeline (which only needs app node access) would grant access to the entire data tier. To adhere to the Principle of Least Privilege, we separated the keys by tier (app, db/redis, lb, runner). To prevent Terraform from destroying existing stateful instances during rotation, we added `lifecycle { ignore_changes = [key_name] }`.
 - **Actions Taken**:
   - Updated `variables.tf` to replace the single `key_name` with `app_key_name`, `db_key_name`, `lb_key_name`, and `runner_key_name`.
   - Updated `main.tf` to assign the respective keys to the correct AWS instances.
   - Added `lifecycle { ignore_changes = [key_name] }` to the DB, Redis, and LB instances in `main.tf` to allow safe, manual key rotation on existing instances without causing a destructive recreation.
   - Updated `chapter05/deployment_automation/README.md` to clarify that the `APP_NODE_SSH_KEY` secret is strictly for the app tier.
+
+
+### Phase: Fix AWS CLI missing on GitHub Runner (Date: 2026-08-16, Commit: 247f42b6ce84b04e46f92132d33ec15295436775, Model: Gemini 3.1 Pro (High))
+- **Analysis**: The pipeline failed with `aws: command not found`. The self-hosted runner EC2 instance did not have the AWS CLI installed, which is required to fetch the app node IP and trigger the ASG instance refresh. 
+- **Actions Taken**:
+  - Updated `aws_instance.github_runner` in `main.tf` to include `awscli` and `unzip` in the `apt-get install` user data script.
+
+
+### Phase: Fix GitHub Runner Dependencies and SSH (Date: 2026-08-16, Commit: Pending, Model: Gemini 3.1 Pro (High))
+- **Analysis**: The runner was failing to register with GitHub and the user was unable to SSH in to debug it. The registration failure was caused by missing .NET Core dependencies which are required by the GitHub Runner's `./config.sh` script. The SSH failure was due to the runner's Security Group having no inbound rules.
+- **Actions Taken**:
+  - Updated `main.tf` to run `./bin/installdependencies.sh` as root before executing `./config.sh` to ensure all required libraries (like `libicu`) are installed.
+  - Updated `security.tf` to add an ingress rule for port 22 from the developer's IP to the `photoz-github-runner-sg` to allow SSH access for troubleshooting.
 

@@ -48,6 +48,9 @@ To securely run migrations without opening SSH ports to the public internet, we 
    ```
 6. Run `terraform apply`. The runner instance will automatically install dependencies, register itself with GitHub, and start the service.
 
+> [!NOTE]
+> **Updating the Runner Configuration:** If you ever modify the runner's startup script (`user_data` in Terraform), Terraform might update the instance in-place instead of recreating it. Because AWS only runs the `user_data` script on the *first boot* of a brand-new instance, your changes won't take effect. To force Terraform to recreate the runner and run the new script, you must explicitly mark it for destruction first by running: `terraform taint 'aws_instance.github_runner[0]'` and then running `terraform apply`.
+
 ## How to Set Up GitHub Secrets
 
 In the GitHub repo settings, add these secrets under Settings → Secrets and variables → Actions:

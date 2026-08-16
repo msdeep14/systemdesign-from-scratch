@@ -369,7 +369,7 @@ resource "aws_instance" "github_runner" {
   user_data = <<-EOF
 #!/bin/bash
 sudo apt-get update
-sudo apt-get install -y curl jq docker.io python3 python3-venv python3-pip postgresql-client git
+sudo apt-get install -y curl jq docker.io python3 python3-venv python3-pip postgresql-client git awscli unzip
 
 # Create a runner user (GitHub runner cannot be run as root)
 useradd -m github
@@ -380,6 +380,15 @@ sudo -i -u github bash << 'RUNNER_EOF'
 mkdir actions-runner && cd actions-runner
 curl -o actions-runner-linux-x64-2.316.1.tar.gz -L https://github.com/actions/runner/releases/download/v2.316.1/actions-runner-linux-x64-2.316.1.tar.gz
 tar xzf ./actions-runner-linux-x64-2.316.1.tar.gz
+RUNNER_EOF
+
+# Install .NET dependencies required by the runner (must be root)
+cd /home/github/actions-runner
+./bin/installdependencies.sh
+
+# Configure Runner
+sudo -i -u github bash << 'RUNNER_EOF'
+cd actions-runner
 ./config.sh --url https://github.com/msdeep14/systemdesign-from-scratch --token ${var.github_runner_token} --unattended --replace
 RUNNER_EOF
 

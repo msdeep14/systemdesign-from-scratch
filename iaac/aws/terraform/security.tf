@@ -228,6 +228,14 @@ resource "aws_security_group" "github_runner" {
   description = "Security Group for GitHub Self-Hosted Runner"
   vpc_id      = local.vpc_id
 
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip_cidr]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
