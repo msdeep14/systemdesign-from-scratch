@@ -34,16 +34,28 @@ Previously, every container ran `python manage.py migrate` on startup. With roll
 
 The migration now runs once in CI, before any new instance boots.
 
+## How to Set Up the Self-Hosted Runner
+
+To securely run migrations without opening SSH ports to the public internet, we use a private self-hosted GitHub runner inside our AWS VPC.
+
+1. Go to your GitHub repository.
+2. Navigate to **Settings** → **Actions** → **Runners**.
+3. Click **New self-hosted runner** (choose Linux).
+4. Do not run the commands shown! Just copy the **token** provided in the configure section (e.g., `AB1234C...`).
+5. Open `iaac/aws/terraform/terraform.tfvars` and add the token:
+   ```hcl
+   github_runner_token = "YOUR_TOKEN_HERE"
+   ```
+6. Run `terraform apply`. The runner instance will automatically install dependencies, register itself with GitHub, and start the service.
+
 ## How to Set Up GitHub Secrets
 
 In the GitHub repo settings, add these secrets under Settings → Secrets and variables → Actions:
 
 | Secret | Value |
 |---|---|
-| `AWS_ACCESS_KEY_ID` | AWS access key with `autoscaling:StartInstanceRefresh` and `ec2:DescribeInstances` permissions |
-| `AWS_SECRET_ACCESS_KEY` | Corresponding secret key |
 | `AWS_REGION` | The AWS region (e.g., `us-east-1`) |
-| `APP_NODE_SSH_KEY` | Private SSH key for the app node (the key pair used when provisioning via Terraform) |
+| `APP_NODE_SSH_KEY` | Private SSH key for the **app nodes only** (corresponds to the `app_key_name` in Terraform) |
 
 ## How to Trigger a Deploy
 

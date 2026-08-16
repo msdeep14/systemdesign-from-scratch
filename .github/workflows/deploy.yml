@@ -54,7 +54,7 @@ jobs:
 
   migrate:
     name: Run migrations
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: test
     # Only deploy from main branch
     if: github.ref == 'refs/heads/main'
@@ -68,19 +68,14 @@ jobs:
           echo "${{ secrets.APP_NODE_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Run migrations on one app node
+        env:
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          # Dynamically get the public IP of one running app node
+          # Dynamically get the private IP of one running app node
           APP_NODE_IP=$(aws ec2 describe-instances \
             --filters "Name=tag:aws:autoscaling:groupName,Values=photoz-app-asg" "Name=instance-state-name,Values=running" \
-            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --query "Reservations[0].Instances[0].PrivateIpAddress" \
             --output text)
             
           if [ "$APP_NODE_IP" == "None" ] || [ -z "$APP_NODE_IP" ]; then
@@ -97,20 +92,18 @@ jobs:
                POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate"
 
 
+
+
   deploy:
     name: Deploy via ASG Instance Refresh
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: migrate
 
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Instance Refresh
+        env:
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name photoz-app-asg \

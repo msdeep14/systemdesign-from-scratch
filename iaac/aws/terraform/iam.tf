@@ -45,6 +45,26 @@ resource "aws_iam_role_policy" "cloudfront_invalidation" {
   })
 }
 
+resource "aws_iam_role_policy" "runner_deploy_access" {
+  count = var.create_iam_role ? 1 : 0
+  name  = "runner-deploy-access"
+  role  = aws_iam_role.photoz_ec2_role[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "ec2:DescribeInstances",
+          "autoscaling:StartInstanceRefresh"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "photoz_profile" {
   count = var.create_iam_role ? 1 : 0
   name  = "photoz-ec2-profile"

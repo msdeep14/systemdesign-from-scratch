@@ -4,9 +4,24 @@ variable "aws_region" {
 }
 
 # --- SSH Access ---
-variable "key_name" {
+variable "app_key_name" {
   type        = string
-  description = "Name of the existing AWS Key Pair to attach to the instances for SSH access"
+  description = "Name of the AWS Key Pair for App nodes"
+}
+
+variable "db_key_name" {
+  type        = string
+  description = "Name of the AWS Key Pair for Database and Redis nodes"
+}
+
+variable "lb_key_name" {
+  type        = string
+  description = "Name of the AWS Key Pair for Load Balancer nodes"
+}
+
+variable "runner_key_name" {
+  type        = string
+  description = "Name of the AWS Key Pair for the GitHub Runner"
 }
 
 # --- Module Toggles ---
@@ -151,4 +166,10 @@ variable "redis_instance_type" {
   type        = string
   default     = "t3.micro"
   description = "EC2 instance type for the Redis node"
+}
+
+variable "github_runner_token" {
+  type        = string
+  description = "GitHub Runner Registration Token"
+  sensitive   = true
 }

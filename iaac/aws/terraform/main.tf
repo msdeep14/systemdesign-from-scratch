@@ -23,9 +23,13 @@ resource "aws_instance" "db_node" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.db_instance_type
   subnet_id              = local.subnet_ids[0]
-  key_name               = var.key_name
+  key_name               = var.db_key_name
   vpc_security_group_ids = [local.db_sg_id]
   iam_instance_profile   = local.iam_instance_profile
+
+  lifecycle {
+    ignore_changes = [key_name]
+  }
 
   user_data = <<-EOF
 #!/bin/bash
@@ -113,9 +117,13 @@ resource "aws_instance" "db_replica" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.db_replica_instance_type
   subnet_id              = local.subnet_ids[count.index % length(local.subnet_ids)]
-  key_name               = var.key_name
+  key_name               = var.db_key_name
   vpc_security_group_ids = [aws_security_group.db_replica[0].id]
   iam_instance_profile   = local.iam_instance_profile
+
+  lifecycle {
+    ignore_changes = [key_name]
+  }
 
   user_data = <<-EOF
 #!/bin/bash
@@ -156,9 +164,13 @@ resource "aws_instance" "redis_node" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.redis_instance_type
   subnet_id              = local.subnet_ids[0]
-  key_name               = var.key_name
+  key_name               = var.db_key_name
   vpc_security_group_ids = [local.redis_sg_id]
   iam_instance_profile   = local.iam_instance_profile
+
+  lifecycle {
+    ignore_changes = [key_name]
+  }
 
   user_data = <<-EOF
 #!/bin/bash
@@ -177,7 +189,7 @@ resource "aws_launch_template" "app_node" {
   name_prefix   = "photoz-app-node-"
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.app_instance_type
-  key_name      = var.key_name
+  key_name      = var.app_key_name
 
   network_interfaces {
     security_groups             = [local.app_sg_id]
@@ -315,9 +327,13 @@ resource "aws_instance" "lb_node" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.lb_instance_type
   subnet_id              = local.subnet_ids[0]
-  key_name               = var.key_name
+  key_name               = var.lb_key_name
   vpc_security_group_ids = [local.lb_sg_id]
   iam_instance_profile   = local.iam_instance_profile
+
+  lifecycle {
+    ignore_changes = [key_name]
+  }
 
   user_data = <<-EOF
 #!/bin/bash
@@ -339,4 +355,39 @@ docker compose -f docker-compose-lb.yml up -d
 EOF
 
   tags = { Name = "photoz-lb-node" }
+}
+
+resource "aws_instance" "github_runner" {
+  count                  = var.create_security_groups && var.github_runner_token != "" ? 1 : 0
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro"
+  subnet_id              = local.subnet_ids[0]
+  key_name               = var.runner_key_name
+  vpc_security_group_ids = [aws_security_group.github_runner[0].id]
+  iam_instance_profile   = local.iam_instance_profile
+
+  user_data = <<-EOF
+#!/bin/bash
+sudo apt-get update
+sudo apt-get install -y curl jq docker.io python3 python3-venv python3-pip postgresql-client git
+
+# Create a runner user (GitHub runner cannot be run as root)
+useradd -m github
+usermod -aG docker github
+
+# Install Runner
+sudo -i -u github bash << 'RUNNER_EOF'
+mkdir actions-runner && cd actions-runner
+curl -o actions-runner-linux-x64-2.316.1.tar.gz -L https://github.com/actions/runner/releases/download/v2.316.1/actions-runner-linux-x64-2.316.1.tar.gz
+tar xzf ./actions-runner-linux-x64-2.316.1.tar.gz
+./config.sh --url https://github.com/msdeep14/systemdesign-from-scratch --token ${var.github_runner_token} --unattended --replace
+RUNNER_EOF
+
+# Install service (must be root)
+cd /home/github/actions-runner
+./svc.sh install github
+./svc.sh start
+EOF
+
+  tags = { Name = "photoz-github-runner" }
 }
