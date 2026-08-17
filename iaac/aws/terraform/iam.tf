@@ -22,10 +22,29 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "s3_access" {
-  count      = var.create_iam_role ? 1 : 0
-  role       = aws_iam_role.photoz_ec2_role[0].name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+resource "aws_iam_role_policy" "s3_access" {
+  count = var.create_iam_role ? 1 : 0
+  name  = "s3-access${local.env_suffix}"
+  role  = aws_iam_role.photoz_ec2_role[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${local.s3_bucket_name}",
+          "arn:aws:s3:::${local.s3_bucket_name}/*"
+        ]
+      }
+    ]
+  })
 }
 
 resource "aws_iam_role_policy" "cloudfront_invalidation" {
@@ -75,6 +94,3 @@ locals {
   iam_instance_profile = var.create_iam_role ? aws_iam_instance_profile.photoz_profile[0].name : var.existing_iam_instance_profile_name
 }
 
-resource "aws_iam_user" "env_deployer" {
-  name = terraform.workspace == "default" ? "prod-user" : "${terraform.workspace}-user"
-}

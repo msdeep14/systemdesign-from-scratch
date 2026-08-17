@@ -404,8 +404,3 @@ EOF
   tags = { Name = "photoz-github-runner${local.env_suffix}" }
 }
 
-# Conditionally create S3 bucket for new workspaces (e.g., staging)
-resource "aws_s3_bucket" "photoz_storage" {
-  count  = terraform.workspace == "default" ? 0 : 1
-  bucket = local.s3_bucket_name
-}

@@ -12,9 +12,13 @@ set -e
 #   REPLICA_COUNT=1 ./postgres-init/03-create-replication-slots.sh
 
 if [ -z "$REPLICA_COUNT" ]; then
-  echo "ERROR: REPLICA_COUNT environment variable is not set."
-  echo "Usage: REPLICA_COUNT=2 $0"
-  exit 1
+  echo "WARNING: REPLICA_COUNT environment variable is not set. Skipping replication slot creation."
+  exit 0
+fi
+
+if [ "$REPLICA_COUNT" -eq 0 ]; then
+  echo "REPLICA_COUNT is 0. Skipping replication slot creation."
+  exit 0
 fi
 
 echo ">>> Creating $REPLICA_COUNT replication slot(s)..."

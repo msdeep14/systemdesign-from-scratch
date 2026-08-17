@@ -65,7 +65,7 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Updated `main.tf` to run `./bin/installdependencies.sh` as root before executing `./config.sh` to ensure all required libraries (like `libicu`) are installed.
   - Updated `security.tf` to add an ingress rule for port 22 from the developer's IP to the `photoz-github-runner-sg` to allow SSH access for troubleshooting.
 
-### Phase: Staging Environment Support (Date: 2026-08-16, Commit: [hash], Model: Gemini 3.1 Pro (High))
+### Phase: Staging Environment Support (Date: 2026-08-16, Commit: [ce38385dc165018f967a6244337d44d51aaf3b7e], Model: Gemini 3.1 Pro (High))
 - **Analysis**: Introduced Terraform workspaces to support a staging environment alongside production.
 - **Actions Taken**:
   - Added `env_suffix` and `s3_bucket_name` to `locals` in `main.tf` to conditionally append the workspace name to resources.
@@ -77,10 +77,11 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Conditionally created `aws_s3_bucket.photoz_storage` in `main.tf` to automatically provision the S3 bucket for non-default workspaces, while leaving the manual production bucket untouched.
   - Validated configuration with `terraform validate`.
 
-### Phase: CI/CD Branch Environments (Date: 2026-08-16, Commit: [hash], Model: Gemini 3.1 Pro)
+### Phase: CI/CD Branch Environments (Date: 2026-08-16, Commit: [ce38385dc165018f967a6244337d44d51aaf3b7e], Model: Gemini 3.1 Pro)
 - **Analysis**: The `deploy.yml` file was hardcoded for the `main` branch and production resources, making it impossible to automatically deploy changes to the staging environment without manually modifying the pipeline file. Additionally, if multiple runners exist, GitHub randomly assigns jobs unless specific labels are used.
 - **Actions Taken**:
   - Updated `main.tf` to assign dynamic labels (`prod` or `staging`) to the GitHub Runner registration command (`./config.sh --labels ...`) based on the Terraform workspace.
   - Refactored `.github/workflows/deploy.yml` to trigger on both `main` and `staging` branches.
   - Updated `deploy.yml` to dynamically select the runner label, target ASG name, SSH Key secret (`APP_NODE_SSH_KEY` vs `APP_NODE_SSH_KEY_STAGING`), and `git pull` branch based on `${{ github.ref_name }}`.
   - Updated `chapter05/staging_env/README.md` to instruct the developer to add the new staging SSH key to GitHub Secrets.
+  - Manually creating the S3 bucket and IAM user is a pain point, but it ensures that we don't lose the S3 bucket and IAM user upon every teardown. 

@@ -44,7 +44,8 @@ resource "aws_cloudfront_distribution" "photoz_cdn" {
 }
 
 # S3 bucket policy: Allow only CloudFront OAC to read objects.
-# This means S3 does not need to be publicly accessible.
+# Even though the bucket itself is managed manually, Terraform handles applying
+# the bucket policy dynamically to ensure the CloudFront ARN is always correct.
 resource "aws_s3_bucket_policy" "allow_cloudfront" {
   bucket = local.s3_bucket_name
 
@@ -66,3 +67,4 @@ resource "aws_s3_bucket_policy" "allow_cloudfront" {
     ]
   })
 }
+
