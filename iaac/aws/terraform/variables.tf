@@ -19,10 +19,7 @@ variable "lb_key_name" {
   description = "Name of the AWS Key Pair for Load Balancer nodes"
 }
 
-variable "runner_key_name" {
-  type        = string
-  description = "Name of the AWS Key Pair for the GitHub Runner"
-}
+
 
 # --- Module Toggles ---
 variable "create_vpc" {
@@ -168,11 +165,7 @@ variable "redis_instance_type" {
   description = "EC2 instance type for the Redis node"
 }
 
-variable "github_runner_token" {
-  type        = string
-  description = "GitHub Runner Registration Token"
-  sensitive   = true
-}
+
 
 variable "enable_auto_schedule" {
   type        = bool

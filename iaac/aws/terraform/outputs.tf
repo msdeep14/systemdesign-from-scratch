@@ -53,7 +53,3 @@ output "cloudfront_distribution_id" {
   description = "The CloudFront distribution ID. Needed for cache invalidation on photo delete."
 }
 
-output "github_runner_public_ip" {
-  value       = try(aws_instance.github_runner[0].public_ip, "N/A")
-  description = "The public IP address of the GitHub Self-Hosted Runner."
-}

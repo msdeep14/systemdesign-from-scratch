@@ -86,10 +86,19 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Updated `chapter05/staging_env/README.md` to instruct the developer to add the new staging SSH key to GitHub Secrets.
   - Manually creating the S3 bucket and IAM user is a pain point, but it ensures that we don't lose the S3 bucket and IAM user upon every teardown.  [commit - b931735d02265e00c422d404bf6cda083c82463e]
 
-### Phase: OIDC Integration and Automated Sleep/Wake Cycle (Date: 2026-08-19, Commit: N/A, Model: Gemini 3.1 Pro(High) )
+### Phase: OIDC Integration and Automated Sleep/Wake Cycle (Date: 2026-08-19, Commit: 68383de13a944a16e9f0e23f8523be0f1b6998f4, Model: Gemini 3.1 Pro(High) )
 * **Analysis**: Relying on long-lived IAM user access keys is a security risk, and keeping the staging environment running 24/7 incurs unnecessary compute costs. We decided to implement OpenID Connect (OIDC) between AWS and GitHub Actions. This allows GitHub to securely assume an AWS IAM role dynamically. Furthermore, we hard-locked this role to only trust workflows triggered by the `msdeep14` user, providing absolute security even in a public repository. We then used this OIDC integration to power a new scheduled workflow that automatically stops all compute resources (ASG, DB, Redis, LB) at night and starts them in the morning, all running on a free `ubuntu-latest` runner.
 * **Actions Taken**:
   - Configured `aws_iam_openid_connect_provider` in `iaac/aws/terraform/iam.tf` for GitHub Actions.
   - Created `aws_iam_role.github_actions_deployer` with a trust policy enforcing `token.actions.githubusercontent.com:sub = repo:msdeep14/systemdesign-from-scratch:*` and `token.actions.githubusercontent.com:actor = msdeep14`.
   - Created `.github/workflows/schedule-staging.yml` using `ubuntu-latest` to schedule a sleep (scale down ASG, stop static EC2s) and wake cycle using AWS CLI.
   - Used dynamic secret resolution in the workflow (`role-to-assume: $\{ { secrets[format('AWS_ROLE_{0}', github.actor)] } }`) to enforce multi-account isolation if other users fork or push to the repo.
+
+### Phase: Systems Manager (SSM) Migration (Date: 2026-08-19, Commit: N/A, Model: Gemini 3.1 Pro(High) )
+* **Analysis**: Having a dedicated self-hosted EC2 instance for GitHub Runners adds unnecessary cost and complexity. Additionally, requiring SSH (port 22) to be open on the application nodes for database migrations is a security risk. By switching to AWS Systems Manager (SSM) Run Command and OIDC, we can run the database migration directly on the application nodes from standard GitHub-hosted `ubuntu-latest` runners, eliminating the self-hosted runner and closing port 22 entirely.
+* **Actions Taken**:
+  - Attached `AmazonSSMManagedInstanceCore` policy to the `photoz_ec2_role` in `iam.tf` so the EC2 nodes can securely communicate with the SSM service.
+  - Removed the `github_runner` EC2 instance, its Security Group, and related variables (`github_runner_token`, `runner_key_name`) from Terraform (`main.tf`, `security.tf`, `variables.tf`, `.tfvars`).
+  - Removed the SSH ingress rule from the App Node security group in `security.tf`.
+  - Refactored `.github/workflows/deploy.yml` to run on `ubuntu-latest`, authenticate via OIDC, and use `aws ssm send-command` to trigger the Django migration on one of the ASG instances.
+  - Updated `chapter05/staging_env/README.md` to remove SSH key configuration steps and document that the local `.env` setup still requires IAM user credentials, even though CI/CD is now purely OIDC-based.

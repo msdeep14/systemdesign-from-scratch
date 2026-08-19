@@ -360,49 +360,6 @@ EOF
   tags = { Name = "photoz-lb-node${local.env_suffix}" }
 }
 
-resource "aws_instance" "github_runner" {
-  count                  = var.create_security_groups && var.github_runner_token != "" ? 1 : 0
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.micro"
-  subnet_id              = local.subnet_ids[0]
-  key_name               = var.runner_key_name
-  vpc_security_group_ids = [aws_security_group.github_runner[0].id]
-  iam_instance_profile   = local.iam_instance_profile
-
-  user_data = <<-EOF
-#!/bin/bash
-sudo apt-get update
-sudo apt-get install -y curl jq docker.io python3 python3-venv python3-pip postgresql-client git awscli unzip
-
-# Create a runner user (GitHub runner cannot be run as root)
-useradd -m github
-usermod -aG docker github
-
-# Install Runner
-sudo -i -u github bash << 'RUNNER_EOF'
-mkdir actions-runner && cd actions-runner
-curl -o actions-runner-linux-x64-2.316.1.tar.gz -L https://github.com/actions/runner/releases/download/v2.316.1/actions-runner-linux-x64-2.316.1.tar.gz
-tar xzf ./actions-runner-linux-x64-2.316.1.tar.gz
-RUNNER_EOF
-
-# Install .NET dependencies required by the runner (must be root)
-cd /home/github/actions-runner
-./bin/installdependencies.sh
-
-# Configure Runner
-sudo -i -u github bash << 'RUNNER_EOF'
-cd actions-runner
-./config.sh --url https://github.com/msdeep14/systemdesign-from-scratch --token ${var.github_runner_token} --unattended --replace --labels ${local.runner_label}
-RUNNER_EOF
-
-# Install service (must be root)
-cd /home/github/actions-runner
-./svc.sh install github
-./svc.sh start
-EOF
-
-  tags = { Name = "photoz-github-runner${local.env_suffix}" }
-}
 
 resource "aws_ssm_parameter" "auto_schedule_enabled" {
   name  = "/photoz/${terraform.workspace}/auto_schedule_enabled"

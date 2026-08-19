@@ -22,9 +22,11 @@ terraform workspace new staging
 
 Deploy the staging infrastructure:
 ```bash
+terraform init -upgrade
 terraform apply -var-file=staging.tfvars
 ```
-*Note: S3 Buckets and deployment IAM users are deliberately NOT tracked by Terraform to prevent accidental data deletion or cross-environment credential leakage during teardowns.*
+*(Note: You must run `terraform init -upgrade` to download the new `tls` provider required for OIDC authentication!)*
+*Note: S3 Buckets and IAM users for local development are deliberately NOT tracked by Terraform to prevent accidental data deletion or cross-environment credential leakage during teardowns.*
 
 ## 3. Manual S3 and IAM Setup (One-Time)
 Since stateful resources (S3 buckets and IAM users) are not managed by Terraform, you must create them manually for the new environment.
@@ -55,20 +57,16 @@ aws s3 rb s3://bses-v0-s3-storage-staging --force
 3. Leave Block Public Access **ON** (CloudFront uses Origin Access Control to read the bucket securely).
 3. Leave all other settings default and click **Create bucket**.
 
-*(Note: We no longer need to create IAM Users for deployments! We use OIDC.)*
+### B. Create an IAM User for Local Development (Optional)
+While our GitHub Actions CI/CD pipeline now securely uses OIDC (so no IAM User is needed for deployments), if you want to run `python manage.py runserver` locally on your laptop and have it upload media to your staging S3 bucket, you will still need to manually create an IAM User with `s3:PutObject` access and store its Access Keys in your local `.env` file.
 
 ## 4. Configure GitHub Secrets for Staging
-Since Staging uses a completely separate set of infrastructure, you need to configure the following secrets in GitHub (**Settings > Secrets and variables > Actions**):
+Since Staging uses a completely separate set of infrastructure, you need to configure the following secret in GitHub (**Settings > Secrets and variables > Actions**):
 
-1. **`APP_NODE_SSH_KEY_STAGING`**: Copy the contents of the `.pem` file for the `photoz-app-key-staging` key pair you created in AWS. *(The pipeline automatically switches between `APP_NODE_SSH_KEY` and `APP_NODE_SSH_KEY_STAGING` based on the branch being deployed!)*
-2. **`AWS_ROLE_<YOUR_USERNAME>`**: Because we use OIDC for the scheduled start/stop workflow, you need to provide the Role ARN that Terraform provisioned for you. Look in your AWS Console under IAM Roles for `github-actions-deployer-role-staging` and copy its ARN. Save it as a GitHub Secret appending your exact GitHub username, e.g., `AWS_ROLE_MSDEEP14`.
+1. **`AWS_ROLE_<YOUR_USERNAME>`**: Because we use OIDC for deployments and the scheduled start/stop workflow, you need to provide the Role ARN that Terraform provisioned for you. Look in your AWS Console under IAM Roles for `github-actions-deployer-role-staging` and copy its ARN. Save it as a GitHub Secret appending your exact GitHub username, e.g., `AWS_ROLE_MSDEEP14`.
 
-### How GitHub knows which runner to invoke
-Our deployment workflow (`.github/workflows/deploy.yml`) is configured to conditionally choose a runner using labels:
-- If pushing to the `main` branch, the workflow specifies `runs-on: [self-hosted, prod]`.
-- If pushing to the `staging` branch, the workflow specifies `runs-on: [self-hosted, staging]`.
-
-When Terraform provisions the GitHub Runner EC2 instance, it automatically registers the runner with GitHub using the `local.runner_label` (which evaluates to `staging` in the staging workspace). This ensures GitHub sends the staging deployment job to the isolated staging runner.
+### How GitHub deploys without SSH
+Our deployment workflow (`.github/workflows/deploy.yml`) runs on standard GitHub-hosted `ubuntu-latest` runners. It authenticates with AWS via OIDC and uses AWS Systems Manager (SSM) Run Command to securely execute the database migration (`python manage.py migrate`) directly on the EC2 instances without needing SSH keys or opening port 22 on the firewall!
 
 ## Teardown (Staging Only)
 If you ever want to destroy the staging environment to save costs:
@@ -78,11 +76,22 @@ terraform workspace select staging
 ```
 **CRITICAL:** Always verify you are in the `staging` workspace (`terraform workspace show`) before running destroy!
 
-> [!NOTE]
-> **GitHub Runner Token Expiration:** If you tear down the environment and want to provision it again later, you must generate a **new** GitHub Runner Registration token and update your `staging.tfvars` file. The registration token from the GitHub UI expires after **1 hour**. 
-> *(This expiration only affects the initial provisioning/registration step. Once the runner registers successfully, it is granted long-lived internal credentials and will continue to work indefinitely until you destroy it).*
-
 ## Troubleshooting
+
+### Error: ssm:PutParameter AccessDeniedException
+```
+Error: creating SSM Parameter (...): operation error SSM: PutParameter ... AccessDeniedException: User: ... is not authorized to perform: ssm:PutParameter ...
+```
+**Cause:** You are running `terraform apply` using a local IAM user (e.g., `bses-v0-user`) that only has limited permissions (like `s3:PutObject`). Because we removed the IAM user provisioning from Terraform in favor of GitHub OIDC, Terraform can no longer manage your local user's permissions. The local user needs permission to create SSM parameters (for the auto-schedule feature).
+
+**Solution:**
+1. Go to the **AWS Console > IAM > Users**.
+2. Click on your user (e.g., `bses-v0-user`).
+3. Under the **Permissions** tab, click **Add permissions > Add permissions**.
+4. Select **Attach policies directly**.
+5. Search for and select **`AmazonSSMFullAccess`** (or create an inline policy allowing `ssm:PutParameter`, `ssm:DeleteParameter`, and `ssm:GetParameter`).
+6. Click **Next** and **Add permissions**.
+7. Re-run `terraform apply`.
 
 ### Error: VcpuLimitExceeded
 ```

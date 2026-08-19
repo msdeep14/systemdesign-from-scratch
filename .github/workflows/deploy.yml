@@ -6,6 +6,10 @@ on:
       - main
       - staging
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   test:
     name: Run tests
@@ -55,57 +59,67 @@ jobs:
 
   migrate:
     name: Run migrations
-    runs-on: [self-hosted, "${{ github.ref_name == 'main' && 'prod' || 'staging' }}"]
+    runs-on: ubuntu-latest
     needs: test
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', github.actor)] }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Write SSH key
-        env:
-          SSH_KEY: ${{ github.ref_name == 'main' && secrets.APP_NODE_SSH_KEY || secrets.APP_NODE_SSH_KEY_STAGING }}
+      - name: Run migrations on one app node via SSM
         run: |
-          echo "$SSH_KEY" > /tmp/deploy_key
-          chmod 600 /tmp/deploy_key
-
-      - name: Run migrations on one app node
-        env:
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          # Dynamically get the private IP of one running app node
+          # Dynamically get the Instance ID of one running app node
           ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
-          APP_NODE_IP=$(aws ec2 describe-instances \
+          APP_NODE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:aws:autoscaling:groupName,Values=$ASG_NAME" "Name=instance-state-name,Values=running" \
-            --query "Reservations[0].Instances[0].PrivateIpAddress" \
+            --query "Reservations[0].Instances[0].InstanceId" \
             --output text)
             
-          if [ "$APP_NODE_IP" == "None" ] || [ -z "$APP_NODE_IP" ]; then
+          if [ "$APP_NODE_ID" == "None" ] || [ -z "$APP_NODE_ID" ]; then
             echo "No running app instances found in ASG!"
             exit 1
           fi
 
-          echo "Running migrations on node: $APP_NODE_IP"
-          ssh -i /tmp/deploy_key \
-              -o StrictHostKeyChecking=no \
-              ubuntu@$APP_NODE_IP \
-              "cd /home/ubuntu/systemdesign-from-scratch/photoz && \
-               git pull origin ${{ github.ref_name }} && \
-               POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate"
-
-
-
+          echo "Running migrations via SSM on node: $APP_NODE_ID"
+          
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$APP_NODE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=["sudo -u ubuntu bash -c 'cd /home/ubuntu/systemdesign-from-scratch/photoz && git pull origin ${{ github.ref_name }} && POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate'"] \
+            --query "Command.CommandId" \
+            --output text)
+            
+          echo "Waiting for command $COMMAND_ID to complete..."
+          # Wait up to 5 minutes (100 * 3 seconds default)
+          aws ssm wait command-executed --command-id "$COMMAND_ID" --instance-id "$APP_NODE_ID"
+          
+          # Print the output for debugging
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$APP_NODE_ID" --query "StandardOutputContent" --output text
+          
+          # Check status
+          STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$APP_NODE_ID" --query "Status" --output text)
+          if [ "$STATUS" != "Success" ]; then
+            echo "Migration failed with status: $STATUS"
+            aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$APP_NODE_ID" --query "StandardErrorContent" --output text
+            exit 1
+          fi
 
   deploy:
     name: Deploy via ASG Instance Refresh
-    runs-on: [self-hosted, "${{ github.ref_name == 'main' && 'prod' || 'staging' }}"]
+    runs-on: ubuntu-latest
     needs: migrate
 
     steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', github.actor)] }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Start Instance Refresh
-        env:
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
           ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
           aws autoscaling start-instance-refresh \

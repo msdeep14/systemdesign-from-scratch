@@ -22,6 +22,12 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_access" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_core" {
+  count      = var.create_iam_role ? 1 : 0
+  role       = aws_iam_role.photoz_ec2_role[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_role_policy" "s3_access" {
   count = var.create_iam_role ? 1 : 0
   name  = "s3-access${local.env_suffix}"

@@ -74,13 +74,6 @@ resource "aws_security_group" "app" {
     cidr_blocks = [local.my_ip_cidr]
   }
 
-  ingress {
-    description     = "SSH from GitHub Runner"
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.github_runner[0].id]
-  }
 
   ingress {
     description = "Consul internal TCP"
@@ -220,26 +213,4 @@ resource "aws_security_group" "redis" {
 
 locals {
   redis_sg_id = var.create_security_groups && var.create_redis_node ? aws_security_group.redis[0].id : ""
-}
-
-resource "aws_security_group" "github_runner" {
-  count       = var.create_security_groups ? 1 : 0
-  name        = "photoz-github-runner-sg${local.env_suffix}"
-  description = "Security Group for GitHub Self-Hosted Runner"
-  vpc_id      = local.vpc_id
-
-  ingress {
-    description = "SSH from my IP"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [local.my_ip_cidr]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 }
