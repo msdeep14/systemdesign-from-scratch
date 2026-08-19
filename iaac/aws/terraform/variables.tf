@@ -173,3 +173,9 @@ variable "github_runner_token" {
   description = "GitHub Runner Registration Token"
   sensitive   = true
 }
+
+variable "enable_auto_schedule" {
+  type        = bool
+  default     = false
+  description = "Enable automated sleep/wake cron jobs via SSM parameter flag"
+}

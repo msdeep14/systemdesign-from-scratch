@@ -84,4 +84,12 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Refactored `.github/workflows/deploy.yml` to trigger on both `main` and `staging` branches.
   - Updated `deploy.yml` to dynamically select the runner label, target ASG name, SSH Key secret (`APP_NODE_SSH_KEY` vs `APP_NODE_SSH_KEY_STAGING`), and `git pull` branch based on `${{ github.ref_name }}`.
   - Updated `chapter05/staging_env/README.md` to instruct the developer to add the new staging SSH key to GitHub Secrets.
-  - Manually creating the S3 bucket and IAM user is a pain point, but it ensures that we don't lose the S3 bucket and IAM user upon every teardown. 
+  - Manually creating the S3 bucket and IAM user is a pain point, but it ensures that we don't lose the S3 bucket and IAM user upon every teardown.  [commit - b931735d02265e00c422d404bf6cda083c82463e]
+
+### Phase: OIDC Integration and Automated Sleep/Wake Cycle (Date: 2026-08-19, Commit: N/A, Model: Gemini 3.1 Pro(High) )
+* **Analysis**: Relying on long-lived IAM user access keys is a security risk, and keeping the staging environment running 24/7 incurs unnecessary compute costs. We decided to implement OpenID Connect (OIDC) between AWS and GitHub Actions. This allows GitHub to securely assume an AWS IAM role dynamically. Furthermore, we hard-locked this role to only trust workflows triggered by the `msdeep14` user, providing absolute security even in a public repository. We then used this OIDC integration to power a new scheduled workflow that automatically stops all compute resources (ASG, DB, Redis, LB) at night and starts them in the morning, all running on a free `ubuntu-latest` runner.
+* **Actions Taken**:
+  - Configured `aws_iam_openid_connect_provider` in `iaac/aws/terraform/iam.tf` for GitHub Actions.
+  - Created `aws_iam_role.github_actions_deployer` with a trust policy enforcing `token.actions.githubusercontent.com:sub = repo:msdeep14/systemdesign-from-scratch:*` and `token.actions.githubusercontent.com:actor = msdeep14`.
+  - Created `.github/workflows/schedule-staging.yml` using `ubuntu-latest` to schedule a sleep (scale down ASG, stop static EC2s) and wake cycle using AWS CLI.
+  - Used dynamic secret resolution in the workflow (`role-to-assume: $\{ { secrets[format('AWS_ROLE_{0}', github.actor)] } }`) to enforce multi-account isolation if other users fork or push to the repo.

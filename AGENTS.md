@@ -11,6 +11,7 @@ This document contains guidelines on AI agent response generation, coding standa
 * Similarly, any implementation plan generated should be added to `implementation-{version}.md` inside the project's `skills/` folder. Example: `chapter01/bses-v0/skills/implementation-v0.md`.
 * The entry in each of these logs should include:
     * The phase or feature you are working on, including the Date, Git commit ID of the phase, and the Name of the AI model used (e.g., `Phase: [Feature] (Date: YYYY-MM-DD, Commit: [hash], Model: [Model Name])`).
+    * **Keep logs crisp and concise**: Document the rationale and actions taken in a brief, to-the-point manner. Avoid overly verbose explanations.
     * Brief analysis and the rationale behind any technical decisions made.
     * A bulleted list of specific actions taken (files created, models updated, bugs resolved).
     * Any notable edge cases or errors you encountered and how you fixed them.
@@ -22,6 +23,7 @@ This document contains guidelines on AI agent response generation, coding standa
 - **Self-Documenting Code**: Avoid unnecessary comments. Code structure, method names, class names, and database schemas should be self-explanatory. Only add comments for highly complex logic.
 - **Ask for Clarification**: Do not make blind assumptions. If the user's request is ambiguous or underspecified, stop and ask for clarification.
 - **No emojis in code**: Don't use any emojis in the code or print statements for debugging. Keep it in plain simple english.
+- **Crisp Documentation**: Whether generating a README, execution log, or implementation plan, documentation MUST be crisp and to the point. Do not be overly verbose.
 - **Plain English only**: Use simple, direct language in all code comments, documentation, and README files. No idioms (e.g. "death by a thousand cuts"), no metaphors, no fancy vocabulary. Write so that a non-native English speaker can understand immediately.
 - **No Inline Imports**: Do not use imports inside functions. All imports should be at the top of the file.
 

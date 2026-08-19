@@ -1,0 +1,136 @@
+name: Scheduled Staging Sleep/Wake
+
+on:
+  schedule:
+    # 10:00 PM IST (16:30 UTC) Mon-Fri - Sleep
+    - cron: '30 16 * * 1-5'
+    # 08:00 AM IST (02:30 UTC) Mon-Fri - Wake
+    - cron: '30 2 * * 1-5'
+  
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - sleep
+          - wake
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  manage-staging:
+    name: Manage Staging Environment
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', github.actor)] }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check Auto-Schedule Flag
+        id: check_flag
+        run: |
+          # If the user manually triggered it via workflow_dispatch, always run
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Fetch the flag from SSM Parameter Store (default to true if missing)
+          FLAG=$(aws ssm get-parameter --name /photoz/staging/auto_schedule_enabled --query "Parameter.Value" --output text 2>/dev/null || echo "true")
+          echo "Auto-schedule enabled: $FLAG"
+          echo "enabled=$FLAG" >> $GITHUB_OUTPUT
+
+      - name: Sleep Staging Environment
+        if: ${{ steps.check_flag.outputs.enabled == 'true' && (github.event.inputs.action == 'sleep' || (github.event_name == 'schedule' && github.event.schedule == '30 16 * * 1-5')) }}
+        run: |
+          echo "Initiating staging environment sleep sequence..."
+          
+          # 1. Scale down ASG
+          echo "Scaling down ASG..."
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name photoz-app-asg-staging \
+            --min-size 0 \
+            --desired-capacity 0
+          
+          # 2. Find all non-ASG staging nodes (DB, Redis, LB, Github Runner)
+          echo "Finding staging instances to stop..."
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=*-staging" "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+            
+          # Exclude the app nodes managed by ASG just in case, though they will terminate anyway
+          APP_NODES=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=photoz-app-node-staging" "Name=instance-state-name,Values=running" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+            
+          # Filter out app nodes from instances to stop
+          if [ -n "$INSTANCE_IDS" ]; then
+            STOP_IDS=""
+            for ID in $INSTANCE_IDS; do
+              if [[ ! " $APP_NODES " =~ " $ID " ]]; then
+                STOP_IDS="$STOP_IDS $ID"
+              fi
+            done
+            
+            if [ -n "$STOP_IDS" ]; then
+              echo "Stopping instances: $STOP_IDS"
+              aws ec2 stop-instances --instance-ids $STOP_IDS
+            else
+              echo "No static instances found to stop."
+            fi
+          fi
+
+      - name: Wake Staging Environment
+        if: ${{ steps.check_flag.outputs.enabled == 'true' && (github.event.inputs.action == 'wake' || (github.event_name == 'schedule' && github.event.schedule == '30 2 * * 1-5')) }}
+        run: |
+          echo "Initiating staging environment wake sequence..."
+          
+          # 1. Start all non-ASG staging nodes
+          echo "Finding staging instances to start..."
+          # Start all instances tagged with -staging that are currently stopped, except ASG app nodes
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=*-staging" "Name=instance-state-name,Values=stopped" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+            
+          APP_NODES=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=photoz-app-node-staging" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+            
+          START_IDS=""
+          if [ -n "$INSTANCE_IDS" ]; then
+            for ID in $INSTANCE_IDS; do
+              if [[ ! " $APP_NODES " =~ " $ID " ]]; then
+                START_IDS="$START_IDS $ID"
+              fi
+            done
+            
+            if [ -n "$START_IDS" ]; then
+              echo "Starting instances: $START_IDS"
+              aws ec2 start-instances --instance-ids $START_IDS
+              
+              echo "Waiting for instances to reach running state..."
+              aws ec2 wait instance-running --instance-ids $START_IDS
+            else
+              echo "No static instances found to start."
+            fi
+          fi
+          
+          # 2. Scale up ASG
+          echo "Scaling up ASG..."
+          aws autoscaling update-auto-scaling-group \
+            --auto-scaling-group-name photoz-app-asg-staging \
+            --min-size 2 \
+            --desired-capacity 2
+          
+          echo "Wake sequence complete! Environment should be available shortly."

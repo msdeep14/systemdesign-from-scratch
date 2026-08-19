@@ -404,3 +404,8 @@ EOF
   tags = { Name = "photoz-github-runner${local.env_suffix}" }
 }
 
+resource "aws_ssm_parameter" "auto_schedule_enabled" {
+  name  = "/photoz/${terraform.workspace}/auto_schedule_enabled"
+  type  = "String"
+  value = var.enable_auto_schedule ? "true" : "false"
+}

@@ -53,91 +53,15 @@ aws s3 rb s3://bses-v0-s3-storage-staging --force
 1. Log in to the AWS Console and go to **S3 > Create bucket**.
 2. Name the bucket (e.g., `bses-v0-s3-storage-staging`).
 3. Leave Block Public Access **ON** (CloudFront uses Origin Access Control to read the bucket securely).
+3. Leave all other settings default and click **Create bucket**.
 
-</details>
-
-#### Automated Bucket Policy (Handled by Terraform)
-You do NOT need to manually configure the S3 Bucket Policy! Even though the bucket itself is managed manually by you, our Terraform configuration is designed to automatically attach the correct bucket policy to it during deployment. 
-
-Because the CloudFront Distribution ARN changes every time the staging environment is recreated, Terraform dynamically generates the exact JSON policy required and applies it to your manual bucket. When you tear down staging (`terraform destroy`), Terraform simply removes the policy, leaving your bucket safely intact.
-
-### B. Create the Deployment IAM User
-To adhere to the principle of least privilege, the `staging-user` should ONLY have access to `staging` resources.
-
-<details>
-<summary><b>Option 1: Using AWS CLI (Recommended)</b></summary>
-
-**1. Create the policy:**
-Save the Restrictive JSON Policy (found below) to a file named `staging-policy.json` and run:
-```bash
-aws iam create-policy --policy-name photoz-staging-deployer-policy --policy-document file://staging-policy.json
-```
-*(Copy the ARN from the output)*
-
-**2. Create the user and attach the policy:**
-```bash
-aws iam create-user --user-name staging-user
-aws iam attach-user-policy --user-name staging-user --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/photoz-staging-deployer-policy
-```
-
-**3. Generate Access Keys:**
-```bash
-aws iam create-access-key --user-name staging-user
-```
-*(Store the Access Key ID and Secret Access Key securely, you will need them for GitHub Secrets!)*
-
-**Delete the user and policy (Cleanup):**
-```bash
-# Replace with your actual Access Key ID
-aws iam delete-access-key --user-name staging-user --access-key-id <ACCESS_KEY_ID>
-aws iam detach-user-policy --user-name staging-user --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/photoz-staging-deployer-policy
-aws iam delete-user --user-name staging-user
-aws iam delete-policy --policy-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:policy/photoz-staging-deployer-policy
-```
-
-</details>
-
-<details>
-<summary><b>Option 2: Using AWS Console (UI)</b></summary>
-
-1. Log in to the AWS Console and go to **IAM > Users > Create user**.
-2. Name the user `staging-user`.
-3. Select **Attach policies directly** and click **Create policy**.
-4. Paste the Restrictive JSON Policy (found below).
-5. Save the policy as `photoz-staging-deployer-policy` and attach it to the `staging-user`.
-6. Generate **Access Keys** for this user to be used in your CI/CD pipelines or local `.env` files.
-
-</details>
-
-#### Restrictive JSON Policy
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "StagingS3Access",
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::bses-v0-s3-storage-staging",
-        "arn:aws:s3:::bses-v0-s3-storage-staging/*"
-      ]
-    }
-  ]
-}
-```
+*(Note: We no longer need to create IAM Users for deployments! We use OIDC.)*
 
 ## 4. Configure GitHub Secrets for Staging
-Since Staging uses a completely separate set of SSH keys, you must provide the Staging App Node's private SSH key to GitHub Actions.
-1. Copy the contents of the `.pem` file for the `photoz-app-key-staging` key pair you created in AWS.
-2. In your GitHub repository, go to **Settings > Secrets and variables > Actions**.
-3. Create a new repository secret named `APP_NODE_SSH_KEY_STAGING` and paste the `.pem` contents.
-*(The pipeline automatically switches between `APP_NODE_SSH_KEY` and `APP_NODE_SSH_KEY_STAGING` based on the branch being deployed!)*
+Since Staging uses a completely separate set of infrastructure, you need to configure the following secrets in GitHub (**Settings > Secrets and variables > Actions**):
+
+1. **`APP_NODE_SSH_KEY_STAGING`**: Copy the contents of the `.pem` file for the `photoz-app-key-staging` key pair you created in AWS. *(The pipeline automatically switches between `APP_NODE_SSH_KEY` and `APP_NODE_SSH_KEY_STAGING` based on the branch being deployed!)*
+2. **`AWS_ROLE_<YOUR_USERNAME>`**: Because we use OIDC for the scheduled start/stop workflow, you need to provide the Role ARN that Terraform provisioned for you. Look in your AWS Console under IAM Roles for `github-actions-deployer-role-staging` and copy its ARN. Save it as a GitHub Secret appending your exact GitHub username, e.g., `AWS_ROLE_MSDEEP14`.
 
 ### How GitHub knows which runner to invoke
 Our deployment workflow (`.github/workflows/deploy.yml`) is configured to conditionally choose a runner using labels:
