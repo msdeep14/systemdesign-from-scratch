@@ -19,6 +19,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
+          # As this is temporary postgres container for running tests
+          # we took a call to keep the credentials here.
+          # Other approach is keeping these credentials in GitHub secrets.
           POSTGRES_DB: bses_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -72,7 +75,12 @@ jobs:
       - name: Run migrations on one app node via SSM
         run: |
           # Dynamically get the Instance ID of one running app node
-          ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            ASG_NAME="photoz-app-asg"
+          else
+            ASG_NAME="photoz-app-asg-staging"
+          fi
+          
           APP_NODE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:aws:autoscaling:groupName,Values=$ASG_NAME" "Name=instance-state-name,Values=running" \
             --query "Reservations[0].Instances[0].InstanceId" \
@@ -121,7 +129,12 @@ jobs:
 
       - name: Start Instance Refresh
         run: |
-          ASG_NAME="photoz-app-asg${{ github.ref_name == 'main' && '' || '-staging' }}"
+          if [ "${{ github.ref_name }}" == "main" ]; then
+            ASG_NAME="photoz-app-asg"
+          else
+            ASG_NAME="photoz-app-asg-staging"
+          fi
+          
           aws autoscaling start-instance-refresh \
             --auto-scaling-group-name $ASG_NAME \
             --preferences MinHealthyPercentage=50,InstanceWarmup=120

@@ -255,6 +255,8 @@ resource "aws_autoscaling_group" "app_nodes" {
   max_size            = 4
   min_size            = 2
 
+  depends_on = [aws_cloudwatch_log_group.app_logs]
+
   launch_template {
     id      = aws_launch_template.app_node.id
     version = "$Latest"
@@ -337,6 +339,8 @@ resource "aws_instance" "lb_node" {
   lifecycle {
     ignore_changes = [key_name]
   }
+
+  depends_on = [aws_cloudwatch_log_group.lb_logs]
 
   user_data = <<-EOF
 #!/bin/bash
