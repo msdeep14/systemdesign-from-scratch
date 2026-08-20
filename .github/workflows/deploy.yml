@@ -96,7 +96,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$APP_NODE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands=["sudo -u ubuntu bash -c 'cd /home/ubuntu/systemdesign-from-scratch/photoz && git pull origin ${{ github.ref_name }} && POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate'"] \
+            --parameters '{"commands":["sudo -u ubuntu bash -c \"cd /home/ubuntu/systemdesign-from-scratch/photoz && git pull origin ${{ github.ref_name }} && POSTGRES_PORT=5432 docker compose -f docker-compose-app.yml run --rm web python manage.py migrate\""]}' \
             --query "Command.CommandId" \
             --output text)
             
