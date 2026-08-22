@@ -1,10 +1,10 @@
 import json
-import time
 import logging
-from contextlib import contextmanager
+import time
+
 from django.db import connection
 
-logger = logging.getLogger('metrics')
+logger = logging.getLogger("metrics")
 
 
 class QueryTimer:
@@ -35,7 +35,7 @@ class CloudWatchMetricsMiddleware:
         request_latency_ms = (time.time() - start) * 1000
         db_latency_ms = query_timer.total_db_time * 1000
         query_count = query_timer.query_count
-        if hasattr(request, 'resolver_match') and request.resolver_match:
+        if hasattr(request, "resolver_match") and request.resolver_match:
             endpoint = request.resolver_match.view_name
         else:
             endpoint = request.path

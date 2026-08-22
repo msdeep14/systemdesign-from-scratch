@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E = pycodestyle, F = pyflakes, I = isort, UP = pyupgrade, B = bugbear, SIM = simplify
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pylint.main]
+ignore = ["migrations", "venv"]
+
+[tool.pylint."messages control"]
+# Disable rules already covered by ruff (E/F/I/UP/B)
+disable = [
+    # Docstrings (not enforced)
+    "C0114", "C0115", "C0116",
+    # Style issues covered by ruff
+    "C0301",  # line-too-long
+    "C0303",  # trailing-whitespace
+    "C0304",  # missing-final-newline
+    "C0411", "C0412", "C0413",  # import order (ruff/I handles this)
+    "W0611",  # unused-import (ruff/F401)
+    "W0612",  # unused-variable (ruff/F841)
+    "E0401",  # import-error (ruff/F401)
+    # Django false positives
+    "E1101",  # generated attributes (e.g. Model.objects)
+]

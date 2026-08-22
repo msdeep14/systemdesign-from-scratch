@@ -4,14 +4,13 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('photos', '0002_comment_idx_comment_photo_created_and_more'),
+        ("photos", "0002_comment_idx_comment_photo_created_and_more"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='photo',
-            name='idx_photo_created_at',
+            model_name="photo",
+            name="idx_photo_created_at",
         ),
     ]

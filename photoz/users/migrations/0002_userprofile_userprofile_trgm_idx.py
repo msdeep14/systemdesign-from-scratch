@@ -6,15 +6,18 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='userprofile',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['username_display', 'first_name', 'last_name'], name='userprofile_trgm_idx', opclasses=['gin_trgm_ops', 'gin_trgm_ops', 'gin_trgm_ops']),
+            model_name="userprofile",
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=["username_display", "first_name", "last_name"],
+                name="userprofile_trgm_idx",
+                opclasses=["gin_trgm_ops", "gin_trgm_ops", "gin_trgm_ops"],
+            ),
         ),
     ]

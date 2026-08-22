@@ -381,3 +381,13 @@
   * **Photo Detail**: 1137ms -> 673ms (~40% faster)
 * The massive reduction in p95 latency proves that the expensive `Merge Left Join` and `GroupAggregate` SQL operations that PostgreSQL was previously forced to perform on every page load were successfully eliminated. The read path is now fully optimized.
 
+
+## Phase: Ruff + Pylint Integration (Date: 2026-08-22, Commit: Pending, Model: Claude Sonnet 4.6 (Thinking))
+
+- **Analysis:** No linting or formatting tooling existed. Added ruff (formatting + fast lint) and pylint (deep static analysis) scoped to `photoz/` only. Pylint rule set reduced to exclude rules already covered by ruff.
+- **Actions:**
+    - Created `photoz/pyproject.toml` — ruff (E/F/I/UP/B/SIM, line-length 100) + pylint config (style rules disabled, Django false positives disabled).
+    - Created `photoz/requirements-dev.txt` — dev-only: ruff, pylint, pylint-django, pre-commit. Not in production `requirements.txt`.
+    - Created `.pre-commit-config.yaml` at repo root — ruff with `--fix`, pylint as local system hook with `pylint_django` plugin, both scoped to `^photoz/`.
+    - Modified `.github/workflows/deploy.yml` — added `lint` job (ruff check, ruff format check, pylint). `test` job gets `needs: lint`.
+- **Edge Cases:** pylint pre-commit hook uses `language: system`, so `pip install -r requirements-dev.txt` must be run locally before `pre-commit install`.
