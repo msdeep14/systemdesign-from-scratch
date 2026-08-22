@@ -42,6 +42,8 @@ jobs:
 
       - name: Terraform Destroy
         run: |
-          echo "${{ secrets.TF_VARS }}" > terraform.tfvars
+          cat << 'EOF' > terraform.tfvars
+          ${{ secrets.TF_VARS }}
+          EOF
           terraform workspace select ${{ inputs.workspace }} || terraform workspace new ${{ inputs.workspace }}
           terraform destroy -auto-approve

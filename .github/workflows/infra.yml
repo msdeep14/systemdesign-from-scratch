@@ -132,6 +132,8 @@ jobs:
 
       - name: Terraform Apply
         run: |
-          echo "${{ secrets.TF_VARS }}" > terraform.tfvars
+          cat << 'EOF' > terraform.tfvars
+          ${{ secrets.TF_VARS }}
+          EOF
           terraform workspace select $WORKSPACE || terraform workspace new $WORKSPACE
           terraform apply -auto-approve
