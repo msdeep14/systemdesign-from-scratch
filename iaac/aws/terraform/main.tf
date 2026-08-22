@@ -254,6 +254,7 @@ SECRET_KEY=$SECRET_KEY
 POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
 REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[*].private_ip) : ""}
 REPLICA_DB_PORT=6432
+ENV_SUFFIX=${local.env_suffix}
 CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
 NODE_IP=$LOCAL_IP
 REDIS_URL=${var.create_redis_node ? "redis://${aws_instance.redis_node[0].private_ip}:6379/1" : ""}
@@ -393,6 +394,7 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<ENV > .env
 AWS_REGION=${var.aws_region}
 NODE_IP=$LOCAL_IP
+ENV_SUFFIX=${local.env_suffix}
 ENV
 
 docker compose -f docker-compose-lb.yml up -d

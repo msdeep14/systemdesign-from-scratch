@@ -22,6 +22,6 @@ services:
       driver: awslogs
       options:
         awslogs-region: "${AWS_REGION}"
-        awslogs-group: "photoz-lb-logs"
+        awslogs-group: "photoz-lb-logs${ENV_SUFFIX}"
         awslogs-stream: "nginx-proxy"
         awslogs-create-group: "true"
