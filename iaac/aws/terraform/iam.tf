@@ -90,6 +90,29 @@ resource "aws_iam_role_policy" "runner_deploy_access" {
   })
 }
 
+resource "aws_iam_role_policy" "secrets_bucket_access" {
+  count = var.create_iam_role ? 1 : 0
+  name  = "secrets-bucket-access${local.env_suffix}"
+  role  = aws_iam_role.photoz_ec2_role[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::photoz-secrets-${var.aws_region}${local.env_suffix}",
+          "arn:aws:s3:::photoz-secrets-${var.aws_region}${local.env_suffix}/*"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "photoz_profile" {
   count = var.create_iam_role ? 1 : 0
   name  = "photoz-ec2-profile${local.env_suffix}"
@@ -100,68 +123,4 @@ locals {
   iam_instance_profile = var.create_iam_role ? aws_iam_instance_profile.photoz_profile[0].name : var.existing_iam_instance_profile_name
 }
 
-# ==========================================
-# GitHub Actions OIDC Configuration
-# ==========================================
 
-data "tls_certificate" "github" {
-  url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_openid_connect_provider" "github_actions" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
-}
-
-resource "aws_iam_role" "github_actions_deployer" {
-  name = "github-actions-deployer-role${local.env_suffix}"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = aws_iam_openid_connect_provider.github_actions.arn
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:msdeep14/systemdesign-from-scratch:*"
-          }
-          StringEquals = {
-            "token.actions.githubusercontent.com:aud"   = "sts.amazonaws.com"
-            "token.actions.githubusercontent.com:actor" = "msdeep14"
-          }
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy" "github_actions_deployer_policy" {
-  name = "github-actions-deployer-policy${local.env_suffix}"
-  role = aws_iam_role.github_actions_deployer.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ec2:DescribeInstances",
-          "ec2:StartInstances",
-          "ec2:StopInstances",
-          "autoscaling:DescribeAutoScalingGroups",
-          "autoscaling:UpdateAutoScalingGroup",
-          "autoscaling:StartInstanceRefresh",
-          "ssm:GetParameter",
-          "ssm:SendCommand",
-          "ssm:GetCommandInvocation"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}

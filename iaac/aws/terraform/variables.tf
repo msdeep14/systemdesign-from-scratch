@@ -87,29 +87,6 @@ variable "existing_iam_instance_profile_name" {
 }
 
 # --- Application Secrets (Passed via .tfvars) ---
-variable "db_password" {
-  type        = string
-  description = "PostgreSQL Database Password"
-  sensitive   = true
-}
-
-variable "aws_access_key_id" {
-  type        = string
-  description = "AWS Access Key for S3"
-  sensitive   = true
-}
-
-variable "aws_secret_access_key" {
-  type        = string
-  description = "AWS Secret Key for S3"
-  sensitive   = true
-}
-
-variable "django_secret_key" {
-  type        = string
-  description = "Django SECRET_KEY. Must be identical across all App Nodes."
-  sensitive   = true
-}
 
 variable "lb_instance_type" {
   type        = string
@@ -140,12 +117,7 @@ variable "s3_bucket_name" {
   description = "Existing S3 Bucket Name for media storage"
 }
 
-variable "github_token" {
-  type        = string
-  description = "Optional: GitHub Personal Access Token (PAT) for cloning the repository if it is private. Leave empty if the repository is public."
-  sensitive   = true
-  default     = ""
-}
+
 
 variable "db_replica_count" {
   description = "Number of database read replicas"

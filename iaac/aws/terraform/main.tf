@@ -1,5 +1,5 @@
 locals {
-  repo_url = var.github_token != "" ? "https://${var.github_token}@github.com/msdeep14/systemdesign-from-scratch.git" : "https://github.com/msdeep14/systemdesign-from-scratch.git"
+  repo_url = "https://github.com/msdeep14/systemdesign-from-scratch.git"
   env_suffix = terraform.workspace == "default" ? "" : "-${terraform.workspace}"
   s3_bucket_name = "${var.s3_bucket_name}${local.env_suffix}"
   runner_label = terraform.workspace == "default" ? "prod" : terraform.workspace
@@ -37,7 +37,16 @@ resource "aws_instance" "db_node" {
   user_data = <<-EOF
 #!/bin/bash
 sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -48,15 +57,11 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
-AWS_REGION=${var.aws_region}
-DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 POSTGRES_HOST=127.0.0.1
 NODE_IP=$LOCAL_IP
 ENV
@@ -131,7 +136,16 @@ resource "aws_instance" "db_replica" {
   user_data = <<-EOF
 #!/bin/bash
 sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -142,15 +156,13 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
 REPLICA_SLOT_NAME=replica_${count.index + 1}
 NODE_IP=$LOCAL_IP
@@ -206,7 +218,16 @@ resource "aws_launch_template" "app_node" {
   user_data = base64encode(<<EOF
 #!/bin/bash
 sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -217,15 +238,13 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
 REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[*].private_ip) : ""}
 REPLICA_DB_PORT=6432
@@ -273,6 +292,31 @@ resource "aws_autoscaling_group" "app_nodes" {
     key                 = "Name"
     value               = "photoz-app-node${local.env_suffix}"
     propagate_at_launch = true
+  }
+}
+
+# --- Secrets Storage ---
+resource "aws_s3_bucket" "secrets" {
+  bucket = "photoz-secrets-${var.aws_region}${local.env_suffix}"
+
+  tags = {
+    Name = "photoz-secrets${local.env_suffix}"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "secrets_access" {
+  bucket = aws_s3_bucket.secrets.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "secrets_versioning" {
+  bucket = aws_s3_bucket.secrets.id
+  versioning_configuration {
+    status = "Enabled"
   }
 }
 
@@ -345,7 +389,16 @@ resource "aws_instance" "lb_node" {
   user_data = <<-EOF
 #!/bin/bash
 sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
