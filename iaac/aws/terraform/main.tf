@@ -33,9 +33,11 @@ resource "aws_instance" "db_node" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
+# force recreate to fix boot sequence
 sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
@@ -132,9 +134,11 @@ resource "aws_instance" "db_replica" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
+# force recreate to fix boot sequence
 sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
@@ -186,6 +190,7 @@ resource "aws_instance" "redis_node" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
@@ -217,6 +222,7 @@ resource "aws_launch_template" "app_node" {
 
   user_data = base64encode(<<EOF
 #!/bin/bash
+# force recreate to fix boot sequence
 sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
@@ -359,10 +365,13 @@ resource "aws_instance" "lb_node" {
     ignore_changes = [key_name]
   }
 
+  user_data_replace_on_change = true
+
   depends_on = [aws_cloudwatch_log_group.lb_logs]
 
   user_data = <<-EOF
 #!/bin/bash
+# force recreate to fix boot sequence
 sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
