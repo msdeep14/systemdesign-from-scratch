@@ -122,6 +122,20 @@ GitHub Actions workflow:
    Once the PR is approved and merged:
    - `terraform apply -auto-approve` runs automatically against the target environment (`staging` or `default`).
 
+### Manually Triggering Workflows (GitHub CLI)
+If you are working on a non-default branch (like `staging`), the "Run workflow" button might not appear in the GitHub UI. You can easily bypass this by triggering the workflow manually via the [GitHub CLI (`gh`)](https://cli.github.com/):
+
+```bash
+# Authenticate with GitHub (if you haven't already)
+gh auth login
+
+# Trigger the Infrastructure CI/CD pipeline on the staging branch
+gh workflow run infra.yml --ref staging
+
+# Trigger the Infrastructure Destroy pipeline on the staging branch
+gh workflow run destroy.yml --ref staging -f workspace=staging
+```
+
 ## Remote State (S3 Native Locking)
 
 For CI/CD to run Terraform, the state file (`terraform.tfstate`) must be accessible to the ephemeral GitHub Actions runners. It can no longer live locally on your laptop.
