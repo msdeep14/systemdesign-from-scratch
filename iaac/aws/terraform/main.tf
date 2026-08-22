@@ -295,31 +295,6 @@ resource "aws_autoscaling_group" "app_nodes" {
   }
 }
 
-# --- Secrets Storage ---
-resource "aws_s3_bucket" "secrets" {
-  bucket = "photoz-secrets-${var.aws_region}${local.env_suffix}"
-
-  tags = {
-    Name = "photoz-secrets${local.env_suffix}"
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "secrets_access" {
-  bucket = aws_s3_bucket.secrets.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_versioning" "secrets_versioning" {
-  bucket = aws_s3_bucket.secrets.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
 resource "aws_autoscaling_policy" "scale_up" {
   name                   = "photoz-scale-up${local.env_suffix}"
   scaling_adjustment     = 1

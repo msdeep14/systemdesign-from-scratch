@@ -15,11 +15,30 @@ Run the following script locally to bootstrap your AWS account for GitHub Action
 ```bash
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# 1. Create the State Bucket
+# 1. Create the State Bucket (For Terraform backend)
 aws s3api create-bucket --bucket bses-v0-terraform-state --region ap-south-1 --create-bucket-configuration LocationConstraint=ap-south-1
 aws s3api put-bucket-versioning --bucket bses-v0-terraform-state --versioning-configuration Status=Enabled
 
-# 2. Create GitHub OIDC Provider (If not exists)
+# 2. Create the Secrets Buckets (For EC2 bootstrapping)
+aws s3api create-bucket --bucket photoz-secrets-ap-south-1-staging --region ap-south-1 --create-bucket-configuration LocationConstraint=ap-south-1
+
+aws s3api put-bucket-versioning --bucket photoz-secrets-ap-south-1-staging --versioning-configuration Status=Enabled
+
+# production
+aws s3api create-bucket --bucket photoz-secrets-ap-south-1 --region ap-south-1 --create-bucket-configuration LocationConstraint=ap-south-1
+
+aws s3api put-bucket-versioning --bucket photoz-secrets-ap-south-1 --versioning-configuration Status=Enabled
+
+# create the file and upload it to S3. Replace the placeholders with your actual secrets.
+cat << 'EOF' > secrets.env
+POSTGRES_PASSWORD=your_db_password
+SECRET_KEY=your_django_secret_key
+GITHUB_TOKEN=your_github_token
+EOF
+
+aws s3 cp secrets.env s3://photoz-secrets-ap-south-1-staging/secrets.env
+
+# 3. Create GitHub OIDC Provider (If not exists)
 aws iam create-open-id-connect-provider --url https://token.actions.githubusercontent.com --client-id-list sts.amazonaws.com --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1 || true
 
 # 3. Create the Trust Policy for the repo
@@ -48,12 +67,18 @@ EOF
 
 # 4. Create Terraform CI Role (Least Privilege via Managed Policies)
 aws iam create-role --role-name github-actions-terraform-role --assume-role-policy-document file://trust-policy.json
+
 aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess
+
 aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
 aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/IAMFullAccess
+
 aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/CloudFrontFullAccess
+
 aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/CloudWatchFullAccess
-aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+
+aws iam attach-role-policy --role-name github-actions-terraform-role --policy-arn arn:aws:iam::aws:policy/AmazonSSMFullAccess
 
 # 5. Create App Deployer Role (For SSM Deployment pipeline)
 aws iam create-role --role-name github-actions-deployer-role --assume-role-policy-document file://trust-policy.json
