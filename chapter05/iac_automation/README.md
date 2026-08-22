@@ -79,6 +79,17 @@ aws iam put-role-policy --role-name github-actions-deployer-role --policy-name D
 rm trust-policy.json deployer-policy.json
 ```
 
+## GitHub Secrets Configuration (Mandatory)
+
+After running the bootstrap script above, you must configure your GitHub Repository Secrets so the workflows can authenticate to AWS.
+
+Go to your repository on GitHub -> **Settings** -> **Secrets and variables** -> **Actions** and add the following:
+
+1. **`AWS_TERRAFORM_ROLE_ARN`**: The exact ARN of the `github-actions-terraform-role` you just created. (e.g. `arn:aws:iam::123456789012:role/github-actions-terraform-role`)
+2. **`AWS_DEPLOYER_ROLE_ARN`**: The exact ARN of the `github-actions-deployer-role` you just created.
+3. **`AWS_REGION`**: The AWS region you are deploying to (e.g. `ap-south-1`).
+4. **`TF_VARS`**: The entire non-sensitive contents of your `terraform.tfvars` file.
+
 ## GitHub Security Policies (Mandatory)
 
 To prevent accidental merges or rogue collaborators from triggering the Terraform apply via the trusted OIDC roles, you must configure the following in your GitHub Repository Settings:
