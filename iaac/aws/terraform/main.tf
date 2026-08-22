@@ -1,5 +1,5 @@
 locals {
-  repo_url = var.github_token != "" ? "https://${var.github_token}@github.com/msdeep14/systemdesign-from-scratch.git" : "https://github.com/msdeep14/systemdesign-from-scratch.git"
+  repo_url = "https://github.com/msdeep14/systemdesign-from-scratch.git"
   env_suffix = terraform.workspace == "default" ? "" : "-${terraform.workspace}"
   s3_bucket_name = "${var.s3_bucket_name}${local.env_suffix}"
   runner_label = terraform.workspace == "default" ? "prod" : terraform.workspace
@@ -33,11 +33,22 @@ resource "aws_instance" "db_node" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+# force recreate to fix boot sequence
+sudo apt-get update && sudo apt-get install -y git awscli
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -48,15 +59,11 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
-AWS_REGION=${var.aws_region}
-DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 POSTGRES_HOST=127.0.0.1
 NODE_IP=$LOCAL_IP
 ENV
@@ -127,11 +134,22 @@ resource "aws_instance" "db_replica" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+# force recreate to fix boot sequence
+sudo apt-get update && sudo apt-get install -y git awscli
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -142,15 +160,13 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 PRIMARY_DB_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
 REPLICA_SLOT_NAME=replica_${count.index + 1}
 NODE_IP=$LOCAL_IP
@@ -174,6 +190,7 @@ resource "aws_instance" "redis_node" {
   lifecycle {
     ignore_changes = [key_name]
   }
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
@@ -205,8 +222,18 @@ resource "aws_launch_template" "app_node" {
 
   user_data = base64encode(<<EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+# force recreate to fix boot sequence
+sudo apt-get update && sudo apt-get install -y git awscli
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 
@@ -217,15 +244,13 @@ LOCAL_IP=$(hostname -I | awk '{print $1}')
 cat <<-ENV > .env
 POSTGRES_DB=bses
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=${var.db_password}
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 USE_S3=True
 AWS_STORAGE_BUCKET_NAME=${local.s3_bucket_name}
 AWS_S3_REGION_NAME=${var.aws_region}
 AWS_REGION=${var.aws_region}
 DEBUG_MODE=False
-AWS_ACCESS_KEY_ID=${var.aws_access_key_id}
-AWS_SECRET_ACCESS_KEY=${var.aws_secret_access_key}
-SECRET_KEY=${var.django_secret_key}
+SECRET_KEY=$SECRET_KEY
 POSTGRES_HOST=${var.create_db_node ? aws_instance.db_node[0].private_ip : var.existing_db_private_ip}
 REPLICA_DB_HOSTS=${var.db_replica_count > 0 ? join(",", aws_instance.db_replica[*].private_ip) : ""}
 REPLICA_DB_PORT=6432
@@ -340,12 +365,24 @@ resource "aws_instance" "lb_node" {
     ignore_changes = [key_name]
   }
 
+  user_data_replace_on_change = true
+
   depends_on = [aws_cloudwatch_log_group.lb_logs]
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
-git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+# force recreate to fix boot sequence
+sudo apt-get update && sudo apt-get install -y git awscli
+aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
+if [ -f /tmp/secrets.env ]; then
+  source /tmp/secrets.env
+fi
+
+if [ -n "$GITHUB_TOKEN" ] && [ "$GITHUB_TOKEN" != "None" ]; then
+  git clone https://$${GITHUB_TOKEN}@github.com/msdeep14/systemdesign-from-scratch.git /home/ubuntu/systemdesign-from-scratch
+else
+  git clone ${local.repo_url} /home/ubuntu/systemdesign-from-scratch
+fi
 chown -R ubuntu:ubuntu /home/ubuntu/systemdesign-from-scratch
 cd /home/ubuntu/systemdesign-from-scratch/photoz
 

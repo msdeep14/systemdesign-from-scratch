@@ -1,0 +1,49 @@
+name: Infrastructure Destroy (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      workspace:
+        description: 'Terraform Workspace to Destroy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - default
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iaac/aws/terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Destroy
+        run: |
+          cat << 'EOF' > terraform.tfvars
+          ${{ secrets.TF_VARS }}
+          EOF
+          terraform workspace select ${{ inputs.workspace }} || terraform workspace new ${{ inputs.workspace }}
+          terraform destroy -auto-approve
