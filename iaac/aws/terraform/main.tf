@@ -36,7 +36,7 @@ resource "aws_instance" "db_node" {
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
+sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
   source /tmp/secrets.env
@@ -135,7 +135,7 @@ resource "aws_instance" "db_replica" {
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
+sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
   source /tmp/secrets.env
@@ -217,7 +217,7 @@ resource "aws_launch_template" "app_node" {
 
   user_data = base64encode(<<EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
+sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
   source /tmp/secrets.env
@@ -363,7 +363,7 @@ resource "aws_instance" "lb_node" {
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y git
+sudo apt-get update && sudo apt-get install -y git awscli
 aws s3 cp s3://photoz-secrets-${var.aws_region}${local.env_suffix}/secrets.env /tmp/secrets.env || true
 if [ -f /tmp/secrets.env ]; then
   source /tmp/secrets.env
