@@ -74,9 +74,9 @@ If you are writing a specific query in your view and you **must** force it to re
 
 ```python
 # This normally goes to the replica (due to db_for_read)
-users = User.objects.all() 
+users = User.objects.all()
 
 # This explicitly FORCES a read from the primary
-consistent_users = User.objects.using('default').all() 
+consistent_users = User.objects.using("default").all()
 ```
 

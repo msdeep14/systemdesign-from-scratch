@@ -22,5 +22,6 @@ repos:
           - "Django>=5.0,<6.0"
         args:
           - "--load-plugins=pylint_django"
+          - "--rcfile=photoz/pyproject.toml"
           # --django-settings-module omitted: pre-commit env lacks project deps (storages, redis, etc.)
           # so django.setup() crashes. CI runs pylint with full settings instead.

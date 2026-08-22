@@ -2,6 +2,7 @@ import time
 import requests
 import sys
 
+
 def monitor(host, port=80):
     url = f"http://{host}:{port}/"
     print(f"Monitoring {url}...")
@@ -13,12 +14,15 @@ def monitor(host, port=80):
             if response.status_code == 200:
                 print(f"[{time.strftime('%X')}] OK - {elapsed:.2f}s")
             else:
-                print(f"[{time.strftime('%X')}] ERROR {response.status_code} - {elapsed:.2f}s")
+                print(
+                    f"[{time.strftime('%X')}] ERROR {response.status_code} - {elapsed:.2f}s"
+                )
         except requests.exceptions.RequestException as e:
             print(f"[{time.strftime('%X')}] FAILED - {e}")
         time.sleep(1)
 
+
 if __name__ == "__main__":
-    host = sys.argv[1] if len(sys.argv) > 1 else 'localhost'
+    host = sys.argv[1] if len(sys.argv) > 1 else "localhost"
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 80
     monitor(host, port)

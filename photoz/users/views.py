@@ -2,9 +2,8 @@ import logging
 import uuid
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -26,7 +25,8 @@ def signup_view(request):
             username_display = form.cleaned_data.get("username_display")
             # Generate a unique username for django auth user
             django_username = str(uuid.uuid4())[:30]
-            user = User.objects.create_user(
+            user_model = get_user_model()
+            user = user_model.objects.create_user(
                 username=django_username,
                 password=form.cleaned_data.get("password"),
                 first_name=form.cleaned_data.get("first_name"),
@@ -40,11 +40,11 @@ def signup_view(request):
                 last_name=form.cleaned_data.get("last_name"),
             )
             login(request, user)
-            logger.info(f"User signed up successfully: {username_display}")
+            logger.info("User signed up successfully: %s", username_display)
             messages.success(request, f"Welcome, {username_display}!")
             return redirect("newsfeed")
-        else:
-            logger.warning(f"Signup form invalid: {form.errors}")
+
+        logger.warning("Signup form invalid: %s", form.errors)
     else:
         form = UserRegistrationForm()
 
@@ -64,20 +64,19 @@ def login_view(request):
             user = authenticate(request, username=profile.user.username, password=password)
             if user is not None:
                 login(request, user)
-                logger.info(f"User logged in successfully: {username_display}")
+                logger.info("User logged in successfully: %s", username_display)
                 return redirect("newsfeed")
-            else:
-                logger.warning(f"Invalid login attempt for username: {username_display}")
-                messages.error(request, "Invalid username or password.")
+            logger.warning("Invalid login attempt for username: %s", username_display)
+            messages.error(request, "Invalid username or password.")
         except UserProfile.DoesNotExist:
-            logger.warning(f"Login attempt for non-existent username: {username_display}")
+            logger.warning("Login attempt for non-existent username: %s", username_display)
             messages.error(request, "Invalid username or password.")
 
     return render(request, "users/login.html")
 
 
 def logout_view(request):
-    logger.info(f"User logged out: {request.user.username}")
+    logger.info("User logged out: %s", request.user.username)
     logout(request)
     return redirect("login")
 
@@ -117,7 +116,7 @@ def edit_profile_view(request, username):
 
     if request.user != profile.user:
         logger.warning(
-            f"Unauthorized profile edit attempt by {request.user.username} on profile {username}"
+            "Unauthorized profile edit attempt by %s on profile %s", request.user.username, username
         )
         messages.error(request, "You can only edit your own profile.")
         return redirect("profile", username=username)
@@ -129,11 +128,11 @@ def edit_profile_view(request, username):
             request.user.first_name = form.cleaned_data.get("first_name")
             request.user.last_name = form.cleaned_data.get("last_name")
             request.user.save()
-            logger.info(f"Profile updated successfully: {username}")
+            logger.info("Profile updated successfully: %s", username)
             messages.success(request, "Profile updated successfully.")
             return redirect("profile", username=username)
-        else:
-            logger.warning(f"Profile edit form invalid for {username}: {form.errors}")
+
+        logger.warning("Profile edit form invalid for %s: %s", username, form.errors)
     else:
         form = UserProfileEditForm(instance=profile)
 
@@ -147,13 +146,13 @@ def delete_account_view(request, username):
 
     if request.user != profile.user:
         logger.warning(
-            f"Unauthorized account delete attempt by {request.user.username} on {username}"
+            "Unauthorized account delete attempt by %s on %s", request.user.username, username
         )
         messages.error(request, "Unauthorized")
         return redirect("profile", username=username)
 
     user = request.user
-    logger.info(f"Account deleted: {username}")
+    logger.info("Account deleted: %s", username)
     logout(request)
     follower_ids = list(user.followers.values_list("follower_id", flat=True))
     for f_id in follower_ids:
@@ -179,11 +178,11 @@ def toggle_follow_view(request, username):
     if follow_obj:
         follow_obj.delete()
         is_following = False
-        logger.info(f"User {request.user.username} unfollowed {target_user.username}")
+        logger.info("User %s unfollowed %s", request.user.username, target_user.username)
     else:
         Follow.objects.create(follower=request.user, following=target_user)
         is_following = True
-        logger.info(f"User {request.user.username} followed {target_user.username}")
+        logger.info("User %s followed %s", request.user.username, target_user.username)
 
     cache.delete(f"feed:{request.user.id}")
 

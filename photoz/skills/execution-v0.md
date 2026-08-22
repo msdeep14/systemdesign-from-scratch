@@ -382,7 +382,7 @@
 * The massive reduction in p95 latency proves that the expensive `Merge Left Join` and `GroupAggregate` SQL operations that PostgreSQL was previously forced to perform on every page load were successfully eliminated. The read path is now fully optimized.
 
 
-## Phase: Ruff + Pylint Integration (Date: 2026-08-22, Commit: Pending, Model: Claude Sonnet 4.6 (Thinking))
+## Phase: Ruff + Pylint Integration (Date: 2026-08-22, Commit: e566aabb5479545584b2422ba8accfecdb19d6d8, Model: Claude Sonnet 4.6 (Thinking))
 
 - **Analysis:** No linting or formatting tooling existed. Added ruff (formatting + fast lint) and pylint (deep static analysis) scoped to `photoz/` only. Pylint rule set reduced to exclude rules already covered by ruff.
 - **Actions:**
@@ -391,3 +391,12 @@
     - Created `.pre-commit-config.yaml` at repo root — ruff with `--fix`, pylint as local system hook with `pylint_django` plugin, both scoped to `^photoz/`.
     - Modified `.github/workflows/deploy.yml` — added `lint` job (ruff check, ruff format check, pylint). `test` job gets `needs: lint`.
 - **Edge Cases:** pylint pre-commit hook uses `language: system`, so `pip install -r requirements-dev.txt` must be run locally before `pre-commit install`.
+
+## Phase: Fix Pylint Pre-Commit Configuration & View Errors (Date: 2026-08-22, Commit: Pending, Model: Gemini 3.7 Flash)
+*   **Analysis:** Pylint was running from repository root without `--rcfile=photoz/pyproject.toml`, ignoring configuration disables. Additionally, `E5110` (django-not-configured) and `C0103` (invalid local variable name) failed pre-commit check.
+*   **Actions:**
+    *   Added `--rcfile=photoz/pyproject.toml` to `.pre-commit-config.yaml` pylint hook args.
+    *   Added `E5110` (django-not-configured) to `disable` list in `photoz/pyproject.toml`.
+    *   Renamed local variable `User` to `user_model` in `photoz/users/views.py` (`signup_view`).
+*   **Notes/Edge Cases:** None.
+

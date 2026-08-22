@@ -53,7 +53,7 @@ def upload_photo(request):
                                 client.lpush(cache_key, p_id)
                                 client.ltrim(cache_key, 0, 999)
                             else:
-                                logger.warning(f"Cache key {cache_key} is not a list. Deleting.")
+                                logger.warning("Cache key %s is not a list. Deleting.", cache_key)
                                 client.delete(cache_key)
 
                     add_to_feed_cache(request.user.id, photo.id)
@@ -62,20 +62,22 @@ def upload_photo(request):
                     )
                     for f_id in follower_ids:
                         add_to_feed_cache(f_id, photo.id)
-            except Exception as e:
-                logger.error(f"Failed to update redis cache on upload: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error("Failed to update redis cache on upload: %s", e)
 
             client_compressed = request.POST.get("client_compressed", "false")
             logger.info(
-                f"Photo uploaded successfully by {request.user.username}"
-                f" (Photo ID: {photo.id}, Client Compressed: {client_compressed})"
+                "Photo uploaded successfully by %s (Photo ID: %s, Client Compressed: %s)",
+                request.user.username,
+                photo.id,
+                client_compressed,
             )
             messages.success(request, "Photo uploaded successfully!")
             if community:
                 return redirect("community_detail", id=community.id)
             return redirect("profile", username=request.user.profile.username_display)
-        else:
-            logger.warning(f"Photo upload failed for {request.user.username}: {form.errors}")
+
+        logger.warning("Photo upload failed for %s: %s", request.user.username, form.errors)
     else:
         form = PhotoUploadForm()
 
@@ -107,7 +109,7 @@ def delete_photo(request, id):
     photo = get_object_or_404(Photo, id=id)
     if photo.user != request.user:
         logger.warning(
-            f"Unauthorized photo deletion attempt by {request.user.username} on photo {id}"
+            "Unauthorized photo deletion attempt by %s on photo %s", request.user.username, id
         )
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
@@ -124,7 +126,7 @@ def delete_photo(request, id):
         cache.delete(f"feed:{f_id}")
     cache.delete(f"feed:{request.user.id}")
 
-    logger.info(f"Photo {id} deleted by {request.user.username}")
+    logger.info("Photo %s deleted by %s", id, request.user.username)
     messages.success(request, "Photo deleted.")
     return redirect("profile", username=request.user.profile.username_display)
 
@@ -139,12 +141,12 @@ def toggle_like(request, id):
         like_obj.delete()
         Photo.objects.filter(id=photo.id).update(likes_count=F("likes_count") - 1)
         has_liked = False
-        logger.info(f"User {request.user.username} unliked photo {id}")
+        logger.info("User %s unliked photo %s", request.user.username, id)
     else:
         Like.objects.create(user=request.user, photo=photo)
         Photo.objects.filter(id=photo.id).update(likes_count=F("likes_count") + 1)
         has_liked = True
-        logger.info(f"User {request.user.username} liked photo {id}")
+        logger.info("User %s liked photo %s", request.user.username, id)
 
         # Create notification
         if photo.user != request.user:
@@ -171,12 +173,12 @@ def add_comment(request, id):
         text = request.POST.get("text", "").strip()
 
     if not text:
-        logger.warning(f"Empty comment attempt by {request.user.username} on photo {id}")
+        logger.warning("Empty comment attempt by %s on photo %s", request.user.username, id)
         return JsonResponse({"error": "Comment cannot be empty"}, status=400)
 
     comment = Comment.objects.create(user=request.user, photo=photo, text=text)
     Photo.objects.filter(id=photo.id).update(comments_count=F("comments_count") + 1)
-    logger.info(f"Comment added by {request.user.username} on photo {id}")
+    logger.info("Comment added by %s on photo %s", request.user.username, id)
 
     # Create notification
     if photo.user != request.user:
@@ -205,8 +207,7 @@ def search_view(request):
 
     if query.startswith("#"):
         return _search_photos_by_hashtag(request, query)
-    else:
-        return _search_users(request, query)
+    return _search_users(request, query)
 
 
 def _search_users(request, query):

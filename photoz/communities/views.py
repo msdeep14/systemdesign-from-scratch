@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from notifications.models import Notification
+from users.models import UserProfile
 
 from .forms import CommunityForm
 from .models import Community, CommunityMembership
@@ -43,12 +44,12 @@ def create_community(request):
             )
 
             logger.info(
-                f"Community '{community.name}' created successfully by {request.user.username}"
+                "Community '%s' created successfully by %s", community.name, request.user.username
             )
             messages.success(request, f"Community '{community.name}' created successfully!")
             return redirect("community_detail", id=community.id)
-        else:
-            logger.warning(f"Community creation failed for {request.user.username}: {form.errors}")
+
+        logger.warning("Community creation failed for %s: %s", request.user.username, form.errors)
     else:
         form = CommunityForm()
 
@@ -63,7 +64,7 @@ def community_detail(request, id):
 
     if not is_member:
         logger.warning(
-            f"Unauthorized access attempt to community {community.id} by {request.user.username}"
+            "Unauthorized access attempt to community %s by %s", community.id, request.user.username
         )
         messages.error(request, "You are not a member of this community.")
         return redirect("list_communities")
@@ -86,24 +87,22 @@ def invite_member(request, id):
 
     if not community.memberships.filter(user=request.user, status="accepted").exists():
         logger.warning(
-            f"Unauthorized invite attempt in community {community.id} by {request.user.username}"
+            "Unauthorized invite attempt in community %s by %s", community.id, request.user.username
         )
         messages.error(request, "Only members can invite others.")
         return redirect("community_detail", id=community.id)
 
-    from users.models import UserProfile
-
     profile = UserProfile.objects.filter(username_display=username).first()
 
     if not profile:
-        logger.warning(f"Invite failed: User '{username}' not found by {request.user.username}")
+        logger.warning("Invite failed: User '%s' not found by %s", username, request.user.username)
         messages.error(request, "User not found.")
         return redirect("community_detail", id=community.id)
 
     target_user = profile.user
 
     if target_user == request.user:
-        logger.warning(f"Invite failed: {request.user.username} tried to invite themselves")
+        logger.warning("Invite failed: %s tried to invite themselves", request.user.username)
         messages.error(request, "You cannot invite yourself.")
         return redirect("community_detail", id=community.id)
 
@@ -132,8 +131,10 @@ def invite_member(request, id):
             membership=membership,
         )
         logger.info(
-            f"Invitation to community {community.id} sent to"
-            f" {target_user.username} by {request.user.username}"
+            "Invitation to community %s sent to %s by %s",
+            community.id,
+            target_user.username,
+            request.user.username,
         )
         messages.success(request, f"Invitation sent to {profile.username_display}.")
 
@@ -154,17 +155,20 @@ def respond_invitation(request, id):
         cache.delete(f"feed:{request.user.id}")
 
         logger.info(
-            f"User {request.user.username} accepted invitation"
-            f" to community {membership.community.id}"
+            "User %s accepted invitation to community %s",
+            request.user.username,
+            membership.community.id,
         )
         messages.success(request, f"You have joined {membership.community.name}!")
         return redirect("community_detail", id=membership.community.id)
-    elif action == "reject":
+
+    if action == "reject":
         membership.status = "rejected"
         membership.save()
         logger.info(
-            f"User {request.user.username} rejected invitation"
-            f" to community {membership.community.id}"
+            "User %s rejected invitation to community %s",
+            request.user.username,
+            membership.community.id,
         )
         messages.success(request, f"You rejected the invitation to {membership.community.name}.")
         return redirect("notification_list")

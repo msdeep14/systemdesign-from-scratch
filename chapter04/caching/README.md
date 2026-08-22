@@ -202,17 +202,18 @@ python manage.py shell
 Inside the python shell:
 ```python
 from django.core.cache import cache
+
 client = cache.client.get_client()
 
 # 1. See all keys matching "feed"
-keys = client.keys('*feed*')
-print(keys) 
-# Example output: [b':1:feed:1']  
+keys = client.keys("*feed*")
+print(keys)
+# Example output: [b':1:feed:1']
 # (The 'b' means byte-string, ':1:' is django's cache prefix, and 'feed:1' is the timeline for user ID 1)
 
 # 2. Check the Redis data type (should be a List for Fan-out on write compatibility)
 if keys:
-    print(client.type(keys[0])) 
+    print(client.type(keys[0]))
     # Output: b'list'
 
 # 3. View the actual cached photo IDs in the timeline

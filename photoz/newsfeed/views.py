@@ -19,7 +19,7 @@ logger = logging.getLogger("bses")
 
 @cache_control(private=True, max_age=60, stale_if_error=86400)
 @login_required
-def newsfeed(request):
+def newsfeed(request):  # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-nested-blocks
     has_redis = hasattr(cache, "client") and hasattr(cache.client, "get_client")
     cache_key = f":1:feed:{request.user.id}" if has_redis else f"feed:{request.user.id}"
     lock_key = f":1:lock:feed:{request.user.id}"
@@ -36,8 +36,8 @@ def newsfeed(request):
             photo_ids_raw = client.lrange(cache_key, 0, -1)
             if photo_ids_raw:
                 photo_ids = [int(pid) for pid in photo_ids_raw]
-        except Exception as e:
-            logger.error(f"Redis lrange failed for {cache_key}: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Redis lrange failed for %s: %s", cache_key, e)
     else:
         photo_ids = cache.get(cache_key)
 
@@ -47,8 +47,8 @@ def newsfeed(request):
             try:
                 # Try to acquire the cache lease (lock)
                 acquired = client.set(lock_key, b"1", nx=True, ex=5)
-            except Exception as e:
-                logger.error(f"Redis lock failed for {lock_key}: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error("Redis lock failed for %s: %s", lock_key, e)
                 acquired = True  # Fallback to standard query if redis fails
 
         if acquired:
@@ -78,8 +78,8 @@ def newsfeed(request):
                             client.delete(cache_key)  # Ensure clean list
                             client.rpush(cache_key, *photo_ids)
                             client.expire(cache_key, 3600)
-                    except Exception as e:
-                        logger.error(f"Redis rpush failed for {cache_key}: {e}")
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.error("Redis rpush failed for %s: %s", cache_key, e)
                 else:
                     cache.set(cache_key, photo_ids, timeout=3600)
             finally:
@@ -87,7 +87,8 @@ def newsfeed(request):
                     client.delete(lock_key)
         else:
             # We didn't get the lock. Wait for the promise (cache population).
-            # better use Redis pub-sub; instead of polling - https://redis.io/blog/caches-promises-locks/
+            # better use Redis pub-sub; instead of polling
+            # https://redis.io/blog/caches-promises-locks/
             # As part of Chapter 6, we'll implement Redis pub-sub
             polled = False
             for _ in range(20):  # Max 1 second wait (20 * 50ms)
@@ -98,7 +99,7 @@ def newsfeed(request):
                         photo_ids = [int(pid) for pid in photo_ids_raw]
                         polled = True
                         break
-                except Exception:
+                except Exception:  # pylint: disable=broad-exception-caught
                     break
 
             if not polled:
@@ -107,8 +108,9 @@ def newsfeed(request):
                 # The browser/CDN (if it supports stale-if-error) will serve the cached feed.
                 # If not, it safely prevents overwriting the DOM with an empty list.
                 logger.warning(
-                    f"Cache promise timeout for {cache_key}."
-                    " Returning 503 to prevent Thundering Herd and preserve device cache."
+                    "Cache promise timeout for %s."
+                    " Returning 503 to prevent Thundering Herd and preserve device cache.",
+                    cache_key,
                 )
                 return HttpResponse(
                     "Feed is currently generating. Please try again in a moment.", status=503

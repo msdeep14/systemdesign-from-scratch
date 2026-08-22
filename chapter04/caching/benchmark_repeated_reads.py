@@ -107,7 +107,17 @@ def print_separator(char="-", width=100):
     print(char * width)
 
 
-def run_repeated_reads(base_url, username, password, n_requests, db_host, db_port, db_name, db_user, db_password):
+def run_repeated_reads(
+    base_url,
+    username,
+    password,
+    n_requests,
+    db_host,
+    db_port,
+    db_name,
+    db_user,
+    db_password,
+):
     print("\n" + "=" * 100)
     print("  BENCHMARK: Repeated Disk Reads (No Cache)")
     print("=" * 100)
@@ -128,7 +138,9 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
         )
     except Exception as e:
         print(f"ERROR: Could not connect to primary DB: {e}")
-        print("       Make sure --db-host points to the primary and port 5432 is reachable.")
+        print(
+            "       Make sure --db-host points to the primary and port 5432 is reachable."
+        )
         sys.exit(1)
 
     # Reset counters so we only measure this test run
@@ -147,8 +159,10 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
 
     # Find profile username to benchmark profile page
     resp = session.get(f"{base_url}/", timeout=15)
-    profile_match = re.search(r'/users/profile/([^/\"]+)/', resp.text)
-    profile_url = f"{base_url}/users/profile/{profile_match.group(1)}/" if profile_match else None
+    profile_match = re.search(r"/users/profile/([^/\"]+)/", resp.text)
+    profile_url = (
+        f"{base_url}/users/profile/{profile_match.group(1)}/" if profile_match else None
+    )
 
     newsfeed_url = f"{base_url}/"
 
@@ -183,7 +197,9 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
 
     rows = fetch_pg_stat_statements(conn, min_calls=5)
     if not rows:
-        print("  No statements found. Check pg_stat_statements is enabled and the min_calls threshold.")
+        print(
+            "  No statements found. Check pg_stat_statements is enabled and the min_calls threshold."
+        )
     else:
         header = f"  {'Calls':<8} {'Total(ms)':<12} {'Avg(ms)':<10} {'Min(ms)':<10} {'Max(ms)':<10} Query"
         print(header)
@@ -191,13 +207,15 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
         for row in rows:
             calls, total_ms, avg_ms, min_ms, max_ms, query_text = row
             query_text = query_text.replace("\n", " ").strip()
-            print(f"  {calls:<8} {total_ms:<12} {avg_ms:<10} {min_ms:<10} {max_ms:<10} {query_text[:60]}...")
+            print(
+                f"  {calls:<8} {total_ms:<12} {avg_ms:<10} {min_ms:<10} {max_ms:<10} {query_text[:60]}..."
+            )
 
     # Explicit Cache Verification
     print("\n" + "=" * 100)
     print("  CACHE VERIFICATION")
     print("=" * 100)
-    
+
     with conn.cursor() as cur:
         # Check heavy feed query (looking for ORDER BY created_at)
         cur.execute("""
@@ -206,7 +224,7 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
             AND upper(query) LIKE '%ORDER BY%CREATED_AT%DESC%'
         """)
         heavy_calls = cur.fetchone()[0] or 0
-        
+
         # Check fast pagination query (looking for WHERE id IN (...))
         cur.execute("""
             SELECT SUM(calls) FROM pg_stat_statements 
@@ -218,14 +236,20 @@ def run_repeated_reads(base_url, username, password, n_requests, db_host, db_por
     print(f"  Heavy Feed Queries Executed (Cache Misses): {heavy_calls}")
     print(f"  Fast Pagination Queries Executed (Write-Around): {fast_calls}")
     print()
-    
+
     if heavy_calls <= 1 and n_requests > 5:
-        print("  SUCCESS: Redis caching is active! The heavy feed calculation was skipped")
-        print("     for almost all requests, falling back safely to fast pagination queries.")
+        print(
+            "  SUCCESS: Redis caching is active! The heavy feed calculation was skipped"
+        )
+        print(
+            "     for almost all requests, falling back safely to fast pagination queries."
+        )
     elif heavy_calls > 1:
-        print("  WARNING: The heavy feed query ran multiple times. Caching might be failing")
+        print(
+            "  WARNING: The heavy feed query ran multiple times. Caching might be failing"
+        )
         print("     or falling back to LocMemCache (per-worker cache).")
-        
+
     conn.close()
 
     print("\n" + "=" * 100)
@@ -241,24 +265,48 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark repeated disk reads to prove the cache justification"
     )
-    parser.add_argument("--url", default="http://localhost",
-                        help="Base URL of the PhotoZ app (default: http://localhost)")
-    parser.add_argument("--username", default="test_user",
-                        help="Username to log in with (default: test_user)")
-    parser.add_argument("--password", default="password123",
-                        help="Password (default: password123)")
-    parser.add_argument("--requests", type=int, default=30,
-                        help="Number of sequential requests to fire (default: 30)")
-    parser.add_argument("--db-host", default="localhost",
-                        help="Primary DB host for pg_stat_statements (default: localhost)")
-    parser.add_argument("--db-port", type=int, default=5432,
-                        help="Primary DB port (default: 5432)")
-    parser.add_argument("--db-name", default=os.environ.get("POSTGRES_DB", "bses"),
-                        help="DB name (default: bses or POSTGRES_DB env var)")
-    parser.add_argument("--db-user", default=os.environ.get("POSTGRES_USER", "postgres"),
-                        help="DB user (default: postgres or POSTGRES_USER env var)")
-    parser.add_argument("--db-password", default=os.environ.get("POSTGRES_PASSWORD", "postgres"),
-                        help="DB password (default: postgres or POSTGRES_PASSWORD env var)")
+    parser.add_argument(
+        "--url",
+        default="http://localhost",
+        help="Base URL of the PhotoZ app (default: http://localhost)",
+    )
+    parser.add_argument(
+        "--username",
+        default="test_user",
+        help="Username to log in with (default: test_user)",
+    )
+    parser.add_argument(
+        "--password", default="password123", help="Password (default: password123)"
+    )
+    parser.add_argument(
+        "--requests",
+        type=int,
+        default=30,
+        help="Number of sequential requests to fire (default: 30)",
+    )
+    parser.add_argument(
+        "--db-host",
+        default="localhost",
+        help="Primary DB host for pg_stat_statements (default: localhost)",
+    )
+    parser.add_argument(
+        "--db-port", type=int, default=5432, help="Primary DB port (default: 5432)"
+    )
+    parser.add_argument(
+        "--db-name",
+        default=os.environ.get("POSTGRES_DB", "bses"),
+        help="DB name (default: bses or POSTGRES_DB env var)",
+    )
+    parser.add_argument(
+        "--db-user",
+        default=os.environ.get("POSTGRES_USER", "postgres"),
+        help="DB user (default: postgres or POSTGRES_USER env var)",
+    )
+    parser.add_argument(
+        "--db-password",
+        default=os.environ.get("POSTGRES_PASSWORD", "postgres"),
+        help="DB password (default: postgres or POSTGRES_PASSWORD env var)",
+    )
     args = parser.parse_args()
 
     run_repeated_reads(

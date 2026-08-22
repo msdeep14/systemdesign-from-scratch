@@ -42,13 +42,14 @@ import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 def login(base_url, username, password):
     session = requests.Session()
     adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
     session.headers.update({"User-Agent": "PhotoZ-ThunderingHerd/1.0"})
-    
+
     login_url = f"{base_url}/users/login/"
     resp = session.get(login_url, timeout=15)
     if resp.status_code != 200:
@@ -92,11 +93,14 @@ def reset_pg_stat_statements(conn):
 
 def get_user_id(conn, username):
     with conn.cursor() as cur:
-        cur.execute("SELECT user_id FROM users_userprofile WHERE username_display = %s;", (username,))
+        cur.execute(
+            "SELECT user_id FROM users_userprofile WHERE username_display = %s;",
+            (username,),
+        )
         row = cur.fetchone()
         if row:
             return row[0]
-        
+
         cur.execute("SELECT id FROM auth_user WHERE username = %s;", (username,))
         row = cur.fetchone()
         return row[0] if row else None
@@ -111,14 +115,14 @@ def fetch_cache_stats(conn):
             AND upper(query) LIKE '%ORDER BY%CREATED_AT%DESC%'
         """)
         heavy_calls = cur.fetchone()[0] or 0
-        
+
         # Check fast pagination query (looking for WHERE id IN (...))
         cur.execute("""
             SELECT SUM(calls) FROM pg_stat_statements 
             WHERE upper(query) LIKE 'SELECT%PHOTOS_PHOTO%WHERE%ID%IN%'
         """)
         fast_calls = cur.fetchone()[0] or 0
-        
+
         # Fetch the actual top queries related to photos
         cur.execute("""
             SELECT calls, query FROM pg_stat_statements
@@ -145,7 +149,19 @@ def print_separator(char="-", width=100):
     print(char * width)
 
 
-def run_benchmark(base_url, username, password, concurrency, db_host, db_port, db_name, db_user, db_password, redis_host, redis_port):
+def run_benchmark(
+    base_url,
+    username,
+    password,
+    concurrency,
+    db_host,
+    db_port,
+    db_name,
+    db_user,
+    db_password,
+    redis_host,
+    redis_port,
+):
     print("\n" + "=" * 100)
     print("  BENCHMARK: Thundering Herd (Concurrent Cache Misses)")
     print("=" * 100)
@@ -158,8 +174,12 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
     # 1. Connect to DB
     try:
         conn = psycopg2.connect(
-            host=db_host, port=db_port, dbname=db_name,
-            user=db_user, password=db_password, connect_timeout=10,
+            host=db_host,
+            port=db_port,
+            dbname=db_name,
+            user=db_user,
+            password=db_password,
+            connect_timeout=10,
         )
     except Exception as e:
         print(f"ERROR: Could not connect to primary DB: {e}")
@@ -170,7 +190,7 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
     if not user_id:
         print(f"ERROR: User '{username}' not found in DB.")
         sys.exit(1)
-        
+
     cache_key = f":1:feed:{user_id}"
 
     # 3. Login once to get the session cookie
@@ -188,7 +208,9 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
         print(f"  [REDIS] Successfully cleared cache key: {cache_key}")
     except Exception as e:
         print(f"ERROR: Could not connect to Redis or clear cache: {e}")
-        print("       Is the SSH tunnel to Redis on port 6379 open? Run: pip install redis")
+        print(
+            "       Is the SSH tunnel to Redis on port 6379 open? Run: pip install redis"
+        )
         sys.exit(1)
 
     # 5. Reset DB stats
@@ -198,24 +220,24 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
     # 6. Fire Concurrent Requests
     newsfeed_url = f"{base_url}/"
     print(f"\n  FIRING {concurrency} CONCURRENT REQUESTS TO {newsfeed_url}...\n")
-    
+
     start_time = time.time()
     results = []
-    
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
         futures = [
-            executor.submit(fetch_url, session, newsfeed_url, i) 
+            executor.submit(fetch_url, session, newsfeed_url, i)
             for i in range(concurrency)
         ]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
-            
+
     total_time = time.time() - start_time
-    
+
     success_count = sum(1 for r in results if r[1] == 200)
     latencies = [r[2] for r in results]
     sizes = [r[3] for r in results if len(r) == 4]
-    
+
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
     max_latency = max(latencies) if latencies else 0
     avg_size = sum(sizes) / len(sizes) if sizes else 0
@@ -229,30 +251,42 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
     print("=" * 100)
     print("  CACHE VERIFICATION (pg_stat_statements)")
     print("=" * 100)
-    
+
     heavy_calls, fast_calls, top_queries = fetch_cache_stats(conn)
-    
+
     print(f"  Concurrent HTTP Requests made: {concurrency}")
     print(f"  Heavy Feed Queries Executed:   {heavy_calls}")
     print()
-    
+
     if top_queries:
         print("  Top Queries executed during benchmark:")
         for calls, query in top_queries:
-            short_query = query[:150].replace('\n', ' ') + ('...' if len(query) > 150 else '')
+            short_query = query[:150].replace("\n", " ") + (
+                "..." if len(query) > 150 else ""
+            )
             print(f"    - [{calls} times] {short_query}")
         print()
-    
+
     if heavy_calls > 5:
         print("  [ERROR] THUNDERING HERD DETECTED")
-        print(f"     The database was hammered with {heavy_calls} identical heavy queries")
-        print("     at the exact same time because everyone missed the cache simultaneously!")
+        print(
+            f"     The database was hammered with {heavy_calls} identical heavy queries"
+        )
+        print(
+            "     at the exact same time because everyone missed the cache simultaneously!"
+        )
     elif heavy_calls <= 2 and heavy_calls > 0:
         print("  [SUCCESS] CACHE PROMISE WORKING")
-        print(f"     Despite {concurrency} concurrent requests missing the cache, the heavy")
-        print(f"     query only executed {heavy_calls} time(s). The other requests waited for the promise.")
+        print(
+            f"     Despite {concurrency} concurrent requests missing the cache, the heavy"
+        )
+        print(
+            f"     query only executed {heavy_calls} time(s). The other requests waited for the promise."
+        )
     elif heavy_calls == 0:
-        print("  [WARNING] The heavy query didn't run at all. Did the cache clear fail?")
+        print(
+            "  [WARNING] The heavy query didn't run at all. Did the cache clear fail?"
+        )
     else:
         print(f"  [WARNING] Mixed results. Heavy queries ran {heavy_calls} times.")
 
@@ -260,19 +294,32 @@ def run_benchmark(base_url, username, password, concurrency, db_host, db_port, d
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark Thundering Herd caching issue")
+    parser = argparse.ArgumentParser(
+        description="Benchmark Thundering Herd caching issue"
+    )
     parser.add_argument("--url", default="http://localhost")
     parser.add_argument("--username", default="super_follower")
     parser.add_argument("--password", default="password123")
-    parser.add_argument("--concurrency", type=int, default=50,
-                        help="Number of concurrent requests (default: 50)")
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=50,
+        help="Number of concurrent requests (default: 50)",
+    )
     parser.add_argument("--db-host", default="localhost")
     parser.add_argument("--db-port", type=int, default=5432)
     parser.add_argument("--db-name", default=os.environ.get("POSTGRES_DB", "bses"))
-    parser.add_argument("--db-user", default=os.environ.get("POSTGRES_USER", "postgres"))
-    parser.add_argument("--db-password", default=os.environ.get("POSTGRES_PASSWORD", "postgres"))
-    parser.add_argument("--redis-host", default="localhost",
-                        help="Redis host to clear cache (default: localhost)")
+    parser.add_argument(
+        "--db-user", default=os.environ.get("POSTGRES_USER", "postgres")
+    )
+    parser.add_argument(
+        "--db-password", default=os.environ.get("POSTGRES_PASSWORD", "postgres")
+    )
+    parser.add_argument(
+        "--redis-host",
+        default="localhost",
+        help="Redis host to clear cache (default: localhost)",
+    )
     parser.add_argument("--redis-port", type=int, default=6379)
     args = parser.parse_args()
 
