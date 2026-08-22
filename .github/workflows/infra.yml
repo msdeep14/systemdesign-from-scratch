@@ -100,7 +100,9 @@ jobs:
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref_name == 'main' || github.ref_name == 'staging')
+    # Infrastructure deployments are strictly manual for both staging and main branches to prevent accidental data loss.
+    # An engineer must trigger this workflow manually via the GitHub Actions UI.
+    if: github.event_name == 'workflow_dispatch' && (github.ref_name == 'main' || github.ref_name == 'staging')
     defaults:
       run:
         working-directory: iaac/aws/terraform
