@@ -409,3 +409,12 @@
     *   Updated `bses/settings.py` to set `AWS_QUERYSTRING_AUTH = True` dynamically unless a custom domain (`AWS_S3_CUSTOM_DOMAIN`) is configured. This ensures `django-storages` generates presigned URLs for private S3 images.
     *   Re-created Nginx container and restarted the `web` container.
 *   **Notes/Edge Cases:** The dynamic `AWS_QUERYSTRING_AUTH` setting ensures CloudFront (which sets `AWS_S3_CUSTOM_DOMAIN`) still uses cache-friendly unsigned URLs while local S3 connections bypass the `403` restriction using presigned URLs.
+
+## Phase: Step 2: Import Linter (Architecture Guardrails) (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.7 Flash)
+*   **Analysis:** We needed to enforce domain app independence (preventing spaghetti imports between `users`, `communities`, `photos`, `newsfeed`, `notifications`). The previous `git reset` wiped out the configuration, so it had to be re-implemented.
+*   **Actions:**
+    *   Re-created `photoz/.importlinter` with an `independence` contract for the 5 domain apps.
+    *   Extracted the exact 5 existing cross-app violations (`newsfeed.views -> photos.models`, etc.) using `import-linter` directly and added them to `ignore_imports` to whitelist the legacy violations.
+    *   `import-linter` parses the AST and dynamically builds the module graph. The local run missed 3 `users` violations because `users` failed to resolve from the repo root context, but the GitHub CI run (`working-directory: photoz`) correctly resolved all 27 dependencies and caught them. Re-added the 3 `users` violations to `ignore_imports` to ensure GitHub CI passes.
+    *   Running `import-linter` via standard `language: python` in pre-commit failed because the repository root isn't a package. Falling back to `language: system` with custom `entry` command was the cleanest solution.
+    *   Re-integrated `import-linter` into `.pre-commit-config.yaml` using `language: system` and `PYTHONPATH=photoz` to ensure it automatically runs on every commit using the local virtual environment.

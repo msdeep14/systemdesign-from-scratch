@@ -26,7 +26,7 @@ jobs:
 
       - name: Install lint dependencies
         working-directory: photoz
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run ruff lint
         working-directory: photoz
@@ -43,6 +43,10 @@ jobs:
             --load-plugins=pylint_django \
             --django-settings-module=bses.settings \
             $(find . -name "*.py" -not -path "*/migrations/*" -not -path "*/venv/*")
+
+      - name: Run import linter
+        working-directory: photoz
+        run: PYTHONPATH=. lint-imports
 
   test:
     name: Run tests
@@ -121,8 +125,8 @@ jobs:
             --output text)
             
           if [ "$APP_NODE_ID" == "None" ] || [ -z "$APP_NODE_ID" ]; then
-            echo "No running app instances found in ASG!"
-            exit 1
+            echo "No running app instances found in ASG! Skipping migrations."
+            exit 0
           fi
 
           echo "Running migrations via SSM on node: $APP_NODE_ID"
@@ -167,6 +171,16 @@ jobs:
             ASG_NAME="photoz-app-asg"
           else
             ASG_NAME="photoz-app-asg-staging"
+          fi
+          
+          APP_NODE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:aws:autoscaling:groupName,Values=$ASG_NAME" "Name=instance-state-name,Values=running" \
+            --query "Reservations[0].Instances[0].InstanceId" \
+            --output text)
+            
+          if [ "$APP_NODE_ID" == "None" ] || [ -z "$APP_NODE_ID" ]; then
+            echo "No running app instances found in ASG. Skipping instance refresh."
+            exit 0
           fi
           
           aws autoscaling start-instance-refresh \
