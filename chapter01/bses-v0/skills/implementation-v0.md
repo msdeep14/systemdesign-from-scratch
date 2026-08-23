@@ -140,14 +140,18 @@ Five Django apps — four functional components from the spec plus a shared `not
 # photos/utils.py — compression helper
 def compress_photo(image_file, max_size_mb=2, quality=85):
     img = Image.open(image_file)
-    if img.mode in ('RGBA', 'P'):
-        img = img.convert('RGB')
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
     output = BytesIO()
-    img.save(output, format='JPEG', quality=quality, optimize=True)
+    img.save(output, format="JPEG", quality=quality, optimize=True)
     output.seek(0)
     return InMemoryUploadedFile(
-        output, 'ImageField', f"{image_file.name.rsplit('.', 1)[0]}.jpg",
-        'image/jpeg', output.getbuffer().nbytes, None
+        output,
+        "ImageField",
+        f"{image_file.name.rsplit('.', 1)[0]}.jpg",
+        "image/jpeg",
+        output.getbuffer().nbytes,
+        None,
     )
 ```
 
@@ -240,13 +244,17 @@ No dedicated database models. The newsfeed is constructed via queries:
 
 ```python
 # Pseudocode for newsfeed construction
-followed_users = Follow.objects.filter(follower=request.user).values_list('following', flat=True)
-my_communities = CommunityMembership.objects.filter(user=request.user, status='accepted').values_list('community', flat=True)
+followed_users = Follow.objects.filter(follower=request.user).values_list(
+    "following", flat=True
+)
+my_communities = CommunityMembership.objects.filter(
+    user=request.user, status="accepted"
+).values_list("community", flat=True)
 
 feed = Photo.objects.filter(
-    Q(user__in=followed_users, community__isnull=True) |  # posts from followed users
-    Q(community__in=my_communities)                        # posts from my communities
-).order_by('-created_at')
+    Q(user__in=followed_users, community__isnull=True)  # posts from followed users
+    | Q(community__in=my_communities)  # posts from my communities
+).order_by("-created_at")
 ```
 
 No pre-computed feed table. Simple query with pagination. This is the simplest approach and works well at this scale.

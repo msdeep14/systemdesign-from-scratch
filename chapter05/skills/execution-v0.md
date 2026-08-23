@@ -103,7 +103,7 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Refactored `.github/workflows/deploy.yml` to run on `ubuntu-latest`, authenticate via OIDC, and use `aws ssm send-command` to trigger the Django migration on one of the ASG instances.
   - Updated `chapter05/staging_env/README.md` to remove SSH key configuration steps and document that the local `.env` setup still requires IAM user credentials, even though CI/CD is now purely OIDC-based.
 
-### Phase: IaC Automation and Remote State (Date: 2026-08-22, Commit: N/A, Model: Gemini 3.1 Pro (High))
+### Phase: IaC Automation and Remote State (Date: 2026-08-22, Commit: a3ae0bf4f3c7a5b055c98ed8f14fa4ead0cddd82, Model: Gemini 3.1 Pro (High))
 * **Analysis**: As infrastructure changes become more complex, applying Terraform from local laptops poses significant risks (state file corruption, concurrent applies, missing reviews). We migrated to a remote Terraform state and a CI/CD-driven workflow for infrastructure changes to enforce strict peer review and consistency.
 * **Actions Taken**:
   - Created `iaac/aws/terraform/backend.tf` to configure S3 as the remote backend. Leveraged the new native S3 locking feature (`use_lockfile = true`) introduced in Terraform 1.10+, eliminating the need for a DynamoDB lock table.
@@ -115,3 +115,9 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - **Enhanced CI/CD for Multi-Environment:** Updated `.github/workflows/infra.yml` to support a two-stage promotion workflow. The pipeline now dynamically selects the Terraform workspace based on the target branch: pulling/pushing to `staging` maps to the `staging` workspace, and pulling/pushing to `main` maps to the `default` (production) workspace.
   - **Decoupled CI/CD Identity:** Removed all CI/CD IAM Roles and GitHub Actions OIDC providers from Terraform management (`iam.tf`) to prevent self-deletion during a `terraform destroy`. Provided a manual AWS CLI bootstrapping script in the README using AWS managed service-level policies for strict least-privilege access.
   - **Added Remote Destroy:** Created `.github/workflows/destroy.yml` to allow engineers to trigger a manual `terraform destroy` against any workspace directly from the GitHub UI using OIDC authentication.
+
+### Phase: Architecture Guardrails - Structurizr C4 Model (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.1 Pro(High) )
+* **Analysis**: The project needs a "ground truth" architectural reference to serve as a baseline for drift detection. Evaluated multiple tools and selected Structurizr Lite to define the C4 architecture as code.
+* **Actions Taken**:
+  - Created `photoz/structurizr/workspace.dsl` modeling the User, Web App, Postgres DB, Redis Cache, and S3 system.
+  - Details in `chapter05/architecture_guardrails/README.md`.

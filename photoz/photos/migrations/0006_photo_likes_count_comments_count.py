@@ -2,9 +2,8 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('photos', '0005_photo_idx_photo_caption_trgm'),
+        ("photos", "0005_photo_idx_photo_caption_trgm"),
     ]
 
     operations = [
@@ -15,13 +14,13 @@ class Migration(migrations.Migration):
         # the migration fails fast with no queuing. Just retry.
         migrations.RunSQL("SET lock_timeout = '2s'"),
         migrations.AddField(
-            model_name='photo',
-            name='likes_count',
+            model_name="photo",
+            name="likes_count",
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='photo',
-            name='comments_count',
+            model_name="photo",
+            name="comments_count",
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.RunSQL("SET lock_timeout = 0"),

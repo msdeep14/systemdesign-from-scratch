@@ -43,4 +43,8 @@ server {
     location /static/ {
         alias /app/staticfiles/;
     }
+
+    location /media/ {
+        alias /app/media/;
+    }
 }

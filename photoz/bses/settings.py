@@ -17,7 +17,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Create logs directory if it doesn't exist
-LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 
@@ -25,137 +25,136 @@ os.makedirs(LOGS_DIR, exist_ok=True)
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)xo1owcjqdje#3t4bd5#ru!(fvo@464+d*u2k+d#bbg6b3or!0')
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "django-insecure-)xo1owcjqdje#3t4bd5#ru!(fvo@464+d*u2k+d#bbg6b3or!0"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG_MODE', 'False') == 'True'
+DEBUG = os.environ.get("DEBUG_MODE", "False") == "True"
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
     # Third-party
-    'storages',
-    'django.contrib.postgres',
-    
+    "storages",
+    "django.contrib.postgres",
     # Local apps
-    'users.apps.UsersConfig',
-    'photos.apps.PhotosConfig',
-    'newsfeed.apps.NewsfeedConfig',
-    'communities.apps.CommunitiesConfig',
-    'notifications.apps.NotificationsConfig',
+    "users.apps.UsersConfig",
+    "photos.apps.PhotosConfig",
+    "newsfeed.apps.NewsfeedConfig",
+    "communities.apps.CommunitiesConfig",
+    "notifications.apps.NotificationsConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'bses.ryw_middleware.ReadYourWritesMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'bses.metrics_middleware.CloudWatchMetricsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "bses.ryw_middleware.ReadYourWritesMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "bses.metrics_middleware.CloudWatchMetricsMiddleware",
 ]
 
-ROOT_URLCONF = 'bses.urls'
+ROOT_URLCONF = "bses.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'notifications.context_processors.unread_count',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "notifications.context_processors.unread_count",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'bses.wsgi.application'
+WSGI_APPLICATION = "bses.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'bses'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
-        'PORT': os.environ.get('POSTGRES_PORT', '5432'),
-        'CONN_MAX_AGE': 60,
-        'OPTIONS': {
-            'sslmode': 'disable',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "bses"),
+        "USER": os.environ.get("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
+        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "sslmode": "disable",
         },
     }
 }
 
 # Dynamically add replica databases
-replica_hosts_str = os.environ.get('REPLICA_DB_HOSTS', '')
+replica_hosts_str = os.environ.get("REPLICA_DB_HOSTS", "")
 if replica_hosts_str:
-    replica_hosts = [h.strip() for h in replica_hosts_str.split(',') if h.strip()]
+    replica_hosts = [h.strip() for h in replica_hosts_str.split(",") if h.strip()]
 else:
     # Fallback for single node or older env files
-    single_host = os.environ.get('REPLICA_DB_HOST')
+    single_host = os.environ.get("REPLICA_DB_HOST")
     replica_hosts = [single_host] if single_host else []
 
 for i, host in enumerate(replica_hosts):
-    DATABASES[f'replica_{i+1}'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'bses'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': host,
-        'PORT': os.environ.get('REPLICA_DB_PORT', '6432'), # PgBouncer proxy port
-        'CONN_MAX_AGE': 60,
-        'OPTIONS': {
-            'sslmode': 'disable',
+    DATABASES[f"replica_{i + 1}"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "bses"),
+        "USER": os.environ.get("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
+        "HOST": host,
+        "PORT": os.environ.get("REPLICA_DB_PORT", "6432"),  # PgBouncer proxy port
+        "CONN_MAX_AGE": 60,
+        "OPTIONS": {
+            "sslmode": "disable",
         },
-        # Tell Django test runner not to create separate blank test databases for replicas. 
-        # Instead, just route all replica test queries to the 'default' test database so tests pass seamlessly.
-        'TEST': {
-            'MIRROR': 'default',
-        }
+        # Tell Django test runner not to create separate blank test databases for replicas.
+        # Route all replica test queries to the 'default' test database so tests pass seamlessly.
+        "TEST": {
+            "MIRROR": "default",
+        },
     }
 
-DATABASE_ROUTERS = ['bses.routers.PrimaryReplicaRouter']
+DATABASE_ROUTERS = ["bses.routers.PrimaryReplicaRouter"]
 
 # Caching Configuration
-redis_url = os.environ.get('REDIS_URL')
+redis_url = os.environ.get("REDIS_URL")
 if redis_url:
     CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': redis_url,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            }
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": redis_url,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         }
     }
 else:
     CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         }
     }
-
 
 
 # Password validation
@@ -163,16 +162,16 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -180,9 +179,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -192,22 +191,24 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Flexible Media Storage (EBS vs S3)
-USE_S3 = os.environ.get('USE_S3') == 'True'
+USE_S3 = os.environ.get("USE_S3") == "True"
 
 if USE_S3:
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'ap-south-1')
-    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_S3_ENDPOINT_URL = f'https://s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
-    CLOUDFRONT_DISTRIBUTION_ID = os.environ.get('CLOUDFRONT_DISTRIBUTION_ID')
-    AWS_QUERYSTRING_AUTH = False
+    AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "ap-south-1")
+    AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    AWS_S3_ENDPOINT_URL = f"https://s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN")
+    CLOUDFRONT_DISTRIBUTION_ID = os.environ.get("CLOUDFRONT_DISTRIBUTION_ID")
+    AWS_QUERYSTRING_AUTH = (
+        os.environ.get("AWS_QUERYSTRING_AUTH", "False") == "True" if AWS_S3_CUSTOM_DOMAIN else True
+    )
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -217,65 +218,68 @@ if USE_S3:
         },
     }
 else:
-    MEDIA_URL = 'media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'newsfeed'
-LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "newsfeed"
+LOGOUT_REDIRECT_URL = "login"
 
 BSES_PAGE_SIZE = 20
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Logging configuration (CloudWatch / Docker Native)
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
-        'simple': {
-            'format': f'[app-node-{os.environ.get("NODE_IP", "unknown")}] {{levelname}} {{asctime}} {{module}} {{message}}',
-            'style': '{',
+        "simple": {
+            "format": (
+                f"[app-node-{os.environ.get('NODE_IP', 'unknown')}]"
+                " {levelname} {asctime} {module} {message}"
+            ),
+            "style": "{",
         },
-        'json_raw': {
-            'format': '{message}',
-            'style': '{',
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
-        'metrics_console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'json_raw',
+        "json_raw": {
+            "format": "{message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
         },
-        'bses': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
+        "metrics_console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "json_raw",
         },
-        'metrics': {
-            'handlers': ['metrics_console'],
-            'level': 'INFO',
-            'propagate': False,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "bses": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "metrics": {
+            "handlers": ["metrics_console"],
+            "level": "INFO",
+            "propagate": False,
         },
     },
 }

@@ -52,7 +52,7 @@ Option 1 -- From a Django script (what our benchmark does):
 ```python
 # In benchmark_queries.py (line 67-81)
 def run_explain_analyze(queryset, label="Main query"):
-    compiler = queryset.query.get_compiler(using='default')
+    compiler = queryset.query.get_compiler(using="default")
     sql, params = compiler.as_sql()  # extract the raw SQL from the Django QuerySet
 
     with connection.cursor() as cursor:

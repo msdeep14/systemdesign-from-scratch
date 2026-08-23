@@ -6,16 +6,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('communities', '0001_initial'),
-        ('photos', '0004_enable_pg_trgm'),
+        ("communities", "0001_initial"),
+        ("photos", "0004_enable_pg_trgm"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='photo',
-            index=django.contrib.postgres.indexes.GinIndex(fields=['caption'], name='idx_photo_caption_trgm', opclasses=['gin_trgm_ops']),
+            model_name="photo",
+            index=django.contrib.postgres.indexes.GinIndex(
+                fields=["caption"], name="idx_photo_caption_trgm", opclasses=["gin_trgm_ops"]
+            ),
         ),
     ]

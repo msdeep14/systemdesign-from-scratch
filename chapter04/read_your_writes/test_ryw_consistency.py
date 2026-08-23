@@ -59,7 +59,7 @@ def login(session, base_url, username, password):
     # Without this, the immediate redirect to /newsfeed will hit the replica,
     # find no session, and redirect back to login.
     time.sleep(1.5)
-    
+
     # Manually follow the redirect
     if resp.status_code == 302:
         resp = session.get(f"{base_url}{resp.headers['Location']}")
@@ -77,7 +77,7 @@ def find_photo_id(session, base_url):
     if resp.status_code != 200:
         return None
 
-    matches = re.findall(r'/photos/(\d+)/', resp.text)
+    matches = re.findall(r"/photos/(\d+)/", resp.text)
     if matches:
         return int(matches[0])
     return None
@@ -100,7 +100,9 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
     print(f"Using photo ID: {photo_id}")
 
     print(f"\nRunning {iterations} write-then-read tests (delay={delay_ms}ms)...\n")
-    print(f"{'#':<6} {'Comment UUID':<40} {'Write':<8} {'Read':<8} {'Found':<8} {'Result'}")
+    print(
+        f"{'#':<6} {'Comment UUID':<40} {'Write':<8} {'Read':<8} {'Found':<8} {'Result'}"
+    )
     print("-" * 100)
 
     consistent = 0
@@ -137,7 +139,9 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
 
         if write_resp.status_code != 200:
             write_errors += 1
-            print(f"{i:<6} {marker:<40} {write_resp.status_code:<8} {'--':<8} {'--':<8} WRITE_ERROR")
+            print(
+                f"{i:<6} {marker:<40} {write_resp.status_code:<8} {'--':<8} {'--':<8} WRITE_ERROR"
+            )
             continue
 
         # Step 2: Wait the configured delay
@@ -167,7 +171,9 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
             inconsistent += 1
             result = "STALE READ"
 
-        print(f"{i:<6} {marker:<40} {write_resp.status_code:<8} {read_status:<8} {str(found):<8} {result}")
+        print(
+            f"{i:<6} {marker:<40} {write_resp.status_code:<8} {read_status:<8} {str(found):<8} {result}"
+        )
 
     # Summary
     total_valid = consistent + inconsistent
@@ -184,7 +190,9 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
 
         if inconsistent > 0:
             print(f"\n  VERDICT: Read Your Writes consistency is BROKEN.")
-            print(f"           {inconsistent} out of {total_valid} reads returned stale data.")
+            print(
+                f"           {inconsistent} out of {total_valid} reads returned stale data."
+            )
         else:
             print(f"\n  VERDICT: Read Your Writes consistency is OK.")
             print(f"           All {total_valid} reads returned fresh data.")
@@ -233,7 +241,12 @@ def main():
     args = parser.parse_args()
 
     stale_count = run_test(
-        args.url, args.username, args.password, args.iterations, args.delay_ms, args.show_headers
+        args.url,
+        args.username,
+        args.password,
+        args.iterations,
+        args.delay_ms,
+        args.show_headers,
     )
     sys.exit(1 if stale_count > 0 else 0)
 

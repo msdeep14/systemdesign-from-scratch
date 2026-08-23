@@ -36,7 +36,11 @@ from psycopg2.extras import execute_values
 
 def connect(host, port, dbname, user, password):
     return psycopg2.connect(
-        host=host, port=port, dbname=dbname, user=user, password=password,
+        host=host,
+        port=port,
+        dbname=dbname,
+        user=user,
+        password=password,
         connect_timeout=10,
     )
 
@@ -139,7 +143,9 @@ def poll_replication_during_writes(conn, poll_interval, results, stop_event):
     while not stop_event.is_set():
         rows = get_replication_stats(conn)
         for row in rows:
-            _, _, bytes_in_flight, write_lag_ms, flush_lag_ms, replay_lag_ms, unsent = row
+            _, _, bytes_in_flight, write_lag_ms, flush_lag_ms, replay_lag_ms, unsent = (
+                row
+            )
             bytes_in_flight = bytes_in_flight or 0
             write_lag_ms = write_lag_ms or 0.0
             replay_lag_ms = replay_lag_ms or 0.0
@@ -163,20 +169,39 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark WAL sender overhead when scaling read replicas"
     )
-    parser.add_argument("--db-host", required=True,
-                        help="Primary DB host (private IP on AWS)")
-    parser.add_argument("--db-port", type=int, default=5432,
-                        help="Primary DB port (default: 5432)")
-    parser.add_argument("--db-name", default=os.environ.get("POSTGRES_DB", "bses"),
-                        help="DB name (default: bses or POSTGRES_DB env var)")
-    parser.add_argument("--db-user", default=os.environ.get("POSTGRES_USER", "postgres"),
-                        help="DB user (default: postgres or POSTGRES_USER env var)")
-    parser.add_argument("--db-password", default=os.environ.get("POSTGRES_PASSWORD", "postgres"),
-                        help="DB password (default: postgres or POSTGRES_PASSWORD env var)")
-    parser.add_argument("--writes", type=int, default=50000,
-                        help="Number of rows to INSERT during the workload (default: 50000)")
-    parser.add_argument("--poll-interval", type=float, default=1.0,
-                        help="Seconds between pg_stat_replication polls (default: 1.0)")
+    parser.add_argument(
+        "--db-host", required=True, help="Primary DB host (private IP on AWS)"
+    )
+    parser.add_argument(
+        "--db-port", type=int, default=5432, help="Primary DB port (default: 5432)"
+    )
+    parser.add_argument(
+        "--db-name",
+        default=os.environ.get("POSTGRES_DB", "bses"),
+        help="DB name (default: bses or POSTGRES_DB env var)",
+    )
+    parser.add_argument(
+        "--db-user",
+        default=os.environ.get("POSTGRES_USER", "postgres"),
+        help="DB user (default: postgres or POSTGRES_USER env var)",
+    )
+    parser.add_argument(
+        "--db-password",
+        default=os.environ.get("POSTGRES_PASSWORD", "postgres"),
+        help="DB password (default: postgres or POSTGRES_PASSWORD env var)",
+    )
+    parser.add_argument(
+        "--writes",
+        type=int,
+        default=50000,
+        help="Number of rows to INSERT during the workload (default: 50000)",
+    )
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=1.0,
+        help="Seconds between pg_stat_replication polls (default: 1.0)",
+    )
     args = parser.parse_args()
 
     print("\n" + "=" * 100)
@@ -186,7 +211,9 @@ def main():
     print(f"  Write workload: {args.writes:,} INSERTs")
     print()
 
-    monitor_conn = connect(args.db_host, args.db_port, args.db_name, args.db_user, args.db_password)
+    monitor_conn = connect(
+        args.db_host, args.db_port, args.db_name, args.db_user, args.db_password
+    )
 
     # Snapshot before workload
     walsender_count = get_walsender_count(monitor_conn)
@@ -204,11 +231,15 @@ def main():
     print("  Replica state before workload:")
     print_separator()
     if replicas_before:
-        print(f"  {'Replica':<20} {'State':<15} {'Write lag (ms)':<18} {'Replay lag (ms)':<18} {'Bytes in flight'}")
+        print(
+            f"  {'Replica':<20} {'State':<15} {'Write lag (ms)':<18} {'Replay lag (ms)':<18} {'Bytes in flight'}"
+        )
         print_separator()
         for row in replicas_before:
             name, state, bif, write_lag, flush_lag, replay_lag, unsent = row
-            print(f"  {name:<20} {state:<15} {(write_lag or 0):<18.2f} {(replay_lag or 0):<18.2f} {(bif or 0):,}")
+            print(
+                f"  {name:<20} {state:<15} {(write_lag or 0):<18.2f} {(replay_lag or 0):<18.2f} {(bif or 0):,}"
+            )
     else:
         print("  (no replicas)")
     print()
@@ -223,8 +254,15 @@ def main():
     # Run write workload in background thread
     write_thread = threading.Thread(
         target=run_write_workload,
-        args=(args.db_host, args.db_port, args.db_name, args.db_user, args.db_password,
-              args.writes, write_results),
+        args=(
+            args.db_host,
+            args.db_port,
+            args.db_name,
+            args.db_user,
+            args.db_password,
+            args.writes,
+            write_results,
+        ),
         daemon=True,
     )
 
@@ -258,18 +296,28 @@ def main():
     print("=" * 100)
 
     print(f"\n  Peak replication lag DURING write workload:")
-    print(f"    Peak write_lag:         {poll_results.get('peak_write_lag_ms', 0):.2f} ms")
-    print(f"    Peak replay_lag:        {poll_results.get('peak_replay_lag_ms', 0):.2f} ms")
-    print(f"    Peak bytes in flight:   {poll_results.get('peak_bytes_in_flight', 0):,} bytes")
+    print(
+        f"    Peak write_lag:         {poll_results.get('peak_write_lag_ms', 0):.2f} ms"
+    )
+    print(
+        f"    Peak replay_lag:        {poll_results.get('peak_replay_lag_ms', 0):.2f} ms"
+    )
+    print(
+        f"    Peak bytes in flight:   {poll_results.get('peak_bytes_in_flight', 0):,} bytes"
+    )
 
     print(f"\n  Replica state AFTER workload:")
     print_separator()
     if replicas_after:
-        print(f"  {'Replica':<20} {'State':<15} {'Write lag (ms)':<18} {'Replay lag (ms)':<18} {'Bytes in flight'}")
+        print(
+            f"  {'Replica':<20} {'State':<15} {'Write lag (ms)':<18} {'Replay lag (ms)':<18} {'Bytes in flight'}"
+        )
         print_separator()
         for row in replicas_after:
             name, state, bif, write_lag, flush_lag, replay_lag, unsent = row
-            print(f"  {name:<20} {state:<15} {(write_lag or 0):<18.2f} {(replay_lag or 0):<18.2f} {(bif or 0):,}")
+            print(
+                f"  {name:<20} {state:<15} {(write_lag or 0):<18.2f} {(replay_lag or 0):<18.2f} {(bif or 0):,}"
+            )
     else:
         print("  (no replicas)")
 
@@ -280,7 +328,7 @@ def main():
     print("=" * 100)
     print(f"""
   Primary ran {walsender_count} walsender process(es) for {replica_count} replica(s).
-  The primary generated {wal_generated_mb:.2f} MB of WAL for {write_results.get('writes_done', 0):,} writes.
+  The primary generated {wal_generated_mb:.2f} MB of WAL for {write_results.get("writes_done", 0):,} writes.
 
   With {replica_count} replica(s), the primary streamed approximately:
     {wal_generated_mb:.2f} MB x {replica_count} replica(s) = {wal_generated_mb * replica_count:.2f} MB total outbound WAL

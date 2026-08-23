@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^photoz/
+      - id: ruff-format
+        files: ^photoz/
+
+  - repo: local
+    hooks:
+      - id: pylint
+        name: pylint
+        entry: pylint
+        language: python
+        types: [python]
+        files: ^photoz/
+        additional_dependencies:
+          - "pylint>=3.2.0"
+          - "pylint-django>=2.5.5"
+          - "Django>=5.0,<6.0"
+        args:
+          - "--load-plugins=pylint_django"
+          - "--rcfile=photoz/pyproject.toml"
+          # --django-settings-module omitted: pre-commit env lacks project deps (storages, redis, etc.)
+          # so django.setup() crashes. CI runs pylint with full settings instead.

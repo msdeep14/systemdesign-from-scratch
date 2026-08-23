@@ -11,9 +11,43 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lint dependencies
+        working-directory: photoz
+        run: pip install -r requirements-dev.txt
+
+      - name: Run ruff lint
+        working-directory: photoz
+        run: ruff check .
+
+      - name: Run ruff format check
+        working-directory: photoz
+        run: ruff format --check .
+
+      - name: Run pylint
+        working-directory: photoz
+        run: |
+          pylint \
+            --load-plugins=pylint_django \
+            --django-settings-module=bses.settings \
+            $(find . -name "*.py" -not -path "*/migrations/*" -not -path "*/venv/*")
+
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    needs: lint
 
     services:
       postgres:

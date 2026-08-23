@@ -21,6 +21,7 @@ BSES is a modern, responsive social media web application built with Django. It 
 2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # dev tools: ruff, pylint, pre-commit
    ```
 
 3. **Start PostgreSQL Database**:
@@ -88,7 +89,54 @@ select * from photos_photo limit 1;
 -- Exit the database terminal
 \q
 ```
+## Code Quality
+
+The project uses [ruff](https://docs.astral.sh/ruff/) for formatting and fast lint, and [pylint](https://pylint.readthedocs.io/) for deeper static analysis. Both are scoped to `photoz/`.
+
+### Install pre-commit hook
+
+Run this once after cloning:
+```bash
+# from repo root
+pre-commit install
+```
+
+After this, ruff and pylint run automatically on every `git commit` for changed `photoz/` files. A commit is blocked if either tool reports errors.
+
+### Run manually
+
+All commands should be run from inside the `photoz/` directory.
+
+**Ruff — lint:**
+```bash
+ruff check .
+```
+
+**Ruff — format check** (does not modify files):
+```bash
+ruff format --check .
+```
+
+**Ruff — auto-fix** (fixes safe issues like import order):
+```bash
+ruff check --fix .
+ruff format .
+```
+
+**Pylint:**
+```bash
+pylint \
+  --load-plugins=pylint_django \
+  --django-settings-module=bses.settings \
+  $(find . -name "*.py" -not -path "*/migrations/*" -not -path "*/venv/*")
+```
+
+### CI enforcement
+
+The GitHub Actions `deploy.yml` runs a `lint` job on every push to `main` and `staging`. The `test` job only runs if `lint` passes, so a failing lint check blocks the full deploy pipeline.
+
 ## Production Deployment (AWS EC2 / Docker)
+
 
 For detailed deployment strategies and architectural decisions, refer to the full [EC2 Deployment Guide](skills/aws-ec2-deployment-v0.md). Below are the essential steps to launch this application on AWS.
 

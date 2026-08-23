@@ -1,0 +1,42 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E = pycodestyle, F = pyflakes, I = isort, UP = pyupgrade, B = bugbear, SIM = simplify
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pylint.main]
+ignore = ["migrations", "venv", "manage.py"]
+
+[tool.pylint."messages control"]
+disable = [
+    # Docstrings (not enforced)
+    "C0114", "C0115", "C0116",
+    # Style issues covered by ruff
+    "C0301",  # line-too-long
+    "C0303",  # trailing-whitespace
+    "C0304",  # missing-final-newline
+    "C0411", "C0412", "C0413",  # import order (ruff/I handles this)
+    "W0611",  # unused-import (ruff/F401)
+    "W0612",  # unused-variable (ruff/F841)
+    "E0401",  # import-error (ruff/F401)
+    # Django patterns
+    "E5110",  # django-not-configured: pre-commit omits --django-settings-module
+    "E1101",  # generated attributes (e.g. Model.objects)
+    "E5142",  # imported-auth-user: project uses default User model throughout
+    "W0212",  # protected-access: _state is Django's documented router API
+    "W0622",  # redefining-builtin: id is the Django URL parameter convention
+    # Project style choices
+    "W1203",  # logging-fstring-interpolation: project uses f-strings consistently
+    "W0613",  # unused-argument: router interface args are protocol-required signatures
+    # Noise from benchmark/test scripts
+    "R0801",  # duplicate-code: boilerplate duplication in benchmark scripts
+    # False positives on Django patterns
+    "R1705",  # no-else-return: false positive on Django form if/else blocks
+    "R0903",  # too-few-public-methods: middleware classes intentionally have one method
+    "R1702",  # too-many-nested-blocks: Redis cache-promise flow is intentionally complex
+]
