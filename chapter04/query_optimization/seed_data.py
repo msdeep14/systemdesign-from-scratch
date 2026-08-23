@@ -21,12 +21,15 @@ import random
 import uuid
 import time
 
-PHOTOZ_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'photoz')
+PHOTOZ_DIR = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "photoz"
+)
 sys.path.insert(0, PHOTOZ_DIR)
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bses.settings')
-os.environ.setdefault('POSTGRES_HOST', 'localhost')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bses.settings")
+os.environ.setdefault("POSTGRES_HOST", "localhost")
 
 import django
+
 django.setup()
 
 from django.contrib.auth.models import User
@@ -44,53 +47,162 @@ NUM_COMMENTS = 200000
 NUM_NOTIFICATIONS = 100000
 
 FIRST_NAMES = [
-    'Alex', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Avery', 'Quinn',
-    'Harper', 'Blake', 'Drew', 'Sage', 'Rowan', 'River', 'Phoenix', 'Skyler',
-    'Cameron', 'Dakota', 'Emerson', 'Finley', 'Hayden', 'Jamie', 'Kendall',
-    'Logan', 'Micah', 'Noel', 'Parker', 'Reese', 'Sawyer', 'Tatum',
+    "Alex",
+    "Jordan",
+    "Taylor",
+    "Morgan",
+    "Casey",
+    "Riley",
+    "Avery",
+    "Quinn",
+    "Harper",
+    "Blake",
+    "Drew",
+    "Sage",
+    "Rowan",
+    "River",
+    "Phoenix",
+    "Skyler",
+    "Cameron",
+    "Dakota",
+    "Emerson",
+    "Finley",
+    "Hayden",
+    "Jamie",
+    "Kendall",
+    "Logan",
+    "Micah",
+    "Noel",
+    "Parker",
+    "Reese",
+    "Sawyer",
+    "Tatum",
 ]
 
 LAST_NAMES = [
-    'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller',
-    'Davis', 'Rodriguez', 'Martinez', 'Wilson', 'Anderson', 'Thomas', 'Jackson',
-    'White', 'Harris', 'Martin', 'Thompson', 'Moore', 'Young',
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Jackson",
+    "White",
+    "Harris",
+    "Martin",
+    "Thompson",
+    "Moore",
+    "Young",
 ]
 
 CAPTIONS = [
-    'Beautiful sunset! #sunset #nature', 'Coffee time #coffee #morning',
-    'Weekend vibes #weekend', 'Nature walk #nature #hiking',
-    'City lights #citylife #urban', '#throwbackthursday #tbt',
-    'No filter needed #nofilter', 'Living my best life #blessed',
-    'Grateful for moments like these #grateful', 'Adventure awaits #adventure #travel',
-    'Golden hour #goldenhour #photography', 'Peaceful morning #morning #calm',
-    'Road trip memories #roadtrip #travel', 'Simple pleasures #simplethings', '',
-    'Exploring new places #explore #wanderlust', 'Chasing sunsets #sunset #sky',
-    'Perfect day #perfectday', 'Making memories #memories #friends',
-    'Feeling blessed #blessed #life', 'Views for days #views #landscape',
-    'Wanderlust #wanderlust #travel', 'Good vibes only #goodvibes',
+    "Beautiful sunset! #sunset #nature",
+    "Coffee time #coffee #morning",
+    "Weekend vibes #weekend",
+    "Nature walk #nature #hiking",
+    "City lights #citylife #urban",
+    "#throwbackthursday #tbt",
+    "No filter needed #nofilter",
+    "Living my best life #blessed",
+    "Grateful for moments like these #grateful",
+    "Adventure awaits #adventure #travel",
+    "Golden hour #goldenhour #photography",
+    "Peaceful morning #morning #calm",
+    "Road trip memories #roadtrip #travel",
+    "Simple pleasures #simplethings",
+    "",
+    "Exploring new places #explore #wanderlust",
+    "Chasing sunsets #sunset #sky",
+    "Perfect day #perfectday",
+    "Making memories #memories #friends",
+    "Feeling blessed #blessed #life",
+    "Views for days #views #landscape",
+    "Wanderlust #wanderlust #travel",
+    "Good vibes only #goodvibes",
 ]
 
 COMMENT_TEXTS = [
-    'Nice photo!', 'Love this!', 'Stunning!', 'Where is this?', 'So beautiful!',
-    'Amazing shot!', 'Goals!', 'Wow!', 'Incredible', 'This is gorgeous',
-    'Great capture', 'Looks amazing', 'Wish I was there', 'Love the colors',
-    'Perfect timing', 'So cool!', 'Beautiful composition', 'Awesome!',
-    'Need to visit this place', 'Absolutely stunning', 'What camera?',
+    "Nice photo!",
+    "Love this!",
+    "Stunning!",
+    "Where is this?",
+    "So beautiful!",
+    "Amazing shot!",
+    "Goals!",
+    "Wow!",
+    "Incredible",
+    "This is gorgeous",
+    "Great capture",
+    "Looks amazing",
+    "Wish I was there",
+    "Love the colors",
+    "Perfect timing",
+    "So cool!",
+    "Beautiful composition",
+    "Awesome!",
+    "Need to visit this place",
+    "Absolutely stunning",
+    "What camera?",
 ]
 
 COMMUNITY_NAMES = [
-    'Street Photography', 'Nature Lovers', 'Urban Explorers', 'Food Photography',
-    'Travel Diaries', 'Portrait Masters', 'Landscape Club', 'Night Photography',
-    'Macro World', 'Black & White', 'Film Photography', 'Drone Shots',
-    'Architecture', 'Wildlife', 'Vintage Vibes', 'Minimalism', 'Abstract Art',
-    'Sunset Chasers', 'Ocean Views', 'Mountain Life', 'City Skylines',
-    'Pet Photos', 'Sports Action', 'Fashion Shots', 'Concert Photography',
-    'Astrophotography', 'Street Art', 'Reflections', 'Silhouettes', 'Textures',
-    'Rainy Days', 'Snow Scenes', 'Autumn Colors', 'Spring Blooms', 'Summer Vibes',
-    'Golden Hour Club', 'Blue Hour Crew', 'Light Painting', 'Long Exposure',
-    'HDR Photography', 'Panoramas', 'Candid Moments', 'Self Portraits',
-    'Couples Photography', 'Family Moments', 'Newborn Photography', 'Wedding Shots',
-    'Event Photography', 'Product Photography', 'Creative Edits',
+    "Street Photography",
+    "Nature Lovers",
+    "Urban Explorers",
+    "Food Photography",
+    "Travel Diaries",
+    "Portrait Masters",
+    "Landscape Club",
+    "Night Photography",
+    "Macro World",
+    "Black & White",
+    "Film Photography",
+    "Drone Shots",
+    "Architecture",
+    "Wildlife",
+    "Vintage Vibes",
+    "Minimalism",
+    "Abstract Art",
+    "Sunset Chasers",
+    "Ocean Views",
+    "Mountain Life",
+    "City Skylines",
+    "Pet Photos",
+    "Sports Action",
+    "Fashion Shots",
+    "Concert Photography",
+    "Astrophotography",
+    "Street Art",
+    "Reflections",
+    "Silhouettes",
+    "Textures",
+    "Rainy Days",
+    "Snow Scenes",
+    "Autumn Colors",
+    "Spring Blooms",
+    "Summer Vibes",
+    "Golden Hour Club",
+    "Blue Hour Crew",
+    "Light Painting",
+    "Long Exposure",
+    "HDR Photography",
+    "Panoramas",
+    "Candid Moments",
+    "Self Portraits",
+    "Couples Photography",
+    "Family Moments",
+    "Newborn Photography",
+    "Wedding Shots",
+    "Event Photography",
+    "Product Photography",
+    "Creative Edits",
 ]
 
 
@@ -98,11 +210,13 @@ def timed(label):
     class Timer:
         def __enter__(self):
             self.start = time.time()
-            print(f"  {label}...", end='', flush=True)
+            print(f"  {label}...", end="", flush=True)
             return self
+
         def __exit__(self, *args):
             elapsed = time.time() - self.start
             print(f" done ({elapsed:.1f}s)")
+
     return Timer()
 
 
@@ -130,7 +244,7 @@ def clear_data():
 
 def seed_users():
     with timed(f"Creating {NUM_USERS} users + profiles"):
-        hashed_pw = make_password('password123')
+        hashed_pw = make_password("password123")
 
         users = []
         for i in range(NUM_USERS):
@@ -143,12 +257,14 @@ def seed_users():
             else:
                 first = random.choice(FIRST_NAMES)
                 last = random.choice(LAST_NAMES)
-            users.append(User(
-                username=str(uuid.uuid4())[:30],
-                password=hashed_pw,
-                first_name=first,
-                last_name=last,
-            ))
+            users.append(
+                User(
+                    username=str(uuid.uuid4())[:30],
+                    password=hashed_pw,
+                    first_name=first,
+                    last_name=last,
+                )
+            )
         users = User.objects.bulk_create(users)
 
         profiles = []
@@ -158,13 +274,17 @@ def seed_users():
             elif i == 1:
                 username_display = "super_follower"
             else:
-                username_display = f"{user.first_name.lower()}_{user.last_name.lower()}_{i}"
-            profiles.append(UserProfile(
-                user=user,
-                username_display=username_display,
-                first_name=user.first_name,
-                last_name=user.last_name,
-            ))
+                username_display = (
+                    f"{user.first_name.lower()}_{user.last_name.lower()}_{i}"
+                )
+            profiles.append(
+                UserProfile(
+                    user=user,
+                    username_display=username_display,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                )
+            )
         UserProfile.objects.bulk_create(profiles)
 
     return users
@@ -175,13 +295,17 @@ def seed_communities(users):
         communities = []
         for i in range(NUM_COMMUNITIES):
             base_name = COMMUNITY_NAMES[i % len(COMMUNITY_NAMES)]
-            suffix = f" {i // len(COMMUNITY_NAMES) + 1}" if i >= len(COMMUNITY_NAMES) else ""
+            suffix = (
+                f" {i // len(COMMUNITY_NAMES) + 1}" if i >= len(COMMUNITY_NAMES) else ""
+            )
             name = f"{base_name}{suffix}"
-            communities.append(Community(
-                name=name,
-                description=f"A community for {name.lower()} enthusiasts.",
-                creator=random.choice(users),
-            ))
+            communities.append(
+                Community(
+                    name=name,
+                    description=f"A community for {name.lower()} enthusiasts.",
+                    creator=random.choice(users),
+                )
+            )
         communities = Community.objects.bulk_create(communities)
 
         memberships = []
@@ -191,12 +315,14 @@ def seed_communities(users):
             key = (community.id, community.creator_id)
             if key not in seen:
                 seen.add(key)
-                memberships.append(CommunityMembership(
-                    community=community,
-                    user=community.creator,
-                    role='creator',
-                    status='accepted',
-                ))
+                memberships.append(
+                    CommunityMembership(
+                        community=community,
+                        user=community.creator,
+                        role="creator",
+                        status="accepted",
+                    )
+                )
 
             # Random 10-30 additional members
             members = random.sample(users, random.randint(10, 30))
@@ -204,12 +330,14 @@ def seed_communities(users):
                 key = (community.id, member.id)
                 if key not in seen:
                     seen.add(key)
-                    memberships.append(CommunityMembership(
-                        community=community,
-                        user=member,
-                        role='member',
-                        status='accepted',
-                    ))
+                    memberships.append(
+                        CommunityMembership(
+                            community=community,
+                            user=member,
+                            role="member",
+                            status="accepted",
+                        )
+                    )
 
         CommunityMembership.objects.bulk_create(memberships, ignore_conflicts=True)
 
@@ -223,7 +351,7 @@ def seed_photos(users, communities):
         for _ in range(NUM_PHOTOS):
             photo = Photo(
                 user=random.choice(users),
-                image='photos/seed/dummy.jpg',
+                image="photos/seed/dummy.jpg",
                 caption=random.choice(CAPTIONS),
             )
             # ~20% of photos belong to a community
@@ -243,6 +371,7 @@ def seed_photos(users, communities):
     # Spread created_at timestamps over the past 90 days
     with timed("Spreading photo timestamps over 90 days"):
         from django.db import connection
+
         with connection.cursor() as cursor:
             cursor.execute(
                 "UPDATE photos_photo "
@@ -251,7 +380,7 @@ def seed_photos(users, communities):
                 "                       - MOD(id, 60) * INTERVAL '1 minute'"
             )
 
-    return list(Photo.objects.values_list('id', flat=True))
+    return list(Photo.objects.values_list("id", flat=True))
 
 
 def seed_follows(users):
@@ -268,8 +397,10 @@ def seed_follows(users):
             else:
                 num_to_follow = random.randint(10, 50)
                 target_ids = random.sample(user_ids, num_to_follow + 1)
-                target_ids = [tid for tid in target_ids if tid != user.id][:num_to_follow]
-                
+                target_ids = [tid for tid in target_ids if tid != user.id][
+                    :num_to_follow
+                ]
+
             for tid in target_ids:
                 key = (user.id, tid)
                 if key not in follow_set:
@@ -277,7 +408,9 @@ def seed_follows(users):
                     follows.append(Follow(follower_id=user.id, following_id=tid))
 
                     if len(follows) >= 10000:
-                        Follow.objects.bulk_create(follows, batch_size=1000, ignore_conflicts=True)
+                        Follow.objects.bulk_create(
+                            follows, batch_size=1000, ignore_conflicts=True
+                        )
                         total += len(follows)
                         follows = []
 
@@ -305,7 +438,9 @@ def seed_likes(user_ids, photo_ids):
                 likes.append(Like(user_id=uid, photo_id=pid))
 
                 if len(likes) >= 10000:
-                    Like.objects.bulk_create(likes, batch_size=1000, ignore_conflicts=True)
+                    Like.objects.bulk_create(
+                        likes, batch_size=1000, ignore_conflicts=True
+                    )
                     total += len(likes)
                     likes = []
 
@@ -318,11 +453,13 @@ def seed_comments(user_ids, photo_ids):
     with timed(f"Creating {NUM_COMMENTS} comments"):
         comments = []
         for _ in range(NUM_COMMENTS):
-            comments.append(Comment(
-                user_id=random.choice(user_ids),
-                photo_id=random.choice(photo_ids),
-                text=random.choice(COMMENT_TEXTS),
-            ))
+            comments.append(
+                Comment(
+                    user_id=random.choice(user_ids),
+                    photo_id=random.choice(photo_ids),
+                    text=random.choice(COMMENT_TEXTS),
+                )
+            )
 
             if len(comments) >= 10000:
                 Comment.objects.bulk_create(comments, batch_size=1000)
@@ -334,21 +471,23 @@ def seed_comments(user_ids, photo_ids):
 
 def seed_notifications(user_ids, photo_ids):
     with timed(f"Creating {NUM_NOTIFICATIONS} notifications"):
-        types = ['photo_like', 'photo_comment']
+        types = ["photo_like", "photo_comment"]
 
         notifications = []
         for _ in range(NUM_NOTIFICATIONS):
             sender_id, recipient_id = random.sample(user_ids, 2)
 
             ntype = random.choice(types)
-            notifications.append(Notification(
-                recipient_id=recipient_id,
-                sender_id=sender_id,
-                type=ntype,
-                message=f"Someone interacted with your photo.",
-                photo_id=random.choice(photo_ids),
-                is_read=random.random() < 0.4,  # 40% read
-            ))
+            notifications.append(
+                Notification(
+                    recipient_id=recipient_id,
+                    sender_id=sender_id,
+                    type=ntype,
+                    message=f"Someone interacted with your photo.",
+                    photo_id=random.choice(photo_ids),
+                    is_read=random.random() < 0.4,  # 40% read
+                )
+            )
 
             if len(notifications) >= 10000:
                 Notification.objects.bulk_create(notifications, batch_size=1000)
@@ -357,10 +496,11 @@ def seed_notifications(user_ids, photo_ids):
         if notifications:
             Notification.objects.bulk_create(notifications, batch_size=1000)
 
+
 def main():
-    reset = '--reset' in sys.argv
-    reset_only = '--reset-only' in sys.argv
-    force = '--force' in sys.argv
+    reset = "--reset" in sys.argv
+    reset_only = "--reset-only" in sys.argv
+    force = "--force" in sys.argv
 
     print("\n" + "=" * 60)
     print("  Photoz Database Seeder -- Chapter 04")
@@ -401,5 +541,5 @@ def main():
     print("-" * 60 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

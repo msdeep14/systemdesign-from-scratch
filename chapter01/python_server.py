@@ -73,10 +73,10 @@ print(f"[Step 2] Socket bound to {HOST}:{PORT}")
 BACKLOG = 5
 server_socket.listen(BACKLOG)
 print(f"[Step 3] Listening with backlog={BACKLOG}")
-print(f"\n{'='*60}")
+print(f"\n{'=' * 60}")
 print(f"  Server is running at http://{HOST}:{PORT}")
 print(f"  Open this URL in your browser. Press Ctrl+C to stop.")
-print(f"{'='*60}\n")
+print(f"{'=' * 60}\n")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ while True:
         client_socket, client_address = server_socket.accept()
 
         request_count += 1
-        print(f"\n{'─'*60}")
+        print(f"\n{'─' * 60}")
         print(f"[Step 4] Request #{request_count}")
         print(f"  Connection accepted from {client_address[0]}:{client_address[1]}")
         print(f"  TCP 3-way handshake completed ✓")
@@ -238,8 +238,7 @@ while True:
             "Content-Type: text/html; charset=utf-8\r\n"
             f"Content-Length: {len(html_body.encode('utf-8'))}\r\n"
             "Connection: close\r\n"
-            "\r\n"
-            + html_body
+            "\r\n" + html_body
         )
 
         client_socket.sendall(response.encode("utf-8"))
@@ -256,7 +255,7 @@ while True:
         client_socket.shutdown(socket.SHUT_WR)
         client_socket.close()
         print(f"[Step 7] Connection closed")
-        print(f"{'─'*60}\n")
+        print(f"{'─' * 60}\n")
 
     except KeyboardInterrupt:
         print("\n\nShutting down server...")

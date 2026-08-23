@@ -392,7 +392,7 @@
     - Modified `.github/workflows/deploy.yml` — added `lint` job (ruff check, ruff format check, pylint). `test` job gets `needs: lint`.
 - **Edge Cases:** pylint pre-commit hook uses `language: system`, so `pip install -r requirements-dev.txt` must be run locally before `pre-commit install`.
 
-## Phase: Fix Pylint Pre-Commit Configuration & View Errors (Date: 2026-08-22, Commit: Pending, Model: Gemini 3.7 Flash)
+## Phase: Fix Pylint Pre-Commit Configuration & View Errors (Date: 2026-08-22, Commit: f13a0ac61c3ca12c315b9aec0d01c9fa09f4378d, Model: Gemini 3.7 Flash)
 *   **Analysis:** Pylint was running from repository root without `--rcfile=photoz/pyproject.toml`, ignoring configuration disables. Additionally, `E5110` (django-not-configured) and `C0103` (invalid local variable name) failed pre-commit check.
 *   **Actions:**
     *   Added `--rcfile=photoz/pyproject.toml` to `.pre-commit-config.yaml` pylint hook args.
@@ -400,3 +400,12 @@
     *   Renamed local variable `User` to `user_model` in `photoz/users/views.py` (`signup_view`).
 *   **Notes/Edge Cases:** None.
 
+## Phase: Fix Image Rendering and Local Media Serving (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.1 Pro)
+*   **Analysis:** Identified two issues preventing images from rendering locally. First, when using local storage, media files were not being served because Nginx lacked the configuration and volume mount. Second, when using S3 storage locally (`USE_S3=True`), the S3 bucket is private but `AWS_QUERYSTRING_AUTH` was hardcoded to `False`, causing the unsigned image URLs to return `403 Forbidden`.
+*   **Actions:**
+    *   Added a leading slash to `MEDIA_URL` (`/media/`) in `bses/settings.py` for correct path generation.
+    *   Added `./media:/app/media` volume mount for the `nginx` container in `docker-compose.yml`.
+    *   Added `location /media/` block in `nginx/nginx.conf.local` to serve media files from `/app/media/`.
+    *   Updated `bses/settings.py` to set `AWS_QUERYSTRING_AUTH = True` dynamically unless a custom domain (`AWS_S3_CUSTOM_DOMAIN`) is configured. This ensures `django-storages` generates presigned URLs for private S3 images.
+    *   Re-created Nginx container and restarted the `web` container.
+*   **Notes/Edge Cases:** The dynamic `AWS_QUERYSTRING_AUTH` setting ensures CloudFront (which sets `AWS_S3_CUSTOM_DOMAIN`) still uses cache-friendly unsigned URLs while local S3 connections bypass the `403` restriction using presigned URLs.
