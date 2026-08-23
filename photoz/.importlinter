@@ -23,3 +23,6 @@ ignore_imports =
     photos.views -> notifications.models
     communities.views -> notifications.models
     newsfeed.views -> communities.models
+    newsfeed.views -> users.models
+    communities.views -> users.models
+    photos.views -> users.models

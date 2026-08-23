@@ -28,10 +28,11 @@ repos:
 
       - id: import-linter
         name: import-linter
-        entry: bash -c 'PYTHONPATH=photoz lint-imports "$@"' --
+        entry: bash -c 'cd photoz && PYTHONPATH=. lint-imports "$@"' --
         language: system
         types: [python]
         files: ^photoz/
         pass_filenames: false
         args:
-          - "--config=photoz/.importlinter"
+          - "--config=.importlinter"
+          - "--no-cache"

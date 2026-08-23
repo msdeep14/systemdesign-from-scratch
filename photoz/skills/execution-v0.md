@@ -415,4 +415,6 @@
 *   **Actions:**
     *   Re-created `photoz/.importlinter` with an `independence` contract for the 5 domain apps.
     *   Extracted the exact 5 existing cross-app violations (`newsfeed.views -> photos.models`, etc.) using `import-linter` directly and added them to `ignore_imports` to whitelist the legacy violations.
+    *   `import-linter` parses the AST and dynamically builds the module graph. The local run missed 3 `users` violations because `users` failed to resolve from the repo root context, but the GitHub CI run (`working-directory: photoz`) correctly resolved all 27 dependencies and caught them. Re-added the 3 `users` violations to `ignore_imports` to ensure GitHub CI passes.
+    *   Running `import-linter` via standard `language: python` in pre-commit failed because the repository root isn't a package. Falling back to `language: system` with custom `entry` command was the cleanest solution.
     *   Re-integrated `import-linter` into `.pre-commit-config.yaml` using `language: system` and `PYTHONPATH=photoz` to ensure it automatically runs on every commit using the local virtual environment.
