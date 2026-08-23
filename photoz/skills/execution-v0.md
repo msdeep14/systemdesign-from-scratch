@@ -418,3 +418,10 @@
     *   `import-linter` parses the AST and dynamically builds the module graph. The local run missed 3 `users` violations because `users` failed to resolve from the repo root context, but the GitHub CI run (`working-directory: photoz`) correctly resolved all 27 dependencies and caught them. Re-added the 3 `users` violations to `ignore_imports` to ensure GitHub CI passes.
     *   Running `import-linter` via standard `language: python` in pre-commit failed because the repository root isn't a package. Falling back to `language: system` with custom `entry` command was the cleanest solution.
     *   Re-integrated `import-linter` into `.pre-commit-config.yaml` using `language: system` and `PYTHONPATH=photoz` to ensure it automatically runs on every commit using the local virtual environment.
+
+## Phase: Step 3: TrueCourse Configuration (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.1 Pro (High) )
+*   **Analysis:** We needed to enforce semantic architecture guardrails (layer violations, business logic drift) using an AI-powered code intelligence tool called TrueCourse. Since the requirement is to use free, local tools, we chose to use TrueCourse via a local Ollama LLM endpoint.
+*   **Actions:**
+    *   Updated `chapter05/architecture_guardrails/README.md` to include detailed manual installation steps for Node.js (`npm`), Ollama, and the `llama3.1:8b` model.
+    *   Added execution commands for `npx truecourse analyze install` and the exact CLI flag sequence to re-route TrueCourse to the local Ollama API.
+*   **Notes/Edge Cases:** Since Node.js and Ollama were not installed on the system, the configuration could not be executed programmatically. We shifted to a "documentation-first" approach where the commands are recorded as runbooks in the README for the developer to execute locally.
