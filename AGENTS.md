@@ -17,6 +17,9 @@ This document contains guidelines on AI agent response generation, coding standa
     * Any notable edge cases or errors you encountered and how you fixed them.
 * **Any change to the `photoz/` application code (middleware, settings, models, views, etc.) MUST also be logged in `photoz/skills/execution-v0.md`**, in addition to the chapter-specific execution log. This ensures the photoz project maintains a complete history of all application-level changes regardless of which chapter triggered them.
 
+## Version Control (CRITICAL)
+* **NEVER AUTO-COMMIT**: You must never run `git commit` automatically on behalf of the user. Your role is to make the code changes and then stop. The user will review the code manually and then add the commit themselves. Do not manage the git history.
+
 ## Coding Standards
 - **Keep it Simple & Direct**: Do not over-engineer. Do not abstract for the sake of abstraction. If a feature can be implemented cleanly in 10 lines instead of 100, choose the 10-line approach.
 - **Strict Scope**: Do not add features or "future-proofing" abstractions that are not explicitly required for the current version.

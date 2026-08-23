@@ -115,3 +115,9 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - **Enhanced CI/CD for Multi-Environment:** Updated `.github/workflows/infra.yml` to support a two-stage promotion workflow. The pipeline now dynamically selects the Terraform workspace based on the target branch: pulling/pushing to `staging` maps to the `staging` workspace, and pulling/pushing to `main` maps to the `default` (production) workspace.
   - **Decoupled CI/CD Identity:** Removed all CI/CD IAM Roles and GitHub Actions OIDC providers from Terraform management (`iam.tf`) to prevent self-deletion during a `terraform destroy`. Provided a manual AWS CLI bootstrapping script in the README using AWS managed service-level policies for strict least-privilege access.
   - **Added Remote Destroy:** Created `.github/workflows/destroy.yml` to allow engineers to trigger a manual `terraform destroy` against any workspace directly from the GitHub UI using OIDC authentication.
+
+### Phase: Architecture Guardrails - Structurizr C4 Model (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.1 Pro(High) )
+* **Analysis**: The project needs a "ground truth" architectural reference to serve as a baseline for drift detection. Evaluated multiple tools and selected Structurizr Lite to define the C4 architecture as code.
+* **Actions Taken**:
+  - Created `photoz/structurizr/workspace.dsl` modeling the User, Web App, Postgres DB, Redis Cache, and S3 system.
+  - Details in `chapter05/architecture_guardrails/README.md`.
