@@ -26,7 +26,7 @@ jobs:
 
       - name: Install lint dependencies
         working-directory: photoz
-        run: pip install -r requirements-dev.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run ruff lint
         working-directory: photoz
@@ -43,6 +43,10 @@ jobs:
             --load-plugins=pylint_django \
             --django-settings-module=bses.settings \
             $(find . -name "*.py" -not -path "*/migrations/*" -not -path "*/venv/*")
+
+      - name: Run import linter
+        working-directory: photoz
+        run: PYTHONPATH=. lint-imports
 
   test:
     name: Run tests

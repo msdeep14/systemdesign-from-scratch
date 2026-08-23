@@ -121,3 +121,11 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
 * **Actions Taken**:
   - Created `photoz/structurizr/workspace.dsl` modeling the User, Web App, Postgres DB, Redis Cache, and S3 system.
   - Details in `chapter05/architecture_guardrails/README.md`.
+
+### Phase: Architecture Guardrails - Import Linter (Date: 2026-08-23, Commit: Pending, Model: Gemini 3.1 Pro(High))
+* **Analysis**: To prevent spaghetti code and tight coupling between domain contexts, we need to enforce boundaries between Django apps (e.g., users, photos, newsfeed). `import-linter` provides an AST-level check to ensure these boundaries aren't crossed.
+* **Actions Taken**:
+  - Created `photoz/.importlinter` to strictly enforce independence between all core Django apps.
+  - Configured `ignore_imports` to whitelist 8 existing legacy violations (e.g., `photos.views -> notifications.models`) so the build passes for now, but new violations are blocked.
+  - Added `import-linter` as a pre-commit hook in `.pre-commit-config.yaml`.
+  - Added `lint-imports` to the CI pipeline in `.github/workflows/deploy.yml` to block invalid pull requests.

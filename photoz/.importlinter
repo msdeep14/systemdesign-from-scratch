@@ -1,0 +1,25 @@
+[importlinter]
+root_packages =
+    communities
+    newsfeed
+    notifications
+    photos
+    users
+
+[importlinter:contract:1]
+name = Independence of domain apps
+type = independence
+modules =
+    communities
+    newsfeed
+    notifications
+    photos
+    users
+
+# ignoring because previous code. Should be fixed later.
+ignore_imports =
+    newsfeed.views -> photos.models
+    photos.views -> communities.models
+    photos.views -> notifications.models
+    communities.views -> notifications.models
+    newsfeed.views -> communities.models
