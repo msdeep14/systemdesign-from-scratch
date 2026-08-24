@@ -20,6 +20,25 @@ After the container starts, type in below url in web browser:
 
 Any changes you make to `workspace.dsl` will be reflected in the browser.
 
+### Level 4 (Code) View
+
+Structurizr intentionally omits the "Code" level of the C4 model as it is best auto-generated directly from source code to avoid maintenance drift. To generate an ER diagram of all Django models and their relationships:
+
+1. **Install Prerequisites:**
+   Ensure you have `graphviz` installed on your system (e.g., `brew install graphviz`).
+   The required python packages (`django-extensions` and `pydot`) are already in `requirements-dev.txt`.
+
+2. **Generate the Diagram:**
+   ```bash
+   cd photoz
+   source venv/bin/activate
+   python manage.py graph_models -a -o models_code_view.png
+
+   # for user model 
+   python manage.py graph_models users -o user_model.png 
+   ```
+   This will output `models_code_view.png` in the `photoz` directory containing the full schema.
+
 ## Import Linter
 
 We use `import-linter` to strictly enforce domain boundaries between Django apps (e.g., preventing `newsfeed` from tightly coupling with `users` or `communities`). The configuration is stored in `photoz/.importlinter`.
