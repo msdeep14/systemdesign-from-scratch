@@ -1,13 +1,14 @@
-analyses/
-history.json
-diff.json
-ui-state.json
-logs/
-.analyze.lock
-.cache/
-contracts/result.json
-guard/runs/
-guard/result.json
-guard/auto-resolutions.json
-guard/evidence/
-LATEST.json
+# Ignore everything in the .truecourse directory
+*
+
+# Whitelist directories to allow searching inside them
+!*/
+
+# Whitelist the config files we want to track
+!.gitignore
+!config.json
+!scenarios/recipe.json
+
+# Explicitly ignore all other files inside scenarios/ (like generated tests, flows.json, manifest.json)
+scenarios/*
+!scenarios/recipe.json

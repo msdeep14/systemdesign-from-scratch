@@ -103,6 +103,8 @@ Once the prerequisites are installed, you must initialize TrueCourse in the `pho
    * **Base URL** -> `http://localhost:11434/v1`
    * **Would you like to install Claude Code skills?** -> `No`
 
+   You can change model using `truecourse config llm setup`.
+
    *This will create a `.truecourse` directory to store JSON configurations and analysis results.*
 
 2. **Configure Local LLM Endpoint (Headless/CI):**
@@ -120,9 +122,57 @@ You can now run TrueCourse to analyze the architecture and detect semantic drift
     npx truecourse analyze
     ```
 *   **Guard Business-Logic (Check specs against code):**
+    Because `truecourse guard` dynamically verifies your code against your documentation, it requires a series of steps to scan your docs, resolve conflicts, and run tests:
     ```bash
-    npx truecourse guard
+    # 0. Set up the environment and recipe.json
+    npx truecourse guard setup -y
+
+    # 1. Scan documentation and C4 models to build the spec corpus
+    npx truecourse spec scan
+
+    # 2. List and resolve any conflicting documentation 
+    npx truecourse spec conflicts list
+    npx truecourse spec conflicts resolve 1 --right README.md
+
+    # 3. Generate end-to-end scenario tests based on your documentation
+    npx truecourse guard generate -y
+
+    # 4. Boot the app (via recipe.json) and run the scenario tests
+    npx truecourse guard run
     ```
+
+    **TrueCourse Observations & Limitations**
+
+    TrueCourse is new and not fully mature. The documentation on GitHub `main` describes features not yet in the stable `npm` release. Install the pre-release tag to use them:
+    ```bash
+    npm install -g truecourse@0.8.1-next.0
+    ```
+
+    **1. Local Model Support**
+    Local models like `qwen2.5-coder:7b` parse JSON successfully. Ensure `recipe.json` uses `"cwd": "repo"` and the correct `python` binary to prevent sandbox crashes.
+
+    **2. Setup Command & "0 Tables"**
+    `npx truecourse guard setup` will report `0 tables`. This is expected. TrueCourse cannot parse Django's `models.py`. Bypass this by calling your seed script in the `recipe.json` `build` command.
+
+    **3. Flow Synthesis Failures**
+    TrueCourse relies on LLMs to synthesize test flows. Small local models (7B/8B) often hallucinate flows (e.g., trying to test internal concepts like the "Redis Lock Cache Promise") and crash the synthesis stage.
+    *Recommendation:* Use higher parameter models like **Gemini 3.6 Flash** via LiteLLM for the generation phase. They can distinguish architectural concepts from testable HTTP endpoints.
+    To set this up:
+    1. Get a [Gemini API Key from Google AI Studio](https://aistudio.google.com/app/apikey).
+    2. Start the LiteLLM proxy:
+       ```bash
+       pip install 'litellm[proxy]'
+       GEMINI_API_KEY=your_key litellm --model gemini/gemini-3.6-flash
+       ```
+    3. Configure TrueCourse (`npx truecourse config llm setup`): 
+       - Provider: `OpenAI`
+       - Model: `gemini/gemini-3.6-flash`
+       - Base URL: `http://localhost:4000`
+
+    **4. The Django "no journey" Limitation**
+    TrueCourse drops correctly generated API flows (e.g. Signup, Login) reporting `no journey`. It maps documented flows to code using AST parsing, but our direct analysis of the TrueCourse source code (`cli.mjs`) revealed exactly why it fails for Django:
+    - The Python route extractor (`extractPythonRoutes`) hardcodes a regex that searches exclusively for decorator-based routing: `decoratorText.match(/@\w+\.(get|post|put|delete|patch|route)\s*\(/)`.
+    *Conclusion:* TrueCourse cannot currently map journeys for Django applications. Its AST parser only supports Python applications built with **FastAPI or Flask**. It is structurally incapable of parsing Django's `urlpatterns` list, meaning it assumes the documented endpoints simply don't exist in the codebase.
 
 ### View the results
 

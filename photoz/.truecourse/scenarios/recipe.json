@@ -1,0 +1,11 @@
+{
+  "build": "docker-compose up -d && python ../chapter04/query_optimization/seed_data.py && python scripts/create_guard_user.py",
+  "env": {
+    "DATABASE_URL": "postgres://postgres:postgres@localhost:5432/bses"
+  },
+  "api": {
+    "serve": ["python", "manage.py", "runserver", "${PORT}"],
+    "healthPath": "/users/login/",
+    "cwd": "repo"
+  }
+}

@@ -53,8 +53,14 @@ INSTALLED_APPS = [
     "newsfeed.apps.NewsfeedConfig",
     "communities.apps.CommunitiesConfig",
     "notifications.apps.NotificationsConfig",
-    "django_extensions",
 ]
+
+try:
+    import django_extensions  # noqa: F401
+
+    INSTALLED_APPS.append("django_extensions")
+except ImportError:
+    pass
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
