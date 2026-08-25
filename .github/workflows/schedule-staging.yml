@@ -1,11 +1,11 @@
 name: Scheduled Staging Sleep/Wake
 
 on:
-  schedule:
+  # schedule:
     # 10:00 PM IST (16:30 UTC) Mon-Fri - Sleep
-    - cron: '30 16 * * 1-5'
+    # - cron: '30 16 * * 1-5'
     # 08:00 AM IST (02:30 UTC) Mon-Fri - Wake
-    - cron: '30 2 * * 1-5'
+    # - cron: '30 2 * * 1-5'
   
   workflow_dispatch:
     inputs:

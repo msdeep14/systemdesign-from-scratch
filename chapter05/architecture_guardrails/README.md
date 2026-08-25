@@ -183,3 +183,41 @@ npx truecourse dashboard
 # terminal view
 npx truecourse list
 ```
+
+## Drift (Architectural Erosion Check)
+
+Drift (`drift-analyzer`) is a standalone static analysis tool and GitHub Action designed to detect "architectural erosion" and structural drift in codebases. Unlike TrueCourse, which requires AST support for decorators and struggles with Django, Drift natively analyzes structural ASTs, Git commit histories, and import patterns, making it highly effective for Django codebases.
+
+Drift helps maintain the architectural integrity of Photoz by detecting:
+* **Hidden Co-Change Coupling:** Identifying files that change together frequently without explicit dependencies.
+* **Pattern Fragmentation:** Detecting slightly different variants of the same design pattern across apps.
+* **Novel Dependencies:** Flagging when apps start importing dependencies they historically haven't used.
+
+### 1. Installation
+
+Drift is distributed via PyPI. We install it into our existing python virtual environment.
+
+```bash
+# From inside the photoz directory with venv activated
+pip install drift-analyzer
+```
+
+### 2. Local Usage
+
+To manually check for structural drift or architectural violations during development, use the CLI:
+
+```bash
+cd photoz
+
+# View the traffic-light status of the repository
+drift-analyzer status
+
+# Get a detailed analysis with all structural findings
+drift-analyzer analyze --repo .
+```
+
+### 3. GitHub Action Integration
+
+We enforce architectural boundaries by running Drift in CI on every Pull Request. The CI gate will fail if it detects high-severity issues (like severe co-change coupling or pattern fragmentation).
+
+This is configured at `.github/workflows/drift.yml`:
