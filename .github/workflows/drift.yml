@@ -16,5 +16,6 @@ jobs:
       - name: Run Drift
         uses: mick-gsk/drift@v2
         with:
+          repo: photoz         # Only run analysis on the photoz Django monolith
           fail-on: high        # Fails the PR check if high severity issues are found
           comment: "true"      # Posts a summary comment on the PR

@@ -38,7 +38,7 @@ repos:
           - "--no-cache"
       - id: drift-check
         name: drift-check
-        entry: bash -c 'cd photoz && drift-analyzer check "$@"' --
+        entry: bash -c 'cd photoz && drift-analyzer analyze "$@"' --
         language: system
         types: [python]
         files: ^photoz/
