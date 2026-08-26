@@ -136,3 +136,14 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Evaluated `drift-analyzer` on the `photoz/` repository, successfully discovering 44 structural issues (score 0.20, Grade B).
   - Documented `drift-analyzer` usage and installation in `chapter05/architecture_guardrails/README.md`.
   - Created `.github/workflows/drift.yml` to run the `mick-gsk/drift` action on PRs affecting `photoz/**` and fail on `high` severity findings.
+
+### Phase: Architecture Guardrails - FINOS CALM Evaluation (Date: 2026-08-26, Commit: Pending, Model: Gemini 3.1 Pro High)
+* **Analysis**: Evaluated FINOS Architecture as Code (CALM) and its CALMGuard tool as an alternative for detecting architectural drift. While CALM is a robust standard for "Architecture as Code", it focuses heavily on regulatory compliance (SOX, PCI-DSS, NIST) and infrastructure generation (Terraform/CI). Its "drift detection" compares the `.calm.json` model against live cloud infrastructure (AWS/GCP), rather than analyzing source code AST or git history. It requires manual maintenance of a `.calm.json` file and does not detect code-level boundary violations (e.g., tight coupling between Django apps). Therefore, it serves a different, more enterprise-compliance-focused purpose compared to `drift-analyzer` or `import-linter`.
+* **Actions Taken**:
+  - Cloned and reviewed the `finos/architecture-as-code` repository.
+  - Analyzed `calm-guard` documentation and its approach to architectural drift and DevSecOps.
+### Phase: Architecture Guardrails - FINOS CALM Integration (Date: 2026-08-26, Commit: Pending, Model: Gemini 3.1 Pro High)
+* **Analysis**: Following the evaluation of FINOS CALM, we decided to adopt it in tandem with `drift-analyzer`. CALM provides a machine-readable JSON specification of the infrastructure architecture that can be used for compliance and DevSecOps validations, serving as a complement to `drift-analyzer`'s code-level AST checks.
+* **Actions Taken**:
+  - Created `photoz/architecture/photoz.calm.json` defining the high-level infrastructure components (Load Balancer, Web App, Primary DB, Replica DB, Cache, CDN, S3) and their relationships based on the Structurizr model.
+  - Created `.github/workflows/calm-validation.yml` to automatically validate the architecture model using the `@finos/calm-cli` on push and pull requests to the `main` branch.  

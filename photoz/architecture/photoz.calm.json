@@ -1,0 +1,187 @@
+{
+  "$schema": "https://calm.finos.org/release/1.2/meta/calm.json",
+  "$id": "https://raw.githubusercontent.com/msdeep14/systemdesignfromscratch/main/photoz/architecture/photoz.calm.json",
+  "title": "Photoz Architecture",
+  "description": "A photo-sharing social network architecture.",
+  "nodes": [
+    {
+      "unique-id": "end-user",
+      "node-type": "actor",
+      "name": "Photoz User",
+      "description": "A user interacting with the Photoz social network via web browser or mobile app."
+    },
+    {
+      "unique-id": "load-balancer",
+      "node-type": "service",
+      "name": "Nginx Load Balancer",
+      "description": "Routes incoming traffic to available app servers and serves static assets."
+    },
+    {
+      "unique-id": "web-app",
+      "node-type": "service",
+      "name": "Django App Servers",
+      "description": "Horizontally scalable application servers handling business logic."
+    },
+    {
+      "unique-id": "primary-db",
+      "node-type": "service",
+      "name": "Primary PostgreSQL Database",
+      "description": "Stores user profiles, photos metadata, communities, and relationships."
+    },
+    {
+      "unique-id": "replica-db",
+      "node-type": "service",
+      "name": "Read Replica PostgreSQL Database",
+      "description": "Read-only database replicas for scaling read queries."
+    },
+    {
+      "unique-id": "cache",
+      "node-type": "service",
+      "name": "Redis Cache",
+      "description": "Caches newsfeeds and frequently accessed data."
+    },
+    {
+      "unique-id": "cdn",
+      "node-type": "service",
+      "name": "CloudFront CDN",
+      "description": "Caches and serves uploaded images globally."
+    },
+    {
+      "unique-id": "s3",
+      "node-type": "service",
+      "name": "Amazon S3",
+      "description": "Object storage for uploaded photos."
+    }
+  ],
+  "relationships": [
+    {
+      "unique-id": "lb-to-webapp",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "load-balancer"
+          },
+          "destination": {
+            "node": "web-app"
+          }
+        }
+      },
+      "protocol": "HTTP",
+      "description": "Routes dynamic traffic to"
+    },
+    {
+      "unique-id": "webapp-to-primarydb",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "primary-db"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads from and writes to"
+    },
+    {
+      "unique-id": "webapp-to-replicadb",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "replica-db"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads from"
+    },
+    {
+      "unique-id": "primarydb-to-replicadb",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "primary-db"
+          },
+          "destination": {
+            "node": "replica-db"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Replicates data to"
+    },
+    {
+      "unique-id": "webapp-to-cache",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "cache"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads from and writes to"
+    },
+    {
+      "unique-id": "webapp-to-s3",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "s3"
+          }
+        }
+      },
+      "protocol": "HTTPS",
+      "description": "Uploads photos"
+    },
+    {
+      "unique-id": "cdn-to-s3",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "cdn"
+          },
+          "destination": {
+            "node": "s3"
+          }
+        }
+      },
+      "protocol": "HTTPS",
+      "description": "Fetches images from origin"
+    },
+    {
+      "unique-id": "user-to-lb",
+      "relationship-type": {
+        "interacts": {
+          "actor": "end-user",
+          "nodes": [
+            "load-balancer"
+          ]
+        }
+      },
+      "description": "Browses the site, manages profile, and uploads photos"
+    },
+    {
+      "unique-id": "user-to-cdn",
+      "relationship-type": {
+        "interacts": {
+          "actor": "end-user",
+          "nodes": [
+            "cdn"
+          ]
+        }
+      },
+      "description": "Downloads and views photos"
+    }
+  ]
+}

@@ -425,3 +425,18 @@
     *   Updated `chapter05/architecture_guardrails/README.md` to include detailed manual installation steps for Node.js (`npm`), Ollama, and the `llama3.1:8b` model.
     *   Added execution commands for `npx truecourse analyze install` and the exact CLI flag sequence to re-route TrueCourse to the local Ollama API.
 *   **Notes/Edge Cases:** Since Node.js and Ollama were not installed on the system, the configuration could not be executed programmatically. We shifted to a "documentation-first" approach where the commands are recorded as runbooks in the README for the developer to execute locally.
+
+## Phase: CALM Guardrails Integration (Date: 2026-08-26, Commit: pending, Model: Gemini 3.1 Pro (High) )
+* **Analysis & Rationale:** Integrated FINOS CALM to add declarative architecture-as-code validation. Decided to build custom organizational guardrails on top of the FINOS specification using a JSON Schema pattern file (`guardrails.pattern.json`) to enforce security boundaries early in the DevSecOps lifecycle.
+* **Actions Taken:**
+    * Created `photoz/architecture/photoz.calm.json` defining the high-level architecture.
+    * Created `photoz/architecture/guardrails.pattern.json` with strict `allOf` / `not` / `if-then` rules enforcing:
+        * No writes to Read Replicas.
+        * Mandatory HTTPS for connections to S3 and CDN.
+        * Strict DB isolation (preventing load balancers and CDNs from accessing primary-db directly).
+    * Updated `.pre-commit-config.yaml` to run `calm validate` with the custom pattern.
+    * Updated GitHub Actions (`.github/workflows/calm-validation.yml`) to enforce these rules on `push` and `pull_request` against `**.json` paths.
+    * Updated `chapter05/architecture_guardrails/README.md` to document usage of the new guardrails.
+* **Edge Cases / Errors Fixed:**
+    * Addressed regex compilation failure in JSON schema by replacing `(?i)write` with `.*[Ww]rite.*`.
+    * Resolved pre-commit ignoring untracked files by staging the newly created architecture JSON files.

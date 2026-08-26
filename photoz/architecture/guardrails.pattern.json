@@ -1,0 +1,72 @@
+{
+  "$schema": "https://calm.finos.org/release/1.2/meta/calm.json",
+  "$id": "https://photoz.local/guardrails.pattern.json",
+  "title": "Photoz Architecture Guardrails",
+  "description": "Custom organizational constraints applied on top of the base architecture.",
+  "type": "object",
+  "properties": {
+    "nodes": {
+      "type": "array"
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "not": {
+              "properties": {
+                "relationship-type": {
+                  "properties": {
+                    "connects": {
+                      "properties": {
+                        "destination": {
+                          "properties": {
+                            "node": {
+                              "const": "replica-db"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": {
+                  "pattern": ".*[Ww]rite.*"
+                }
+              },
+              "required": ["relationship-type", "description"]
+            }
+          },
+          {
+            "not": {
+              "properties": {
+                "relationship-type": {
+                  "properties": {
+                    "interacts": {
+                      "properties": {
+                        "actor": {
+                          "const": "end-user"
+                        },
+                        "nodes": {
+                          "contains": {
+                            "const": "s3"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "patternProperties": {
+                    "^(?!interacts$).*$": {
+                      "not": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "required": ["nodes", "relationships"]
+}
