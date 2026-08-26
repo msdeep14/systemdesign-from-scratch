@@ -45,3 +45,10 @@ repos:
         pass_filenames: false
         args:
           - "--fail-on=high"
+
+      - id: calm-validate
+        name: calm-validate
+        entry: bash -c 'cd photoz && calm validate -a architecture/photoz.calm.json -p architecture/guardrails.pattern.json'
+        language: system
+        files: ^photoz/architecture/.*\.json$
+        pass_filenames: false

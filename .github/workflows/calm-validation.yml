@@ -1,0 +1,29 @@
+name: CALM Architecture Validation
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'photoz/architecture/**.json'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'photoz/architecture/**.json'
+
+jobs:
+  validate-calm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install CALM CLI
+        run: npm install -g @finos/calm-cli@latest
+
+      - name: Validate CALM JSON and Enforce Guardrails
+        run: calm validate -a photoz/architecture/photoz.calm.json -p photoz/architecture/guardrails.pattern.json

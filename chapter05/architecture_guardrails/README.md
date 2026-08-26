@@ -218,4 +218,49 @@ drift-analyzer analyze --repo .
 
 ### 3. GitHub Action
 
-This is configured at `.github/workflows/drift.yml`:
+This is configured at `.github/workflows/drift.yml`.
+
+## FINOS Architecture as Code (CALM)
+
+[FINOS CALM](https://calm.finos.org/) (Common Architecture Language Model) is an open-source standard for defining Architecture-as-Code in a machine-readable JSON format. While `drift-analyzer` and `import-linter` check our source code AST, CALM serves as the "ground truth" model for infrastructure compliance and DevSecOps integrations (e.g., verifying architecture against SOX, PCI-DSS, NIST frameworks).
+
+Our architecture model is defined at `photoz/architecture/photoz.calm.json`.
+
+### 1. Installation
+
+The `@finos/calm-cli` is a Node.js package. You can install it globally to validate the architecture model locally.
+
+```bash
+npm install -g @finos/calm-cli@latest
+```
+
+### 2. Local Usage
+
+To manually validate the `.calm.json` file against the official FINOS schema and our custom architecture guardrails (`guardrails.pattern.json`):
+
+```bash
+# From the root directory
+cd photoz
+calm validate -a architecture/photoz.calm.json -p architecture/guardrails.pattern.json
+```
+
+**Custom Guardrails Explained:**
+We enforce organization-specific boundaries on top of the FINOS schema using `architecture/guardrails.pattern.json`. Our current guardrails include:
+* **No Writes to Replicas**: Enforces that no relationship pointing to `replica-db` can contain the word "write" in its description.
+* **No Direct S3 User Access**: Prevents the `end-user` actor from interacting directly with `s3` (forcing all media downloads through the CDN).
+
+To visualize the architecture (similar to C4 diagrams), CALM provides a `docify` command that generates a full Docusaurus documentation site with Mermaid flowchart diagrams:
+
+```bash
+# Generate the documentation site
+calm docify -a architecture/photoz.calm.json -o architecture/docs
+
+# Serve the site locally in your browser
+cd architecture/docs
+npm install
+npm run start
+```
+
+### 3. GitHub Action
+
+We enforce CALM validation on every pull request and merge to `main`. This is configured at `.github/workflows/calm-validation.yml`.

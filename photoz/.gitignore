@@ -30,3 +30,9 @@ staticfiles/
 .structurizr/
 
 .drift-cache/
+
+# CALM Generated Docs
+architecture/docs/*
+!architecture/docs/docs/
+architecture/docs/docs/*
+!architecture/docs/docs/index.md
