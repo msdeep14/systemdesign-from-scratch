@@ -1,6 +1,26 @@
 # BSES v0 - Social Media Application
 
-BSES is a modern, responsive social media web application built with Django. It features photo sharing, community creation, real-time-feel interactions (AJAX likes and comments), and a global notification system.
+This is a monolithic Django application that serves as the backend for the system. It handles user authentication, photo uploads, newsfeed generation, and interactions (likes/comments).
+
+## API Reference
+TrueCourse relies on explicit HTTP documentation to generate tests. Here are the core endpoints that can be tested:
+
+### Authentication
+- **Signup**: `POST /users/signup/`
+  - Payload (Form Data): `email`, `username`, `password`
+  - Success: `302 Found` (redirects on successful signup)
+- **Login**: `POST /users/login/`
+  - Payload (Form Data): `username`, `password`
+  - Success: `200 OK` (establishes an authenticated session)
+
+### Photos
+- **Upload Photo**: `POST /photos/upload/`
+  - Payload (Multipart Form): `image` (file), `caption` (text)
+  - Success: `302 Found` (redirects to the uploaded photo or home page)
+
+### Newsfeed
+- **Generate Newsfeed**: `GET /`
+  - Success: `200 OK` (returns the chronological feed of photos)
 
 ## Features
 

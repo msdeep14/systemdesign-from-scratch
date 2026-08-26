@@ -1,0 +1,20 @@
+name: Architecture Drift Check
+
+on:
+  pull_request:
+    paths:
+      - 'photoz/**'
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # full history is required for temporal signals (co-change coupling)
+      
+      - name: Run Drift
+        uses: mick-gsk/drift@v2
+        with:
+          fail-on: high        # Fails the PR check if high severity issues are found
+          comment: "true"      # Posts a summary comment on the PR

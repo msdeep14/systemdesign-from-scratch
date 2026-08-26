@@ -129,3 +129,10 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   - Configured `ignore_imports` to whitelist 8 existing legacy violations (e.g., `photos.views -> notifications.models`) so the build passes for now, but new violations are blocked.
   - Added `import-linter` as a pre-commit hook in `.pre-commit-config.yaml`.
   - Added `lint-imports` to the CI pipeline in `.github/workflows/deploy.yml` to block invalid pull requests.
+
+### Phase: Architecture Guardrails - Drift Analyzer (Date: 2026-08-25, Commit: Pending, Model: Gemini 3.1 Pro)
+* **Analysis**: While TrueCourse is powerful, it relies on AST routing decorators not present in Django (`urlpatterns`), meaning it drops most API flows. `drift-analyzer` provides native structural AST and git history analysis, perfectly detecting co-change coupling, pattern fragmentation, and novel dependencies in Django.
+* **Actions Taken**:
+  - Evaluated `drift-analyzer` on the `photoz/` repository, successfully discovering 44 structural issues (score 0.20, Grade B).
+  - Documented `drift-analyzer` usage and installation in `chapter05/architecture_guardrails/README.md`.
+  - Created `.github/workflows/drift.yml` to run the `mick-gsk/drift` action on PRs affecting `photoz/**` and fail on `high` severity findings.

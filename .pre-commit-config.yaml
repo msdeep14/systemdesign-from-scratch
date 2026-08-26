@@ -36,3 +36,12 @@ repos:
         args:
           - "--config=.importlinter"
           - "--no-cache"
+      - id: drift-check
+        name: drift-check
+        entry: bash -c 'cd photoz && drift-analyzer check "$@"' --
+        language: system
+        types: [python]
+        files: ^photoz/
+        pass_filenames: false
+        args:
+          - "--fail-on=high"
