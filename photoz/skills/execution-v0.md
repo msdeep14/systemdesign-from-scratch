@@ -440,3 +440,29 @@
 * **Edge Cases / Errors Fixed:**
     * Addressed regex compilation failure in JSON schema by replacing `(?i)write` with `.*[Ww]rite.*`.
     * Resolved pre-commit ignoring untracked files by staging the newly created architecture JSON files.
+
+### Phase: Architecture Evaluation for New Features (Date: 2026-08-27, Commit: Pending, Model: Gemini 3.1 Pro (High))
+* **Analysis**: Evaluated the integration of four new features (User Tagging, Stories, Verified Profiles, Profile Links) into the current Photoz architecture. Used  and  to assess current coupling. Found that the system is a tightly coupled monolith where Django apps (, , , ) directly import each other's models inside views.
+* **Decisions**: 
+  * The system is too coupled for a direct microservices extraction. We must first enforce strict boundaries (Modular Monolith) by introducing an internal API/Service layer and using Event-Driven patterns (e.g., signals/Celery) instead of direct cross-app view imports.
+  * Verified Profiles and Profile Links fit natively into  without adding coupling.
+  * Tagging users and Stories will require service-level boundaries to prevent worsening the  violations.
+* **Actions Taken**:
+  * Generated Implementation Plan artifact detailing the proposed architecture adjustments and feature implementations.
+
+### Phase: Architecture Evaluation for New Features (Date: 2026-08-27, Commit: Pending, Model: Gemini 3.1 Pro (High))
+* **Analysis**: Evaluated the integration of four new features (User Tagging, Stories, Verified Profiles, Profile Links) into the current Photoz architecture. Used drift-analyzer and import-linter to assess current coupling. Found that the system is a tightly coupled monolith where Django apps (newsfeed, photos, communities, users) directly import each other's models inside views.
+* **Decisions**:
+  * The system is too coupled for a direct microservices extraction. We must first enforce strict boundaries (Modular Monolith) by introducing an internal API/Service layer and using Event-Driven patterns (e.g., signals/Celery) instead of direct cross-app view imports.
+  * Verified Profiles and Profile Links fit natively into users.models.UserProfile without adding coupling.
+  * Tagging users and Stories will require service-level boundaries to prevent worsening the import-linter violations.
+* **Actions Taken**:
+  * Generated Implementation Plan artifact detailing the proposed architecture adjustments and feature implementations.
+
+### Phase: Decoupling Strategy Selection (Date: 2026-08-27, Commit: Pending, Model: Gemini 3.1 Pro (High))
+* **Analysis**: The user rejected introducing an external task queue (e.g., Celery) at this stage. Evaluated using native Python `async` vs Django Signals for achieving an event-driven architecture to decouple the Django apps.
+* **Decisions**:
+  * Rejected native Python `async`/threading due to volatility (data loss on worker restarts), risk of event-loop starvation, and incompatibility with the current synchronous Gunicorn worker architecture.
+  * Chose **Django Signals** combined with **Service Layers**. This strictly decouples the codebase and resolves `import-linter` violations. While the execution time remains synchronous (adding latency to uploads), this perfectly positions the architecture for an easy transition to a real task queue later, as signal receivers can easily be converted to Celery tasks without modifying the core views.
+* **Actions Taken**:
+  * Updated Implementation Plan artifact to formally define the Service Layer + Signals architecture and document the trade-offs.
