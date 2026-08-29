@@ -1,11 +1,21 @@
 {
   "baseline_version": 2,
   "drift_version": "2.51.1",
-  "created_at": "2026-08-29T11:02:17.146783+00:00",
-  "drift_score": 0.209,
+  "created_at": "2026-08-29T13:01:23.023772+00:00",
+  "drift_score": 0.222,
   "drift_score_scope": "context:repo,signals:all,path:all",
-  "finding_count": 35,
+  "finding_count": 51,
   "findings": [
+    {
+      "fingerprint": "f53216ec9b603a79",
+      "fingerprint_v1": "73764da6cd5167d5",
+      "signal": "architecture_violation",
+      "severity": "medium",
+      "file": "communities/signals.py",
+      "symbol": "communities.signals",
+      "start_line": 1,
+      "title": "Zone of Pain: signals.py (I=0.25, D=0.75)"
+    },
     {
       "fingerprint": "a4d2e9e9c7031e71",
       "fingerprint_v1": "814bbb101247dcf4",
@@ -47,14 +57,24 @@
       "title": "God module candidate: utils.py"
     },
     {
-      "fingerprint": "63bc2349eb75eead",
-      "fingerprint_v1": "8d9c92a09a0fb8b9",
-      "signal": "architecture_violation",
-      "severity": "medium",
-      "file": "newsfeed/views.py",
-      "symbol": "newsfeed.views",
+      "fingerprint": "1654fda43ebd6a55",
+      "fingerprint_v1": "774f14fffe03ce32",
+      "signal": "co_change_coupling",
+      "severity": "high",
+      "file": "communities/views.py",
+      "symbol": "communities.views",
       "start_line": 1,
-      "title": "Hidden coupling: views.py \u2194 views.py (3 co-changes)"
+      "title": "Hidden co-change coupling: views.py <-> views.py (4 commits)"
+    },
+    {
+      "fingerprint": "dc3884c17d214567",
+      "fingerprint_v1": "6d29a16593b1e7a7",
+      "signal": "co_change_coupling",
+      "severity": "high",
+      "file": "photos/views.py",
+      "symbol": "photos.views",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: views.py <-> views.py (4 commits)"
     },
     {
       "fingerprint": "74cda67cbd42d0ed",
@@ -67,14 +87,34 @@
       "title": "Hidden co-change coupling: views.py <-> views.py (5 commits)"
     },
     {
+      "fingerprint": "7a04a4d1df6ca581",
+      "fingerprint_v1": "49e338d942b5069d",
+      "signal": "co_change_coupling",
+      "severity": "high",
+      "file": "bses/routers.py",
+      "symbol": "bses.routers",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: routers.py <-> settings.py (3 commits)"
+    },
+    {
       "fingerprint": "1654fda43ebd6a55",
       "fingerprint_v1": "3070dc8523d005c4",
       "signal": "co_change_coupling",
-      "severity": "high",
+      "severity": "medium",
       "file": "communities/views.py",
       "symbol": "communities.views",
       "start_line": 1,
       "title": "Hidden co-change coupling: views.py <-> views.py (3 commits)"
+    },
+    {
+      "fingerprint": "a30f4d6ee0e0e0e5",
+      "fingerprint_v1": "a7c32eb0ab582c20",
+      "signal": "co_change_coupling",
+      "severity": "medium",
+      "file": "bses/settings.py",
+      "symbol": "bses.settings",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: settings.py <-> views.py (4 commits)"
     },
     {
       "fingerprint": "e66b8804884375b7",
@@ -107,6 +147,36 @@
       "title": "Cohesion deficit in photos/views.py"
     },
     {
+      "fingerprint": "49fadd36831b9be9",
+      "fingerprint_v1": "2f0d2c80cd86f8c6",
+      "signal": "dead_code_accumulation",
+      "severity": "high",
+      "file": "bses/metrics_middleware.py",
+      "symbol": "bses.metrics_middleware.QueryTimer.__init__",
+      "start_line": 14,
+      "title": "6 potentially unused exports in metrics_middleware.py"
+    },
+    {
+      "fingerprint": "839cd1ea3b38b69d",
+      "fingerprint_v1": "76d1ad37119f3416",
+      "signal": "dead_code_accumulation",
+      "severity": "high",
+      "file": "bses/routers.py",
+      "symbol": "bses.routers.PrimaryReplicaRouter.__init__",
+      "start_line": 16,
+      "title": "6 potentially unused exports in routers.py"
+    },
+    {
+      "fingerprint": "89ab1715d38e7117",
+      "fingerprint_v1": "388127fed84d37f0",
+      "signal": "dead_code_accumulation",
+      "severity": "high",
+      "file": "bses/ryw_middleware.py",
+      "symbol": "bses.ryw_middleware.ReadYourWritesMiddleware.__init__",
+      "start_line": 36,
+      "title": "5 potentially unused exports in ryw_middleware.py"
+    },
+    {
       "fingerprint": "38d599058b38ea9b",
       "fingerprint_v1": "987345a806c4f6f4",
       "signal": "dead_code_accumulation",
@@ -118,12 +188,12 @@
     },
     {
       "fingerprint": "609fda9a5bd56417",
-      "fingerprint_v1": "5264218d51174b93",
+      "fingerprint_v1": "303aee1bef12cbc1",
       "signal": "dead_code_accumulation",
       "severity": "high",
       "file": "communities/views.py",
       "symbol": "communities.views.list_communities",
-      "start_line": 18,
+      "start_line": 17,
       "title": "5 potentially unused exports in views.py"
     },
     {
@@ -148,22 +218,22 @@
     },
     {
       "fingerprint": "4fbe70420e9e714f",
-      "fingerprint_v1": "e599f3e52a4ef9cc",
+      "fingerprint_v1": "857fabea9fe5bbb8",
       "signal": "explainability_deficit",
       "severity": "low",
       "file": "communities/views.py",
       "symbol": "communities.views.invite_member",
-      "start_line": 83,
+      "start_line": 82,
       "title": "Unexplained complexity: invite_member"
     },
     {
       "fingerprint": "99ff68e6b7cc5378",
-      "fingerprint_v1": "c417cbe79c5a8e26",
+      "fingerprint_v1": "bd56f2432dd350b5",
       "signal": "explainability_deficit",
       "severity": "low",
       "file": "photos/views.py",
       "symbol": "photos.views.upload_photo",
-      "start_line": 29,
+      "start_line": 28,
       "title": "Unexplained complexity: upload_photo"
     },
     {
@@ -197,44 +267,14 @@
       "title": "error_handling: 2 variants in photos/"
     },
     {
-      "fingerprint": "b754b7a0cbfd73b8",
-      "fingerprint_v1": "d2674dba5558868b",
-      "signal": "phantom_reference",
+      "fingerprint": "3685ffe35a7bfb15",
+      "fingerprint_v1": "065dcd7970559f1e",
+      "signal": "system_misalignment",
       "severity": "medium",
-      "file": "communities/views.py",
-      "symbol": "communities.views",
-      "start_line": 8,
-      "title": "1 unresolvable reference in views.py"
-    },
-    {
-      "fingerprint": "25eb94aa36287910",
-      "fingerprint_v1": "ed46d14847e3e1f6",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "newsfeed/services.py",
-      "symbol": "newsfeed.services",
-      "start_line": 10,
-      "title": "1 unresolvable reference in services.py"
-    },
-    {
-      "fingerprint": "e47fb77ae1bb1be9",
-      "fingerprint_v1": "36f09ec7c827136e",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "newsfeed/signals.py",
-      "symbol": "newsfeed.signals",
-      "start_line": 7,
-      "title": "1 unresolvable reference in signals.py"
-    },
-    {
-      "fingerprint": "1a4b1103a50b9614",
-      "fingerprint_v1": "8f2bbfb1dd88e061",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "photos/views.py",
-      "symbol": "photos.views",
-      "start_line": 18,
-      "title": "1 unresolvable reference in views.py"
+      "file": "bses",
+      "symbol": "bses",
+      "start_line": 1,
+      "title": "Novel dependencies in bses/"
     },
     {
       "fingerprint": "2994480a7816cc76",
@@ -270,11 +310,21 @@
       "fingerprint": "a7786a7a89d66f87",
       "fingerprint_v1": "95209e8da6eb286c",
       "signal": "system_misalignment",
-      "severity": "info",
+      "severity": "medium",
       "file": "newsfeed",
       "symbol": "newsfeed",
       "start_line": 1,
       "title": "Novel dependencies in newsfeed/"
+    },
+    {
+      "fingerprint": "ee99a3440fc5ddb1",
+      "fingerprint_v1": "ab14dc64d1705390",
+      "signal": "system_misalignment",
+      "severity": "medium",
+      "file": "notifications",
+      "symbol": "notifications",
+      "start_line": 1,
+      "title": "Novel dependencies in notifications/"
     },
     {
       "fingerprint": "33f3a8da3f98dc8b",
@@ -317,34 +367,144 @@
       "title": "Novel dependencies in photos/templatetags/"
     },
     {
+      "fingerprint": "69b47a7fd56c9bfb",
+      "fingerprint_v1": "1cde9367bbb6f2d5",
+      "signal": "system_misalignment",
+      "severity": "low",
+      "file": "users",
+      "symbol": "users",
+      "start_line": 1,
+      "title": "Novel dependencies in users/"
+    },
+    {
+      "fingerprint": "fcef41681263b323",
+      "fingerprint_v1": "37bcbb39a501b216",
+      "signal": "system_misalignment",
+      "severity": "info",
+      "file": "users/migrations",
+      "symbol": "users.migrations",
+      "start_line": 1,
+      "title": "Novel dependencies in users/migrations/"
+    },
+    {
+      "fingerprint": "5a9d65812f2781dd",
+      "fingerprint_v1": "6972c6c4e8392865",
+      "signal": "temporal_volatility",
+      "severity": "medium",
+      "file": "bses/settings.py",
+      "symbol": "bses.settings",
+      "start_line": 1,
+      "title": "High volatility: bses/settings.py"
+    },
+    {
+      "fingerprint": "21c286cc8167fcd1",
+      "fingerprint_v1": "a0102b4c17f16e4c",
+      "signal": "temporal_volatility",
+      "severity": "info",
+      "file": "communities/forms.py",
+      "symbol": "communities.forms",
+      "start_line": 1,
+      "title": "High volatility: communities/forms.py"
+    },
+    {
       "fingerprint": "aa27f0ccc673a720",
       "fingerprint_v1": "34ab99896201640f",
       "signal": "temporal_volatility",
-      "severity": "info",
+      "severity": "low",
       "file": "communities/views.py",
       "symbol": "communities.views",
       "start_line": 1,
       "title": "High volatility: communities/views.py"
     },
     {
-      "fingerprint": "df13ce81bb5f6047",
-      "fingerprint_v1": "2617eceaced08f59",
+      "fingerprint": "7220c8e7cbdc96e2",
+      "fingerprint_v1": "cd226d9bc734b133",
       "signal": "temporal_volatility",
-      "severity": "high",
-      "file": "newsfeed/views.py",
-      "symbol": "newsfeed.views",
+      "severity": "info",
+      "file": "newsfeed/apps.py",
+      "symbol": "newsfeed.apps",
       "start_line": 1,
-      "title": "High volatility: newsfeed/views.py"
+      "title": "High volatility: newsfeed/apps.py"
+    },
+    {
+      "fingerprint": "5468911b3ea73d2f",
+      "fingerprint_v1": "4cddcbd8e493412a",
+      "signal": "temporal_volatility",
+      "severity": "info",
+      "file": "notifications/apps.py",
+      "symbol": "notifications.apps",
+      "start_line": 1,
+      "title": "High volatility: notifications/apps.py"
+    },
+    {
+      "fingerprint": "f53c2f770a972f1d",
+      "fingerprint_v1": "02add1f0fb580579",
+      "signal": "temporal_volatility",
+      "severity": "info",
+      "file": "notifications/views.py",
+      "symbol": "notifications.views",
+      "start_line": 1,
+      "title": "High volatility: notifications/views.py"
+    },
+    {
+      "fingerprint": "1c7e451209e56499",
+      "fingerprint_v1": "0e7ac4797c1e08ee",
+      "signal": "temporal_volatility",
+      "severity": "info",
+      "file": "photos/forms.py",
+      "symbol": "photos.forms",
+      "start_line": 1,
+      "title": "High volatility: photos/forms.py"
+    },
+    {
+      "fingerprint": "44ab4bd563561b4a",
+      "fingerprint_v1": "f7f75c736d51a0cd",
+      "signal": "temporal_volatility",
+      "severity": "low",
+      "file": "photos/models.py",
+      "symbol": "photos.models",
+      "start_line": 1,
+      "title": "High volatility: photos/models.py"
     },
     {
       "fingerprint": "aa29f0975ecb24a8",
       "fingerprint_v1": "badbe0f6a88a7d41",
       "signal": "temporal_volatility",
-      "severity": "medium",
+      "severity": "high",
       "file": "photos/views.py",
       "symbol": "photos.views",
       "start_line": 1,
       "title": "High volatility: photos/views.py"
+    },
+    {
+      "fingerprint": "c2a7d397d0cb5216",
+      "fingerprint_v1": "2de5e26b2a9c9244",
+      "signal": "temporal_volatility",
+      "severity": "info",
+      "file": "users/forms.py",
+      "symbol": "users.forms",
+      "start_line": 1,
+      "title": "High volatility: users/forms.py"
+    },
+    {
+      "fingerprint": "f465371363142372",
+      "fingerprint_v1": "9e299c539e50285f",
+      "signal": "temporal_volatility",
+      "severity": "low",
+      "file": "users/views.py",
+      "symbol": "users.views",
+      "start_line": 1,
+      "title": "High volatility: users/views.py"
+    },
+    {
+      "fingerprint": "df13ce81bb5f6047",
+      "fingerprint_v1": "2617eceaced08f59",
+      "signal": "temporal_volatility",
+      "severity": "medium",
+      "file": "newsfeed/views.py",
+      "symbol": "newsfeed.views",
+      "start_line": 1,
+      "title": "High volatility: newsfeed/views.py"
     },
     {
       "fingerprint": "553347b3f9009e83",

@@ -204,9 +204,9 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
 **Edge Cases & Learnings:**
 - Care was taken not to prematurely delete cache invalidation mechanisms for the CDN inside the `delete_photo` view; the `photo.delete()` operation and `invalidate_cache()` must remain synchronized in `photos/views.py`, delegating ONLY the user feed cache fan-out to the `newsfeed` signal receiver.
 
-## Phase: Infrastructure Configuration for ALLOWED_HOSTS (Date: 2026-08-29, Commit: Pending, Model: Gemini 3.1 Pro (High) )
+## Phase: Infrastructure Configuration for ALLOWED_HOSTS (Date: 2026-08-29, Commit: 807eaf114c18a95a8d059d5d3ab4409a671f4cd9, Model: Gemini 3.1 Pro (High) )
 *   **Analysis:** The application used `ALLOWED_HOSTS = ["*"]`, which triggers security linters (e.g., Drift Analyzer insecure_default). Changing it directly to a local fallback (`"localhost,127.0.0.1"`) breaks production deployments where Nginx proxies traffic via the public Load Balancer IP/Domain.
 *   **Actions:**
-    *   Temporarily updated `bses/settings.py` to use `ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")` as a safe fallback for Option 1.
-    *   Updated the ongoing implementation plan with a new Phase 4 to cleanly migrate to Option 2: injecting the dynamic IP/Domain into the Terraform-generated `.env` file for the app nodes.
-*   **Notes/Edge Cases:** This provides a seamless transition satisfying security linters without risking production downtime during the deployment cycle.
+    *   Updated `iaac/aws/terraform/main.tf` to dynamically inject the LB node's private and public IPs into the generated `.env` file for the app nodes (`ALLOWED_HOSTS=$${aws_instance.lb_node.private_ip},$${aws_instance.lb_node.public_ip},localhost,127.0.0.1`).
+    *   Updated `photoz/bses/settings.py` to remove the temporary `"*"` fallback and safely rely on `os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")`.
+*   **Notes/Edge Cases:** This provides a seamless transition satisfying security linters without risking production downtime during the deployment cycle. Locally, it naturally falls back to `localhost,127.0.0.1`, enabling docker-compose local testing without any extra configuration.

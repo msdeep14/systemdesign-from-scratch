@@ -17,14 +17,14 @@ modules =
     users
 
 ignore_imports =
-    newsfeed.services -> users.services
-    photos.views -> users.services
     communities.views -> users.services
+    newsfeed.services -> users.services
+    newsfeed.signals -> users.services
+    photos.views -> users.services
     newsfeed.views -> photos.services
     newsfeed.services -> photos.services
     newsfeed.services -> communities.services
     newsfeed.signals -> photos.signals
-    newsfeed.signals -> users.services
     newsfeed.signals -> communities.signals
     notifications.signals -> photos.signals
     notifications.signals -> communities.signals
