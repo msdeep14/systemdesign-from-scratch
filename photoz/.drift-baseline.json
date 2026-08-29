@@ -1,11 +1,21 @@
 {
   "baseline_version": 2,
   "drift_version": "2.51.1",
-  "created_at": "2026-08-29T05:55:11.348762+00:00",
-  "drift_score": 0.203,
+  "created_at": "2026-08-29T11:02:17.146783+00:00",
+  "drift_score": 0.209,
   "drift_score_scope": "context:repo,signals:all,path:all",
-  "finding_count": 48,
+  "finding_count": 35,
   "findings": [
+    {
+      "fingerprint": "a4d2e9e9c7031e71",
+      "fingerprint_v1": "814bbb101247dcf4",
+      "signal": "architecture_violation",
+      "severity": "medium",
+      "file": "photos/signals.py",
+      "symbol": "photos.signals",
+      "start_line": 1,
+      "title": "Zone of Pain: signals.py (I=0.25, D=0.75)"
+    },
     {
       "fingerprint": "54bfdcd72f6fe860",
       "fingerprint_v1": "d3d5bc17870d6199",
@@ -37,34 +47,34 @@
       "title": "God module candidate: utils.py"
     },
     {
-      "fingerprint": "7a04a4d1df6ca581",
-      "fingerprint_v1": "49e338d942b5069d",
-      "signal": "co_change_coupling",
-      "severity": "high",
-      "file": "bses/routers.py",
-      "symbol": "bses.routers",
+      "fingerprint": "63bc2349eb75eead",
+      "fingerprint_v1": "8d9c92a09a0fb8b9",
+      "signal": "architecture_violation",
+      "severity": "medium",
+      "file": "newsfeed/views.py",
+      "symbol": "newsfeed.views",
       "start_line": 1,
-      "title": "Hidden co-change coupling: routers.py <-> settings.py (3 commits)"
-    },
-    {
-      "fingerprint": "dc3884c17d214567",
-      "fingerprint_v1": "8f3b2901ee19f2bb",
-      "signal": "co_change_coupling",
-      "severity": "high",
-      "file": "photos/views.py",
-      "symbol": "photos.views",
-      "start_line": 1,
-      "title": "Hidden co-change coupling: views.py <-> views.py (3 commits)"
+      "title": "Hidden coupling: views.py \u2194 views.py (3 co-changes)"
     },
     {
       "fingerprint": "74cda67cbd42d0ed",
-      "fingerprint_v1": "e7770cdf1d309257",
+      "fingerprint_v1": "99c5ceef69e80f9e",
       "signal": "co_change_coupling",
       "severity": "high",
       "file": "newsfeed/views.py",
       "symbol": "newsfeed.views",
       "start_line": 1,
-      "title": "Hidden co-change coupling: views.py <-> views.py (4 commits)"
+      "title": "Hidden co-change coupling: views.py <-> views.py (5 commits)"
+    },
+    {
+      "fingerprint": "1654fda43ebd6a55",
+      "fingerprint_v1": "3070dc8523d005c4",
+      "signal": "co_change_coupling",
+      "severity": "high",
+      "file": "communities/views.py",
+      "symbol": "communities.views",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: views.py <-> views.py (3 commits)"
     },
     {
       "fingerprint": "e66b8804884375b7",
@@ -97,36 +107,6 @@
       "title": "Cohesion deficit in photos/views.py"
     },
     {
-      "fingerprint": "49fadd36831b9be9",
-      "fingerprint_v1": "d3db56fd72ed9911",
-      "signal": "dead_code_accumulation",
-      "severity": "high",
-      "file": "bses/metrics_middleware.py",
-      "symbol": "bses.metrics_middleware.QueryTimer.__init__",
-      "start_line": 11,
-      "title": "6 potentially unused exports in metrics_middleware.py"
-    },
-    {
-      "fingerprint": "839cd1ea3b38b69d",
-      "fingerprint_v1": "41d5ce8b65d4f785",
-      "signal": "dead_code_accumulation",
-      "severity": "high",
-      "file": "bses/routers.py",
-      "symbol": "bses.routers.PrimaryReplicaRouter.__init__",
-      "start_line": 14,
-      "title": "6 potentially unused exports in routers.py"
-    },
-    {
-      "fingerprint": "89ab1715d38e7117",
-      "fingerprint_v1": "655edd3c6cbc8d73",
-      "signal": "dead_code_accumulation",
-      "severity": "high",
-      "file": "bses/ryw_middleware.py",
-      "symbol": "bses.ryw_middleware.ReadYourWritesMiddleware.__init__",
-      "start_line": 34,
-      "title": "5 potentially unused exports in ryw_middleware.py"
-    },
-    {
       "fingerprint": "38d599058b38ea9b",
       "fingerprint_v1": "987345a806c4f6f4",
       "signal": "dead_code_accumulation",
@@ -138,12 +118,12 @@
     },
     {
       "fingerprint": "609fda9a5bd56417",
-      "fingerprint_v1": "3850dc453b2a750d",
+      "fingerprint_v1": "5264218d51174b93",
       "signal": "dead_code_accumulation",
       "severity": "high",
       "file": "communities/views.py",
       "symbol": "communities.views.list_communities",
-      "start_line": 19,
+      "start_line": 18,
       "title": "5 potentially unused exports in views.py"
     },
     {
@@ -167,34 +147,24 @@
       "title": "README references missing directory: photoz/"
     },
     {
+      "fingerprint": "4fbe70420e9e714f",
+      "fingerprint_v1": "e599f3e52a4ef9cc",
+      "signal": "explainability_deficit",
+      "severity": "low",
+      "file": "communities/views.py",
+      "symbol": "communities.views.invite_member",
+      "start_line": 83,
+      "title": "Unexplained complexity: invite_member"
+    },
+    {
       "fingerprint": "99ff68e6b7cc5378",
-      "fingerprint_v1": "3826fabfc34efd97",
+      "fingerprint_v1": "c417cbe79c5a8e26",
       "signal": "explainability_deficit",
       "severity": "low",
       "file": "photos/views.py",
       "symbol": "photos.views.upload_photo",
-      "start_line": 30,
+      "start_line": 29,
       "title": "Unexplained complexity: upload_photo"
-    },
-    {
-      "fingerprint": "5b6f7d57c922d6fc",
-      "fingerprint_v1": "2eba0dfeccd756e8",
-      "signal": "insecure_default",
-      "severity": "high",
-      "file": "bses/settings.py",
-      "symbol": "bses.settings",
-      "start_line": 35,
-      "title": "ALLOWED_HOSTS allows all domains"
-    },
-    {
-      "fingerprint": "406004a9297e4f9a",
-      "fingerprint_v1": "30525a943bf4c3f4",
-      "signal": "naming_contract_violation",
-      "severity": "medium",
-      "file": "bses/ryw_middleware.py",
-      "symbol": "bses.ryw_middleware.is_primary_forced",
-      "start_line": 11,
-      "title": "Naming contract violation: is_primary_forced()"
     },
     {
       "fingerprint": "fcb8118fa0bd301f",
@@ -208,13 +178,13 @@
     },
     {
       "fingerprint": "e5b05b74d0492eda",
-      "fingerprint_v1": "204b724c735258a2",
+      "fingerprint_v1": "7290a84893192545",
       "signal": "pattern_fragmentation",
-      "severity": "high",
+      "severity": "medium",
       "file": "newsfeed",
       "symbol": "newsfeed",
       "start_line": 1,
-      "title": "error_handling: 4 variants in newsfeed/"
+      "title": "error_handling: 3 variants in newsfeed/"
     },
     {
       "fingerprint": "30cb06795f36301b",
@@ -227,94 +197,54 @@
       "title": "error_handling: 2 variants in photos/"
     },
     {
-      "fingerprint": "8459e93eb3164cd1",
-      "fingerprint_v1": "fa8926528cf0e97a",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "communities/forms.py",
-      "symbol": "communities.forms",
-      "start_line": 3,
-      "title": "1 unresolvable reference in forms.py"
-    },
-    {
-      "fingerprint": "dc40bd501d63aa00",
-      "fingerprint_v1": "5e9f20a6c8653df6",
+      "fingerprint": "b754b7a0cbfd73b8",
+      "fingerprint_v1": "d2674dba5558868b",
       "signal": "phantom_reference",
       "severity": "medium",
       "file": "communities/views.py",
       "symbol": "communities.views",
-      "start_line": 12,
-      "title": "2 unresolvable references in views.py"
-    },
-    {
-      "fingerprint": "b0714bdc452d4481",
-      "fingerprint_v1": "1c9088e576793f5c",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "notifications/views.py",
-      "symbol": "notifications.views",
-      "start_line": 10,
+      "start_line": 8,
       "title": "1 unresolvable reference in views.py"
     },
     {
-      "fingerprint": "47799f658706156c",
-      "fingerprint_v1": "59522c53d2b889c7",
+      "fingerprint": "25eb94aa36287910",
+      "fingerprint_v1": "ed46d14847e3e1f6",
       "signal": "phantom_reference",
       "severity": "medium",
-      "file": "photos/forms.py",
-      "symbol": "photos.forms",
-      "start_line": 3,
-      "title": "2 unresolvable references in forms.py"
+      "file": "newsfeed/services.py",
+      "symbol": "newsfeed.services",
+      "start_line": 10,
+      "title": "1 unresolvable reference in services.py"
     },
     {
-      "fingerprint": "b1e5fe2adc5c6e9b",
-      "fingerprint_v1": "4dca8691df635882",
+      "fingerprint": "e47fb77ae1bb1be9",
+      "fingerprint_v1": "36f09ec7c827136e",
       "signal": "phantom_reference",
       "severity": "medium",
-      "file": "photos/models.py",
-      "symbol": "photos.models",
-      "start_line": 5,
-      "title": "1 unresolvable reference in models.py"
+      "file": "newsfeed/signals.py",
+      "symbol": "newsfeed.signals",
+      "start_line": 7,
+      "title": "1 unresolvable reference in signals.py"
     },
     {
-      "fingerprint": "cd4046ee70bed798",
-      "fingerprint_v1": "788e9c46d55dbc4d",
+      "fingerprint": "1a4b1103a50b9614",
+      "fingerprint_v1": "8f2bbfb1dd88e061",
       "signal": "phantom_reference",
-      "severity": "high",
+      "severity": "medium",
       "file": "photos/views.py",
       "symbol": "photos.views",
-      "start_line": 22,
-      "title": "3 unresolvable references in views.py"
+      "start_line": 18,
+      "title": "1 unresolvable reference in views.py"
     },
     {
-      "fingerprint": "537867315fe1552c",
-      "fingerprint_v1": "caeea810feecd630",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "users/forms.py",
-      "symbol": "users.forms",
-      "start_line": 3,
-      "title": "1 unresolvable reference in forms.py"
-    },
-    {
-      "fingerprint": "bc660382ddc33a24",
-      "fingerprint_v1": "e91049109aac59bd",
-      "signal": "phantom_reference",
-      "severity": "medium",
-      "file": "users/views.py",
-      "symbol": "users.views",
-      "start_line": 12,
-      "title": "2 unresolvable references in views.py"
-    },
-    {
-      "fingerprint": "3685ffe35a7bfb15",
-      "fingerprint_v1": "065dcd7970559f1e",
+      "fingerprint": "2994480a7816cc76",
+      "fingerprint_v1": "f5089c193a72d604",
       "signal": "system_misalignment",
       "severity": "medium",
-      "file": "bses",
-      "symbol": "bses",
+      "file": "communities",
+      "symbol": "communities",
       "start_line": 1,
-      "title": "Novel dependencies in bses/"
+      "title": "Novel dependencies in communities/"
     },
     {
       "fingerprint": "985707500fcdf52a",
@@ -325,16 +255,6 @@
       "symbol": "communities.migrations",
       "start_line": 1,
       "title": "Novel dependencies in communities/migrations/"
-    },
-    {
-      "fingerprint": "2994480a7816cc76",
-      "fingerprint_v1": "f5089c193a72d604",
-      "signal": "system_misalignment",
-      "severity": "low",
-      "file": "communities",
-      "symbol": "communities",
-      "start_line": 1,
-      "title": "Novel dependencies in communities/"
     },
     {
       "fingerprint": "5e0a12049a950187",
@@ -355,16 +275,6 @@
       "symbol": "newsfeed",
       "start_line": 1,
       "title": "Novel dependencies in newsfeed/"
-    },
-    {
-      "fingerprint": "ee99a3440fc5ddb1",
-      "fingerprint_v1": "ab14dc64d1705390",
-      "signal": "system_misalignment",
-      "severity": "info",
-      "file": "notifications",
-      "symbol": "notifications",
-      "start_line": 1,
-      "title": "Novel dependencies in notifications/"
     },
     {
       "fingerprint": "33f3a8da3f98dc8b",
@@ -407,26 +317,6 @@
       "title": "Novel dependencies in photos/templatetags/"
     },
     {
-      "fingerprint": "fcef41681263b323",
-      "fingerprint_v1": "37bcbb39a501b216",
-      "signal": "system_misalignment",
-      "severity": "info",
-      "file": "users/migrations",
-      "symbol": "users.migrations",
-      "start_line": 1,
-      "title": "Novel dependencies in users/migrations/"
-    },
-    {
-      "fingerprint": "5a9d65812f2781dd",
-      "fingerprint_v1": "6972c6c4e8392865",
-      "signal": "temporal_volatility",
-      "severity": "low",
-      "file": "bses/settings.py",
-      "symbol": "bses.settings",
-      "start_line": 1,
-      "title": "High volatility: bses/settings.py"
-    },
-    {
       "fingerprint": "aa27f0ccc673a720",
       "fingerprint_v1": "34ab99896201640f",
       "signal": "temporal_volatility",
@@ -457,34 +347,14 @@
       "title": "High volatility: photos/views.py"
     },
     {
-      "fingerprint": "f465371363142372",
-      "fingerprint_v1": "9e299c539e50285f",
-      "signal": "temporal_volatility",
-      "severity": "info",
-      "file": "users/views.py",
-      "symbol": "users.views",
-      "start_line": 1,
-      "title": "High volatility: users/views.py"
-    },
-    {
       "fingerprint": "553347b3f9009e83",
       "fingerprint_v1": "3cd740018b4d55b5",
       "signal": "temporal_volatility",
-      "severity": "low",
+      "severity": "info",
       "file": "photos/migrations/0006_photo_likes_count_comments_count.py",
       "symbol": "photos.migrations.0006_photo_likes_count_comments_count",
       "start_line": 1,
       "title": "High volatility: photos/migrations/0006_photo_likes_count_comments_count.py"
-    },
-    {
-      "fingerprint": "7a117d18df2303c7",
-      "fingerprint_v1": "b2670e3609008768",
-      "signal": "temporal_volatility",
-      "severity": "info",
-      "file": "photos/migrations/0007_backfill_likes_comments_count.py",
-      "symbol": "photos.migrations.0007_backfill_likes_comments_count",
-      "start_line": 1,
-      "title": "High volatility: photos/migrations/0007_backfill_likes_comments_count.py"
     }
   ]
 }

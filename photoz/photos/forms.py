@@ -1,7 +1,7 @@
 from django import forms
 
-from .models import Photo
-from .utils import compress_photo
+from photos.models import Photo
+from photos.utils import compress_photo
 
 
 class PhotoUploadForm(forms.ModelForm):

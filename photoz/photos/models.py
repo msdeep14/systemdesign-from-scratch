@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
-from .utils import photo_upload_path
+from photos.utils import photo_upload_path
 
 
 class Photo(models.Model):

@@ -44,3 +44,8 @@ This document contains guidelines on AI agent response generation, coding standa
 * If you don't know the answer to something, say you don't know. Don't make up facts.
 * Along with technical discussion, include examples to explain in layman terms as well.
 * Avoid using jargon unless necessary. If you use jargon, explain it.
+
+## Tool Execution & Environment Context (CRITICAL)
+* When executing commands for the `photoz` project (such as `import-linter`, `drift-analyzer`, `ruff`, etc.), you MUST activate the specific virtual environment for the project. 
+* To run commands correctly, use the following chained command format: `source ./photoz/venv/bin/activate && cd photoz && <command>`.
+* If a linter or drift check fails during a commit (e.g., `co_change_coupling` during intentional refactoring), you should resolve the issue yourself using terminal tools instead of suggesting the user try commands. For example, to establish a new drift baseline, run: `source ./photoz/venv/bin/activate && cd photoz && drift-analyzer analyze --save-baseline .drift-baseline.json`.

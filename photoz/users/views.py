@@ -9,8 +9,8 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .forms import UserProfileEditForm, UserRegistrationForm
-from .models import Follow, UserProfile
+from users.forms import UserProfileEditForm, UserRegistrationForm
+from users.models import Follow, UserProfile
 
 logger = logging.getLogger("bses")
 

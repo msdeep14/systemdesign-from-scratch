@@ -15,13 +15,11 @@ from communities.services import (
     get_community_by_id,
     is_user_member_of_community,
 )
-from newsfeed.services import invalidate_feed_cache, push_to_feed_cache
-from notifications.models import Notification
-from users.services import get_follower_user_ids, search_users
-
-from .cdn import invalidate_cache
-from .forms import PhotoUploadForm
-from .models import Comment, Like, Photo
+from photos.cdn import invalidate_cache
+from photos.forms import PhotoUploadForm
+from photos.models import Comment, Like, Photo
+from photos.signals import photo_commented, photo_deleted, photo_liked, photo_uploaded
+from users.services import search_users
 
 logger = logging.getLogger("bses")
 
@@ -45,11 +43,8 @@ def upload_photo(request):
                 photo.community = community
             photo.save()
 
-            # Redis Fan-out on write
-            push_to_feed_cache(request.user.id, photo.id)
-            follower_ids = get_follower_user_ids(request.user)
-            for f_id in follower_ids:
-                push_to_feed_cache(f_id, photo.id)
+            # Emit signal for decoupling components
+            photo_uploaded.send(sender=Photo, photo=photo)
 
             client_compressed = request.POST.get("client_compressed", "false")
             logger.info(
@@ -100,17 +95,13 @@ def delete_photo(request, id):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
     image_path = photo.image.name
-    follower_ids = get_follower_user_ids(request.user)
 
     # Delete from DB first, then invalidate cache.
-    # Reversing this order creates a race: cache cleared -> concurrent read rebuilds
-    # cache from DB (photo still exists) -> photo.delete() runs -> stale ghost in cache.
     photo.delete()
     invalidate_cache(image_path)
 
-    for f_id in follower_ids:
-        invalidate_feed_cache(f_id)
-    invalidate_feed_cache(request.user.id)
+    # Emit deletion signal
+    photo_deleted.send(sender=Photo, user=request.user)
 
     logger.info("Photo %s deleted by %s", id, request.user.username)
     messages.success(request, "Photo deleted.")
@@ -134,15 +125,9 @@ def toggle_like(request, id):
         has_liked = True
         logger.info("User %s liked photo %s", request.user.username, id)
 
-        # Create notification
+        # Emit signal for decoupling components
         if photo.user != request.user:
-            Notification.objects.create(
-                recipient=photo.user,
-                sender=request.user,
-                type="photo_like",
-                message=f"{request.user.profile.first_name} liked your photo.",
-                photo=photo,
-            )
+            photo_liked.send(sender=Like, photo=photo, liker=request.user)
 
     photo.refresh_from_db(fields=["likes_count"])
     return JsonResponse({"has_liked": has_liked, "likes_count": photo.likes_count})
@@ -166,15 +151,9 @@ def add_comment(request, id):
     Photo.objects.filter(id=photo.id).update(comments_count=F("comments_count") + 1)
     logger.info("Comment added by %s on photo %s", request.user.username, id)
 
-    # Create notification
+    # Emit signal for decoupling components
     if photo.user != request.user:
-        Notification.objects.create(
-            recipient=photo.user,
-            sender=request.user,
-            type="photo_comment",
-            message=f"{request.user.profile.first_name} commented on your photo.",
-            photo=photo,
-        )
+        photo_commented.send(sender=Comment, photo=photo, commenter=request.user)
 
     return JsonResponse(
         {
