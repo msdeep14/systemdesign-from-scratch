@@ -4,16 +4,20 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.db.models import F, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from communities.models import Community, CommunityMembership
+from communities.services import (
+    get_accepted_community_ids,
+    get_community_by_id,
+    is_user_member_of_community,
+)
+from newsfeed.services import invalidate_feed_cache, push_to_feed_cache
 from notifications.models import Notification
-from users.models import Follow, UserProfile
+from users.services import get_follower_user_ids, search_users
 
 from .cdn import invalidate_cache
 from .forms import PhotoUploadForm
@@ -27,8 +31,8 @@ def upload_photo(request):
     community_id = request.GET.get("community")
     community = None
     if community_id:
-        community = get_object_or_404(Community, id=community_id)
-        if not community.memberships.filter(user=request.user, status="accepted").exists():
+        community = get_community_by_id(community_id)
+        if not is_user_member_of_community(request.user, community.id):
             messages.error(request, "You must be a member to upload to this community.")
             return redirect("community_detail", id=community.id)
 
@@ -42,28 +46,10 @@ def upload_photo(request):
             photo.save()
 
             # Redis Fan-out on write
-            try:
-                if hasattr(cache, "client") and hasattr(cache.client, "get_client"):
-                    client = cache.client.get_client()
-
-                    def add_to_feed_cache(u_id, p_id):
-                        cache_key = f":1:feed:{u_id}"
-                        if client.exists(cache_key):
-                            if client.type(cache_key) == b"list":
-                                client.lpush(cache_key, p_id)
-                                client.ltrim(cache_key, 0, 999)
-                            else:
-                                logger.warning("Cache key %s is not a list. Deleting.", cache_key)
-                                client.delete(cache_key)
-
-                    add_to_feed_cache(request.user.id, photo.id)
-                    follower_ids = Follow.objects.filter(following=request.user).values_list(
-                        "follower_id", flat=True
-                    )
-                    for f_id in follower_ids:
-                        add_to_feed_cache(f_id, photo.id)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logger.error("Failed to update redis cache on upload: %s", e)
+            push_to_feed_cache(request.user.id, photo.id)
+            follower_ids = get_follower_user_ids(request.user)
+            for f_id in follower_ids:
+                push_to_feed_cache(f_id, photo.id)
 
             client_compressed = request.POST.get("client_compressed", "false")
             logger.info(
@@ -114,7 +100,7 @@ def delete_photo(request, id):
         return JsonResponse({"error": "Unauthorized"}, status=403)
 
     image_path = photo.image.name
-    follower_ids = list(request.user.followers.values_list("follower_id", flat=True))
+    follower_ids = get_follower_user_ids(request.user)
 
     # Delete from DB first, then invalidate cache.
     # Reversing this order creates a race: cache cleared -> concurrent read rebuilds
@@ -123,8 +109,8 @@ def delete_photo(request, id):
     invalidate_cache(image_path)
 
     for f_id in follower_ids:
-        cache.delete(f"feed:{f_id}")
-    cache.delete(f"feed:{request.user.id}")
+        invalidate_feed_cache(f_id)
+    invalidate_feed_cache(request.user.id)
 
     logger.info("Photo %s deleted by %s", id, request.user.username)
     messages.success(request, "Photo deleted.")
@@ -211,13 +197,7 @@ def search_view(request):
 
 
 def _search_users(request, query):
-    results = []
-    if query:
-        results = UserProfile.objects.filter(
-            Q(username_display__icontains=query)
-            | Q(first_name__icontains=query)
-            | Q(last_name__icontains=query)
-        )
+    results = search_users(query)
     return render(
         request,
         "photos/search_results.html",
@@ -240,9 +220,7 @@ def _search_photos_by_hashtag(request, query):
     # OR photos from communities they are a member of, OR their own photos.
     visibility_q = Q(community__isnull=True)
     if request.user.is_authenticated:
-        my_communities = CommunityMembership.objects.filter(
-            user=request.user, status="accepted"
-        ).values_list("community", flat=True)
+        my_communities = get_accepted_community_ids(request.user)
         if my_communities:
             visibility_q |= Q(community__in=my_communities)
         visibility_q |= Q(user=request.user)

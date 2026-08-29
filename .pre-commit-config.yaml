@@ -45,6 +45,7 @@ repos:
         pass_filenames: false
         args:
           - "--fail-on=high"
+          - "--baseline=.drift-baseline.json"
 
       - id: calm-validate
         name: calm-validate

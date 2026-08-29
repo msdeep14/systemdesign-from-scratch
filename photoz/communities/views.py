@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from notifications.models import Notification
-from users.models import UserProfile
+from users.services import get_user_profile_by_username
 
 from .forms import CommunityForm
 from .models import Community, CommunityMembership
@@ -92,7 +92,7 @@ def invite_member(request, id):
         messages.error(request, "Only members can invite others.")
         return redirect("community_detail", id=community.id)
 
-    profile = UserProfile.objects.filter(username_display=username).first()
+    profile = get_user_profile_by_username(username)
 
     if not profile:
         logger.warning("Invite failed: User '%s' not found by %s", username, request.user.username)
