@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("api/search/", views.search_users_json, name="search_users_json"),
     path("signup/", views.signup_view, name="signup"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),

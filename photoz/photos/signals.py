@@ -15,3 +15,7 @@ photo_liked = Signal()
 # Sent when a photo receives a comment
 # args: sender (Photo), photo (Photo instance), commenter (User instance)
 photo_commented = Signal()
+
+# Sent when a user is tagged in a photo
+# args: sender (Photo), photo (Photo instance), tagged_user (User instance), tagger (User instance)
+user_tagged = Signal()

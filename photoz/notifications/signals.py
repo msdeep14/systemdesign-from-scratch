@@ -2,7 +2,7 @@ from django.dispatch import receiver
 
 from communities.signals import member_invited
 from notifications.models import Notification
-from photos.signals import photo_commented, photo_liked
+from photos.signals import photo_commented, photo_liked, user_tagged
 
 
 @receiver(photo_liked)
@@ -35,4 +35,15 @@ def _handle_member_invited(sender, community, target_user, inviter, membership, 
         type="community_invite",
         message=f"{inviter.profile.first_name} invited you to join '{community.name}'.",
         membership=membership,
+    )
+
+
+@receiver(user_tagged)
+def _handle_user_tagged(sender, photo, tagged_user, tagger, **kwargs):
+    Notification.objects.create(
+        recipient=tagged_user,
+        sender=tagger,
+        type="photo_tag",
+        message=f"{tagger.profile.first_name} tagged you in a photo.",
+        photo=photo,
     )

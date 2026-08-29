@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,9 +18,10 @@ from communities.services import (
 )
 from photos.cdn import invalidate_cache
 from photos.forms import PhotoUploadForm
-from photos.models import Comment, Like, Photo
-from photos.signals import photo_commented, photo_deleted, photo_liked, photo_uploaded
-from users.services import search_users
+from photos.models import Comment, Like, Photo, PhotoTag
+from photos.signals import photo_commented, photo_deleted, photo_liked, photo_uploaded, user_tagged
+from photos.templatetags.hashtag_tags import linkify_hashtags
+from users.services import get_user_profile_by_username, search_users
 
 logger = logging.getLogger("bses")
 
@@ -46,6 +48,9 @@ def upload_photo(request):
             # Emit signal for decoupling components
             photo_uploaded.send(sender=Photo, photo=photo)
 
+            # Extract tags from caption and emit signals
+            _process_photo_tags(photo, request.user)
+
             client_compressed = request.POST.get("client_compressed", "false")
             logger.info(
                 "Photo uploaded successfully by %s (Photo ID: %s, Client Compressed: %s)",
@@ -65,11 +70,29 @@ def upload_photo(request):
     return render(request, "photos/upload.html", {"form": form, "community": community})
 
 
+def _process_photo_tags(photo, tagger):
+    if not photo.caption:
+        return
+    usernames = set(re.findall(r"@([\w\.]+)", photo.caption))
+    for username in usernames:
+        profile = get_user_profile_by_username(username)
+        if profile and profile.user != tagger:
+            tag, created = PhotoTag.objects.get_or_create(photo=photo, user=profile.user)
+            if created:
+                user_tagged.send(
+                    sender=Photo,
+                    photo=photo,
+                    tagged_user=profile.user,
+                    tagger=tagger,
+                )
+
+
 @login_required
 def photo_detail(request, id):
     photo = get_object_or_404(Photo.objects.select_related("user__profile", "community"), id=id)
     has_liked = photo.likes.filter(user=request.user).exists()
     comments = photo.comments.select_related("user__profile").order_by("created_at")
+    tagged_users = [tag.user for tag in photo.tags.select_related("user__profile")]
 
     return render(
         request,
@@ -80,6 +103,7 @@ def photo_detail(request, id):
             "comments_count": photo.comments_count,
             "has_liked": has_liked,
             "comments": comments,
+            "tagged_users": tagged_users,
         },
     )
 
@@ -159,6 +183,7 @@ def add_comment(request, id):
         {
             "id": comment.id,
             "text": comment.text,
+            "html_text": linkify_hashtags(comment.text),
             "user_name": request.user.profile.first_name,
             "username_display": request.user.profile.username_display,
             "created_at": comment.created_at.strftime("%Y-%m-%d %H:%M:%S"),

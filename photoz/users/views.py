@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from users.forms import UserProfileEditForm, UserRegistrationForm
 from users.models import Follow, UserProfile
+from users.services import search_users
 
 logger = logging.getLogger("bses")
 
@@ -189,3 +190,21 @@ def toggle_follow_view(request, username):
     followers_count = target_user.followers.count()
 
     return JsonResponse({"is_following": is_following, "followers_count": followers_count})
+
+
+@login_required
+def search_users_json(request):
+    query = request.GET.get("q", "").strip()
+    if not query:
+        return JsonResponse([])
+
+    users = search_users(query)
+    results = [
+        {
+            "username": u.username_display,
+            "name": f"{u.first_name} {u.last_name}".strip(),
+            "avatar": u.profile_picture.url if u.profile_picture else "",
+        }
+        for u in users
+    ]
+    return JsonResponse(results, safe=False)

@@ -210,3 +210,18 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
     *   Updated `iaac/aws/terraform/main.tf` to dynamically inject the LB node's private and public IPs into the generated `.env` file for the app nodes (`ALLOWED_HOSTS=$${aws_instance.lb_node.private_ip},$${aws_instance.lb_node.public_ip},localhost,127.0.0.1`).
     *   Updated `photoz/bses/settings.py` to remove the temporary `"*"` fallback and safely rely on `os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")`.
 *   **Notes/Edge Cases:** This provides a seamless transition satisfying security linters without risking production downtime during the deployment cycle. Locally, it naturally falls back to `localhost,127.0.0.1`, enabling docker-compose local testing without any extra configuration.
+
+### Phase: Introduce Photo Tagging Feature (Date: 2026-08-29, Commit: Pending, Model: Gemini 3.1 Pro (High))
+* **Analysis**: Implemented Phase 5 to allow users to tag other users in photo captions using `@username` syntax. 
+* **Actions Taken**:
+  * `[NEW]` Created `PhotoTag` model in `photos/models.py`.
+  * `[NEW]` Created `user_tagged` signal in `photos/signals.py`.
+  * `[MODIFY]` Updated `upload_photo` in `photos/views.py` to extract tags from captions via regex, validate them with `get_user_profile_by_username`, save `PhotoTag`s, and emit the `user_tagged` signal. (Extracted into a helper `_process_photo_tags` to fix a cyclomatic complexity drift violation).
+  * `[MODIFY]` Updated `Notification.TYPE_CHOICES` in `notifications/models.py` with `photo_tag`.
+  * `[MODIFY]` Added receiver for `user_tagged` in `notifications/signals.py` to notify the tagged user.
+  * Configured `Tribute.js` for `@username` autocomplete on photo uploads and comments.
+  * Extended `linkify_hashtags` to handle `@username` strings, turning them into clickable profile links in both captions and comments.
+  * Passed tagged users via `PhotoTag` in the `photo_detail` view to explicitly display "With: @username" below captions.
+
+* **Edge Cases / Errors Fixed**: Resolved cognitive complexity issue flagged by drift-analyzer by extracting the tag parsing logic out of the main view body.
+  

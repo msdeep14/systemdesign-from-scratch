@@ -7,6 +7,7 @@ class Notification(models.Model):
         ("community_invite", "Community Invite"),
         ("photo_like", "Photo Like"),
         ("photo_comment", "Photo Comment"),
+        ("photo_tag", "Photo Tag"),
     )
 
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
