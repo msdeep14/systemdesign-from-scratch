@@ -482,7 +482,7 @@
 - `[EXECUTE]` Baselined `drift-analyzer` to lock in the reduced Co-Change Coupling and Cyclomatic Complexity improvements.
 
 
-### Phase: Introduce Django Signals (Date: 2026-08-29, Commit: Pending, Model: Gemini 3.1 Pro (High))
+### Phase: Introduce Django Signals (Date: 2026-08-29, Commit: 807eaf114c18a95a8d059d5d3ab4409a671f4cd9, Model: Gemini 3.1 Pro (High))
 
 **Analysis & Rationale:**
 - The architecture requires breaking cross-app dependencies to satisfy import-linter and reduce cyclomatic complexity.
@@ -498,7 +498,7 @@
 **Edge Cases & Learnings:**
 - Care was taken not to prematurely delete cache invalidation mechanisms for the CDN inside the `delete_photo` view; the `photo.delete()` operation and `invalidate_cache()` must remain synchronized in `photos/views.py`, delegating ONLY the user feed cache fan-out to the `newsfeed` signal receiver.
 
-## Phase: Infrastructure Configuration for ALLOWED_HOSTS (Date: 2026-08-29, Commit: Pending, Model: Antigravity)
+### Phase: Infrastructure Configuration for ALLOWED_HOSTS (Date: 2026-08-29, Commit: 807eaf114c18a95a8d059d5d3ab4409a671f4cd9, Model: Gemini 3.1 Pro (High))
 *   **Analysis:** The application used `ALLOWED_HOSTS = ["*"]`, which triggers security linters (e.g., Drift Analyzer insecure_default). Changing it directly to a local fallback (`"localhost,127.0.0.1"`) breaks production deployments where Nginx proxies traffic via the public Load Balancer IP/Domain.
 *   **Actions:**
     *   Temporarily updated `bses/settings.py` to use `ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")` as a safe fallback for Option 1.
