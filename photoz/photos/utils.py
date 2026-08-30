@@ -3,6 +3,7 @@ import time
 import uuid
 from io import BytesIO
 
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from PIL import Image
 
@@ -40,3 +41,11 @@ def compress_photo(image_file, quality=70):
     return InMemoryUploadedFile(
         output, "ImageField", filename, "image/jpeg", output.getbuffer().nbytes, None
     )
+
+
+def validate_and_compress_image(image):
+    if image:
+        if image.size > 2 * 1024 * 1024:
+            raise ValidationError("Image file size exceeds 2 MB limit.")
+        return compress_photo(image)
+    return image

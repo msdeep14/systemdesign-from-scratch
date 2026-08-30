@@ -1,13 +1,13 @@
 from django import forms
 
-from photos.models import Photo
 from photos.utils import validate_and_compress_image
+from stories.models import Story
 
 
-class PhotoUploadForm(forms.ModelForm):
+class StoryUploadForm(forms.ModelForm):
     class Meta:
-        model = Photo
-        fields = ["image", "caption"]
+        model = Story
+        fields = ["image"]
 
     def clean_image(self):
         return validate_and_compress_image(self.cleaned_data.get("image"))

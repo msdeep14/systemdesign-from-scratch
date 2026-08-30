@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Add Story - BSES{% endblock %}
+{% block content %}
+<div style="max-width: 500px; margin: 0 auto;">
+    <div class="card p-4">
+        <h2 class="mb-4">Add a Story</h2>
+        
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label class="form-label" for="id_image">Story Image</label>
+                {{ form.image }}
+                {% if form.image.errors %}
+                    <div style="color: var(--danger); font-size: 0.8rem; margin-top: 0.25rem;">
+                        {{ form.image.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="d-flex justify-end gap-2 mt-4">
+                <a href="{% url 'newsfeed' %}" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">Publish Story</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

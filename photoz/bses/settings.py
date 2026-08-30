@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "newsfeed.apps.NewsfeedConfig",
     "communities.apps.CommunitiesConfig",
     "notifications.apps.NotificationsConfig",
+    "stories.apps.StoriesConfig",
 ]
 
 try:

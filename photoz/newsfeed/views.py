@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.cache import cache_control
 
-from newsfeed.services import get_cached_feed
+from newsfeed.services import get_cached_feed, get_feed_stories_grouped
 from photos.services import get_photos_by_ids
 
 logger = logging.getLogger("bses")
@@ -37,9 +37,13 @@ def newsfeed(request):
         else set()
     )
 
+    # Fetch active stories from people I follow + myself
+    active_stories_grouped = get_feed_stories_grouped(request.user.id)
+
     context = {
         "page_obj": page_obj,
         "liked_photo_ids": liked_photo_ids,
+        "active_stories_grouped": active_stories_grouped,
     }
 
     return render(request, "newsfeed/feed.html", context)

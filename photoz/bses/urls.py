@@ -26,6 +26,7 @@ urlpatterns = [
     path("photos/", include("photos.urls")),
     path("communities/", include("communities.urls")),
     path("notifications/", include("notifications.urls")),
+    path("stories/", include("stories.urls")),
     path("", include("newsfeed.urls")),
 ]
 

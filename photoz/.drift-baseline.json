@@ -1,10 +1,10 @@
 {
   "baseline_version": 2,
   "drift_version": "2.51.1",
-  "created_at": "2026-08-29T14:32:31.165107+00:00",
-  "drift_score": 0.232,
+  "created_at": "2026-08-29T17:17:52.367337+00:00",
+  "drift_score": 0.213,
   "drift_score_scope": "context:repo,signals:all,path:all",
-  "finding_count": 51,
+  "finding_count": 57,
   "findings": [
     {
       "fingerprint": "f53216ec9b603a79",
@@ -18,13 +18,13 @@
     },
     {
       "fingerprint": "04123f1ab68e6c16",
-      "fingerprint_v1": "82326a7b4f851f7d",
+      "fingerprint_v1": "18f56d650299442e",
       "signal": "architecture_violation",
       "severity": "high",
       "file": "users/services.py",
       "symbol": "users.services",
       "start_line": 1,
-      "title": "Zone of Pain: services.py (I=0.29, D=0.71)"
+      "title": "Zone of Pain: services.py (I=0.25, D=0.75)"
     },
     {
       "fingerprint": "a4d2e9e9c7031e71",
@@ -67,6 +67,16 @@
       "title": "God module candidate: utils.py"
     },
     {
+      "fingerprint": "89e89ed7bc9ec91a",
+      "fingerprint_v1": "3b5aecb40388dc42",
+      "signal": "architecture_violation",
+      "severity": "medium",
+      "file": "stories/models.py",
+      "symbol": "stories.models",
+      "start_line": 1,
+      "title": "God module candidate: models.py"
+    },
+    {
       "fingerprint": "a5ad2fc7a4bb3130",
       "fingerprint_v1": "a7d540a8f00d066d",
       "signal": "architecture_violation",
@@ -75,6 +85,16 @@
       "symbol": "users.services",
       "start_line": 1,
       "title": "God module candidate: services.py"
+    },
+    {
+      "fingerprint": "dc3884c17d214567",
+      "fingerprint_v1": "02ef241048ec70d8",
+      "signal": "co_change_coupling",
+      "severity": "high",
+      "file": "photos/views.py",
+      "symbol": "photos.views",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: views.py <-> views.py (5 commits)"
     },
     {
       "fingerprint": "7a04a4d1df6ca581",
@@ -97,16 +117,6 @@
       "title": "Hidden co-change coupling: views.py <-> views.py (4 commits)"
     },
     {
-      "fingerprint": "dc3884c17d214567",
-      "fingerprint_v1": "6d29a16593b1e7a7",
-      "signal": "co_change_coupling",
-      "severity": "high",
-      "file": "photos/views.py",
-      "symbol": "photos.views",
-      "start_line": 1,
-      "title": "Hidden co-change coupling: views.py <-> views.py (4 commits)"
-    },
-    {
       "fingerprint": "74cda67cbd42d0ed",
       "fingerprint_v1": "99c5ceef69e80f9e",
       "signal": "co_change_coupling",
@@ -125,6 +135,16 @@
       "symbol": "communities.views",
       "start_line": 1,
       "title": "Hidden co-change coupling: views.py <-> views.py (3 commits)"
+    },
+    {
+      "fingerprint": "c7ad63c21f29dfaa",
+      "fingerprint_v1": "1884944c9012a698",
+      "signal": "co_change_coupling",
+      "severity": "medium",
+      "file": "photos/models.py",
+      "symbol": "photos.models",
+      "start_line": 1,
+      "title": "Hidden co-change coupling: models.py <-> views.py (3 commits)"
     },
     {
       "fingerprint": "e66b8804884375b7",
@@ -187,6 +207,26 @@
       "title": "3 potentially unused exports in models.py"
     },
     {
+      "fingerprint": "2b655f5522ad199b",
+      "fingerprint_v1": "0f26611e1fc12698",
+      "signal": "dead_code_accumulation",
+      "severity": "medium",
+      "file": "stories/forms.py",
+      "symbol": "stories.forms.Meta",
+      "start_line": 6,
+      "title": "2 potentially unused exports in forms.py"
+    },
+    {
+      "fingerprint": "c79a7ab2d44730c4",
+      "fingerprint_v1": "d28ac02f1c7d0a32",
+      "signal": "dead_code_accumulation",
+      "severity": "high",
+      "file": "stories/models.py",
+      "symbol": "stories.models.Meta",
+      "start_line": 25,
+      "title": "4 potentially unused exports in models.py"
+    },
+    {
       "fingerprint": "609fda9a5bd56417",
       "fingerprint_v1": "303aee1bef12cbc1",
       "signal": "dead_code_accumulation",
@@ -207,6 +247,16 @@
       "title": "3 potentially unused exports in views.py"
     },
     {
+      "fingerprint": "3a5be8b199987eb4",
+      "fingerprint_v1": "1dee07e393c3f20a",
+      "signal": "dead_code_accumulation",
+      "severity": "high",
+      "file": "stories/views.py",
+      "symbol": "stories.views.upload_story",
+      "start_line": 11,
+      "title": "2 potentially unused exports in views.py"
+    },
+    {
       "fingerprint": "f9afce084da87340",
       "fingerprint_v1": "0f5d78099643b332",
       "signal": "doc_impl_drift",
@@ -215,6 +265,16 @@
       "symbol": "README.md",
       "start_line": 1,
       "title": "README references missing directory: photoz/"
+    },
+    {
+      "fingerprint": "9fad273904920a97",
+      "fingerprint_v1": "3883eb7e91166902",
+      "signal": "doc_impl_drift",
+      "severity": "info",
+      "file": "stories",
+      "symbol": "stories",
+      "start_line": 1,
+      "title": "Source directory not mentioned in README: stories/"
     },
     {
       "fingerprint": "4fbe70420e9e714f",
@@ -228,12 +288,12 @@
     },
     {
       "fingerprint": "99ff68e6b7cc5378",
-      "fingerprint_v1": "04398adc3e81c38f",
+      "fingerprint_v1": "3826fabfc34efd97",
       "signal": "explainability_deficit",
       "severity": "low",
       "file": "photos/views.py",
       "symbol": "photos.views.upload_photo",
-      "start_line": 29,
+      "start_line": 30,
       "title": "Unexplained complexity: upload_photo"
     },
     {
@@ -387,6 +447,36 @@
       "title": "Novel dependencies in users/migrations/"
     },
     {
+      "fingerprint": "44ab4bd563561b4a",
+      "fingerprint_v1": "f7f75c736d51a0cd",
+      "signal": "temporal_volatility",
+      "severity": "low",
+      "file": "photos/models.py",
+      "symbol": "photos.models",
+      "start_line": 1,
+      "title": "High volatility: photos/models.py"
+    },
+    {
+      "fingerprint": "aa29f0975ecb24a8",
+      "fingerprint_v1": "badbe0f6a88a7d41",
+      "signal": "temporal_volatility",
+      "severity": "high",
+      "file": "photos/views.py",
+      "symbol": "photos.views",
+      "start_line": 1,
+      "title": "High volatility: photos/views.py"
+    },
+    {
+      "fingerprint": "f465371363142372",
+      "fingerprint_v1": "9e299c539e50285f",
+      "signal": "temporal_volatility",
+      "severity": "low",
+      "file": "users/views.py",
+      "symbol": "users.views",
+      "start_line": 1,
+      "title": "High volatility: users/views.py"
+    },
+    {
       "fingerprint": "5a9d65812f2781dd",
       "fingerprint_v1": "6972c6c4e8392865",
       "signal": "temporal_volatility",
@@ -457,26 +547,6 @@
       "title": "High volatility: photos/forms.py"
     },
     {
-      "fingerprint": "44ab4bd563561b4a",
-      "fingerprint_v1": "f7f75c736d51a0cd",
-      "signal": "temporal_volatility",
-      "severity": "low",
-      "file": "photos/models.py",
-      "symbol": "photos.models",
-      "start_line": 1,
-      "title": "High volatility: photos/models.py"
-    },
-    {
-      "fingerprint": "aa29f0975ecb24a8",
-      "fingerprint_v1": "badbe0f6a88a7d41",
-      "signal": "temporal_volatility",
-      "severity": "medium",
-      "file": "photos/views.py",
-      "symbol": "photos.views",
-      "start_line": 1,
-      "title": "High volatility: photos/views.py"
-    },
-    {
       "fingerprint": "c2a7d397d0cb5216",
       "fingerprint_v1": "2de5e26b2a9c9244",
       "signal": "temporal_volatility",
@@ -485,16 +555,6 @@
       "symbol": "users.forms",
       "start_line": 1,
       "title": "High volatility: users/forms.py"
-    },
-    {
-      "fingerprint": "f465371363142372",
-      "fingerprint_v1": "9e299c539e50285f",
-      "signal": "temporal_volatility",
-      "severity": "low",
-      "file": "users/views.py",
-      "symbol": "users.views",
-      "start_line": 1,
-      "title": "High volatility: users/views.py"
     },
     {
       "fingerprint": "df13ce81bb5f6047",

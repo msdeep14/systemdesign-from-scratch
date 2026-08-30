@@ -7,6 +7,7 @@ from redis import exceptions as redis_exceptions
 
 from communities.services import get_accepted_community_ids
 from photos.services import get_feed_photo_ids
+from stories.services import get_active_stories_for_users
 from users.services import get_followed_user_ids
 
 logger = logging.getLogger("bses")
@@ -125,3 +126,9 @@ def push_to_feed_cache(user_id, photo_id):
 def invalidate_feed_cache(user_id):
     """Invalidates the feed cache for a user."""
     cache.delete(f"feed:{user_id}")
+
+
+def get_feed_stories_grouped(user_id):
+    followed_user_ids = get_followed_user_ids(user_id)
+    story_user_ids = list(followed_user_ids) + [user_id]
+    return get_active_stories_for_users(story_user_ids)
