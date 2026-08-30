@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from communities.signals import member_invited
 from notifications.models import Notification
 from photos.signals import photo_commented, photo_liked, user_tagged
+from stories.signals import story_user_tagged
 
 
 @receiver(photo_liked)
@@ -46,4 +47,15 @@ def _handle_user_tagged(sender, photo, tagged_user, tagger, **kwargs):
         type="photo_tag",
         message=f"{tagger.profile.first_name} tagged you in a photo.",
         photo=photo,
+    )
+
+
+@receiver(story_user_tagged)
+def _handle_story_user_tagged(sender, story, tagged_user, tagger, **kwargs):
+    Notification.objects.create(
+        recipient=tagged_user,
+        sender=tagger,
+        type="story_tag",
+        message=f"{tagger.profile.first_name} tagged you in a story.",
+        story=story,
     )

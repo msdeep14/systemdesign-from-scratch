@@ -1,12 +1,13 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.contrib import messages
-from django.contrib.auth.models import User
-from .models import Community, CommunityMembership
-from .forms import CommunityForm
-from notifications.models import Notification
 import logging
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+from notifications.models import Notification
+
+from .forms import CommunityForm
+from .models import Community, CommunityMembership
 
 logger = logging.getLogger("bses")
 

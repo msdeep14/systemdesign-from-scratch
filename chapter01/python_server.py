@@ -25,7 +25,6 @@ Watch the terminal output to see each step as it happens.
 
 import socket
 
-
 # ──────────────────────────────────────────────────────────────────────
 # STEP 1: Create a socket
 # ──────────────────────────────────────────────────────────────────────
@@ -75,7 +74,7 @@ server_socket.listen(BACKLOG)
 print(f"[Step 3] Listening with backlog={BACKLOG}")
 print(f"\n{'=' * 60}")
 print(f"  Server is running at http://{HOST}:{PORT}")
-print(f"  Open this URL in your browser. Press Ctrl+C to stop.")
+print("  Open this URL in your browser. Press Ctrl+C to stop.")
 print(f"{'=' * 60}\n")
 
 
@@ -107,7 +106,7 @@ while True:
         print(f"\n{'─' * 60}")
         print(f"[Step 4] Request #{request_count}")
         print(f"  Connection accepted from {client_address[0]}:{client_address[1]}")
-        print(f"  TCP 3-way handshake completed ✓")
+        print("  TCP 3-way handshake completed ✓")
         print(f"  New client socket created (fd={client_socket.fileno()})")
 
         # ──────────────────────────────────────────────────────────────
@@ -134,14 +133,14 @@ while True:
         method = parts[0] if len(parts) > 0 else "?"
         path = parts[1] if len(parts) > 1 else "?"
 
-        print(f"\n[Step 5] Received HTTP request:")
+        print("\n[Step 5] Received HTTP request:")
         print(f"  Method: {method}")
         print(f"  Path:   {path}")
         print(f"  Raw first line: {first_line}")
 
         # Show all headers the browser sent
         headers = request_text.split("\r\n")[1:]
-        print(f"  Headers received:")
+        print("  Headers received:")
         for header in headers:
             if header.strip():
                 print(f"    {header}")
@@ -254,7 +253,7 @@ while True:
 
         client_socket.shutdown(socket.SHUT_WR)
         client_socket.close()
-        print(f"[Step 7] Connection closed")
+        print("[Step 7] Connection closed")
         print(f"{'─' * 60}\n")
 
     except KeyboardInterrupt:

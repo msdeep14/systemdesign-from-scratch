@@ -15,11 +15,11 @@ For running the test with different parameters, update the constants defined bel
 on script execution and result analysis.
 """
 
-import sys
 import os
 import random
-import uuid
+import sys
 import time
+import uuid
 
 PHOTOZ_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "..", "photoz"
@@ -32,12 +32,12 @@ import django
 
 django.setup()
 
-from django.contrib.auth.models import User
-from django.contrib.auth.hashers import make_password
-from users.models import UserProfile, Follow
-from photos.models import Photo, Like, Comment
 from communities.models import Community, CommunityMembership
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.models import User
 from notifications.models import Notification
+from photos.models import Comment, Like, Photo
+from users.models import Follow, UserProfile
 
 NUM_USERS = 25000
 NUM_COMMUNITIES = 200
@@ -483,7 +483,7 @@ def seed_notifications(user_ids, photo_ids):
                     recipient_id=recipient_id,
                     sender_id=sender_id,
                     type=ntype,
-                    message=f"Someone interacted with your photo.",
+                    message="Someone interacted with your photo.",
                     photo_id=random.choice(photo_ids),
                     is_read=random.random() < 0.4,  # 40% read
                 )

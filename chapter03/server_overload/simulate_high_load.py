@@ -1,10 +1,9 @@
-import time
-import requests
 import concurrent.futures
 import sys
-
-import random
+import time
 import uuid
+
+import requests
 
 
 def make_request(base_url):

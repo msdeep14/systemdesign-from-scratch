@@ -1,11 +1,11 @@
-from django.shortcuts import render
+from communities.models import CommunityMembership
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.conf import settings
 from django.db.models import Q
+from django.shortcuts import render
 from photos.models import Photo
 from users.models import Follow
-from communities.models import CommunityMembership
 
 
 @login_required

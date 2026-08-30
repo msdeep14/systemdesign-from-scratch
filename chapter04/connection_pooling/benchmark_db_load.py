@@ -469,7 +469,7 @@ def print_results(summary, db_stats_before, db_stats_after):
     for label, key in rows:
         r_val = reads.get(key, "N/A")
         w_val = writes.get(key, "N/A")
-        print(f"  {label:30} {str(r_val):>15} {str(w_val):>15}")
+        print(f"  {label:30} {r_val!s:>15} {w_val!s:>15}")
 
     print("  " + "-" * 66)
 
@@ -751,7 +751,7 @@ def print_comparison(baseline_path, current_summary):
         else:
             change_str = "N/A"
 
-        print(f"  {label:30} {str(b_val):>12} {str(c_val):>12} {change_str:>12}")
+        print(f"  {label:30} {b_val!s:>12} {c_val!s:>12} {change_str:>12}")
 
     print("  " + "-" * 70)
     print("=" * 70 + "\n")

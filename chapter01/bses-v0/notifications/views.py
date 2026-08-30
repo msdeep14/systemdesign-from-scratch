@@ -1,11 +1,13 @@
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from django.core.paginator import Paginator
-from django.conf import settings
-from .models import Notification
 import logging
+
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.views.decorators.http import require_POST
+
+from .models import Notification
 
 logger = logging.getLogger("bses")
 

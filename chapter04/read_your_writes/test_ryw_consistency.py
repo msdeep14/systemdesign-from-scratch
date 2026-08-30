@@ -159,7 +159,7 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
             print("--- READ RESPONSE HEADERS ---")
             for k, v in read_resp.headers.items():
                 print(f"{k}: {v}")
-            print("")
+            print()
 
         # Step 4: Check if the unique marker is in the response HTML
         found = marker in read_resp.text
@@ -172,7 +172,7 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
             result = "STALE READ"
 
         print(
-            f"{i:<6} {marker:<40} {write_resp.status_code:<8} {read_status:<8} {str(found):<8} {result}"
+            f"{i:<6} {marker:<40} {write_resp.status_code:<8} {read_status:<8} {found!s:<8} {result}"
         )
 
     # Summary
@@ -189,12 +189,12 @@ def run_test(base_url, username, password, iterations, delay_ms, show_headers=Fa
         print(f"  Consistency rate:     {rate:.1f}%")
 
         if inconsistent > 0:
-            print(f"\n  VERDICT: Read Your Writes consistency is BROKEN.")
+            print("\n  VERDICT: Read Your Writes consistency is BROKEN.")
             print(
                 f"           {inconsistent} out of {total_valid} reads returned stale data."
             )
         else:
-            print(f"\n  VERDICT: Read Your Writes consistency is OK.")
+            print("\n  VERDICT: Read Your Writes consistency is OK.")
             print(f"           All {total_valid} reads returned fresh data.")
     else:
         print("\n  VERDICT: No valid test results (all writes failed).")

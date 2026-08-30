@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,8 +8,25 @@ from django.utils import timezone
 
 from stories.forms import StoryUploadForm
 from stories.models import Story
+from stories.signals import story_user_tagged
+from users.services import get_user_profile_by_username
 
 logger = logging.getLogger("bses")
+
+
+def _process_story_tags(story, tagger):
+    if not story.caption:
+        return
+    usernames = set(re.findall(r"@([\w\.]+)", story.caption))
+    for username in usernames:
+        profile = get_user_profile_by_username(username)
+        if profile and profile.user != tagger:
+            story_user_tagged.send(
+                sender=Story,
+                story=story,
+                tagged_user=profile.user,
+                tagger=tagger,
+            )
 
 
 @login_required
@@ -19,6 +37,7 @@ def upload_story(request):
             story = form.save(commit=False)
             story.user = request.user
             story.save()
+            _process_story_tags(story, request.user)
             logger.info(
                 "Story uploaded successfully by %s (Story ID: %s)", request.user.username, story.id
             )

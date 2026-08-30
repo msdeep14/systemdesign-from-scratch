@@ -23,6 +23,7 @@ ignore_imports =
     newsfeed.services -> users.services
     newsfeed.signals -> users.services
     photos.views -> users.services
+    stories.views -> users.services
     newsfeed.views -> photos.services
     newsfeed.services -> photos.services
     newsfeed.services -> communities.services
@@ -30,6 +31,7 @@ ignore_imports =
     newsfeed.signals -> communities.signals
     notifications.signals -> photos.signals
     notifications.signals -> communities.signals
+    notifications.signals -> stories.signals
     photos.views -> communities.services
     newsfeed.services -> stories.services
     stories.forms -> photos.utils

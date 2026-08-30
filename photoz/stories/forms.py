@@ -7,7 +7,7 @@ from stories.models import Story
 class StoryUploadForm(forms.ModelForm):
     class Meta:
         model = Story
-        fields = ["image"]
+        fields = ["image", "caption"]
 
     def clean_image(self):
         return validate_and_compress_image(self.cleaned_data.get("image"))

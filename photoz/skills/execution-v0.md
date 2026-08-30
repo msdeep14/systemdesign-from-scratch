@@ -520,7 +520,7 @@
   * `[MODIFY]` Updated `add_comment` view in `photos/views.py` to return the pre-rendered `html_text` so comments instantly appear clickable without a page refresh.
 * **Edge Cases / Errors Fixed**: Resolved cognitive complexity issue flagged by drift-analyzer by extracting the tag parsing logic out of the main view body.
 
-## Phase: Phase 6 - Stories Implementation (Date: 2026-08-29, Commit: [hash], Model: Gemini 3.1 Pro (High))
+## Phase: Phase 6 - Stories Implementation (Date: 2026-08-29, Commit: [617b2a47db028db05f9e6fe32d5f9b0b9a775d6d], Model: Gemini 3.1 Pro (High))
 *   **Analysis:** Implemented a new stories feature where users can upload vertical images that disappear after 24 hours. The architecture utilizes a "Pull-on-Read" Postgres strategy to avoid Redis fan-out write amplification complexity, while using a composite index `(user_id, created_at)` for high performance reads.
 *   **Actions:**
     *   Created a new decoupled Django app `stories`.
@@ -532,3 +532,17 @@
     *   Fixed import-linter domain independence violations by defining explicit contract boundaries.
     *   Fixed drift analyzer architectural violations by resetting baseline.
 *   **Notes/Edge Cases:** Stories are not physically deleted by a cron job right now; they are simply filtered out in SQL using `created_at__gte=now - 24h`, effectively archiving them while instantly hiding them from feeds.
+
+- **Phase 6: Story Captions & Tagging** (Date: 2026-08-30, Model: Antigravity)
+  - **Analysis**: The user wanted to add captions and tagging features to stories, and also fix the image overlaying the progress bar. We chose to restrict stories from search index since they are temporary, and opted for simple notifications rather than a dedicated "Stories of You" tab.
+  - **Actions**:
+    - Added `caption` field to `Story` model.
+    - Updated `StoryUploadForm` and `upload.html` to support captions.
+    - Attached `Tribute.js` to the caption field for `@username` autocomplete.
+    - Fixed image layout in `view.html` to prevent overlap with the header/progress bar and rendered the caption using `linkify_hashtags` and `linkify_mentions`.
+    - Added `story_user_tagged` signal in `stories/signals.py`.
+    - Updated `_process_story_tags` in `stories/views.py` to fire the signal.
+    - Added `story` foreign key and `story_tag` type to `Notification` model.
+    - Updated `notifications/signals.py` to listen to `story_user_tagged` and create a notification.
+    - Generated and applied DB migrations.
+    - Added exceptions in `.importlinter` to satisfy the architectural rules.
