@@ -5,6 +5,39 @@
 <div style="max-width: 600px; margin: 0 auto;">
     <h2 class="mb-4">Your Feed</h2>
     
+    <!-- Stories Bar -->
+    <div class="card mb-4" style="padding: 1rem; overflow-x: auto; white-space: nowrap; display: flex; gap: 1rem; align-items: center;">
+        <!-- Add Story Button -->
+        <a href="{% url 'upload_story' %}" style="display: inline-flex; flex-direction: column; align-items: center; text-decoration: none; color: inherit; min-width: 70px;">
+            <div style="width: 60px; height: 60px; border-radius: 50%; background-color: var(--surface); border: 2px dashed var(--primary); display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
+                <i class="fas fa-plus" style="color: var(--primary);"></i>
+            </div>
+            <span style="font-size: 0.8rem; font-weight: 600;">Add Story</span>
+        </a>
+
+        <!-- Active Stories -->
+        {% for user, user_stories in active_stories_grouped.items %}
+            {% with first_story=user_stories|first %}
+            <a href="{% url 'view_story' first_story.id %}" style="display: inline-flex; flex-direction: column; align-items: center; text-decoration: none; color: inherit; min-width: 70px;">
+                <div style="width: 60px; height: 60px; border-radius: 50%; padding: 2px; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); margin-bottom: 0.5rem;">
+                    <div style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2px solid var(--background); background-color: var(--border);">
+                        {% if user.profile.profile_picture %}
+                            <img src="{{ user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                            <div class="d-flex align-center justify-center" style="width: 100%; height: 100%; color: white; background-color: var(--primary); font-size: 1.2rem;">
+                                {{ user.profile.first_name|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <span style="font-size: 0.8rem; font-weight: 500; text-overflow: ellipsis; overflow: hidden; max-width: 70px;">
+                    {% if user == request.user %}You{% else %}{{ user.profile.first_name }}{% endif %}
+                </span>
+            </a>
+            {% endwith %}
+        {% endfor %}
+    </div>
+
     <div style="display: flex; flex-direction: column; gap: 2rem;">
         {% for photo in page_obj %}
             <div class="card photo-card">

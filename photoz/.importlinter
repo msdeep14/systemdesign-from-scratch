@@ -5,6 +5,7 @@ root_packages =
     notifications
     photos
     users
+    stories
 
 [importlinter:contract:1]
 name = Independence of domain apps
@@ -15,14 +16,22 @@ modules =
     notifications
     photos
     users
+    stories
 
-# ignoring because previous code. Should be fixed later.
 ignore_imports =
-    newsfeed.views -> photos.models
-    photos.views -> communities.models
-    photos.views -> notifications.models
-    communities.views -> notifications.models
-    newsfeed.views -> communities.models
-    newsfeed.views -> users.models
-    communities.views -> users.models
-    photos.views -> users.models
+    communities.views -> users.services
+    newsfeed.services -> users.services
+    newsfeed.signals -> users.services
+    photos.views -> users.services
+    stories.views -> users.services
+    newsfeed.views -> photos.services
+    newsfeed.services -> photos.services
+    newsfeed.services -> communities.services
+    newsfeed.signals -> photos.signals
+    newsfeed.signals -> communities.signals
+    notifications.signals -> photos.signals
+    notifications.signals -> communities.signals
+    notifications.signals -> stories.signals
+    photos.views -> communities.services
+    newsfeed.services -> stories.services
+    stories.forms -> photos.utils

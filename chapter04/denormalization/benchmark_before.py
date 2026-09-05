@@ -11,8 +11,8 @@ to compare query counts and latencies.
 Requires: seeded database (run chapter04/query_optimization/seed_data.py first)
 """
 
-import sys
 import os
+import sys
 import time
 
 PHOTOZ_DIR = os.path.join(
@@ -30,13 +30,13 @@ from django.conf import settings
 
 settings.DEBUG = True
 
-from django.db import connection, reset_queries
-from django.db.models import Q, Count
-from django.core.paginator import Paginator
+from communities.models import CommunityMembership
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
+from django.db import connection, reset_queries
+from django.db.models import Count, Q
+from photos.models import Comment, Like, Photo
 from users.models import Follow
-from photos.models import Photo, Like, Comment
-from communities.models import Community, CommunityMembership
 
 
 def print_header(title, subtitle=""):

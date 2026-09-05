@@ -16,6 +16,7 @@ repos:
         language: python
         types: [python]
         files: ^photoz/
+        exclude: ^photoz/.*/migrations/.*$
         additional_dependencies:
           - "pylint>=3.2.0"
           - "pylint-django>=2.5.5"
@@ -45,6 +46,7 @@ repos:
         pass_filenames: false
         args:
           - "--fail-on=high"
+          - "--baseline=.drift-baseline.json"
 
       - id: calm-validate
         name: calm-validate

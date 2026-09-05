@@ -27,8 +27,8 @@ How to get the URLs:
 
 import argparse
 import statistics
-import time
 import sys
+import time
 
 import requests
 import urllib3
@@ -112,7 +112,7 @@ def run_benchmark(url, label, num_requests):
 
 def print_comparison(s3_summary, cdn_summary):
     print(f"\n{'=' * 60}")
-    print(f"  COMPARISON: S3 Direct vs CloudFront CDN")
+    print("  COMPARISON: S3 Direct vs CloudFront CDN")
     print(f"{'=' * 60}")
 
     print(f"\n  {'Metric':<30} {'S3 Direct':>12} {'CloudFront':>12} {'Reduction':>12}")
@@ -156,7 +156,7 @@ def print_comparison(s3_summary, cdn_summary):
     if cdn_summary["hit_count"] + cdn_summary["miss_count"] > 0:
         total_cdn = cdn_summary["hit_count"] + cdn_summary["miss_count"]
         hit_ratio = round((cdn_summary["hit_count"] / total_cdn) * 100, 1)
-        print(f"\n  CloudFront Cache:")
+        print("\n  CloudFront Cache:")
         print(
             f"    HITs: {cdn_summary['hit_count']}, MISSes: {cdn_summary['miss_count']}, HIT Ratio: {hit_ratio}%"
         )
@@ -187,8 +187,8 @@ def main():
     args = parser.parse_args()
 
     print(f"\nCDN Benchmark: {args.requests} requests to each URL")
-    print(f"Run from: your current machine location")
-    print(f"For best results, also run this from an EC2 in a different region.\n")
+    print("Run from: your current machine location")
+    print("For best results, also run this from an EC2 in a different region.\n")
 
     s3_summary = run_benchmark(args.s3_url, "Direct S3", args.requests)
     cdn_summary = run_benchmark(args.cdn_url, "CloudFront CDN", args.requests)

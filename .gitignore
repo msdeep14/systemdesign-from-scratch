@@ -1,2 +1,4 @@
 # Benchmarks
 baseline*.json
+
+.drift-cache/

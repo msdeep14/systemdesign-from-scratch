@@ -49,6 +49,15 @@
                 <strong>{{ photo.user.profile.username_display }}</strong> {{ photo.caption|linkify_hashtags }}
             </div>
         {% endif %}
+
+        {% if tagged_users %}
+            <div class="mb-4" style="font-size: 0.9rem; color: var(--text-muted);">
+                <i class="fas fa-user-tag"></i> With: 
+                {% for u in tagged_users %}
+                    <a href="{% url 'profile' u.profile.username_display %}" style="text-decoration: none; color: var(--primary);">@{{ u.profile.username_display }}</a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        {% endif %}
         
         <div class="comments-section">
             <h4 class="mb-2">Comments (<span id="comments-count">{{ comments_count }}</span>)</h4>
@@ -56,7 +65,7 @@
                 {% for comment in comments %}
                     <div>
                         <strong><a href="{% url 'profile' comment.user.profile.username_display %}" style="text-decoration: none; color: inherit;">{{ comment.user.profile.username_display }}</a></strong>
-                        <span style="color: var(--text-main);">{{ comment.text }}</span>
+                        <span style="color: var(--text-main);">{{ comment.text|linkify_hashtags }}</span>
                         <div style="font-size: 0.75rem; color: var(--text-muted);">{{ comment.created_at|timesince }} ago</div>
                     </div>
                 {% empty %}
@@ -133,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const commentDiv = document.createElement('div');
                     commentDiv.innerHTML = `
                         <strong><a href="/users/${data.username_display}/" style="text-decoration: none; color: inherit;">${data.username_display}</a></strong>
-                        <span style="color: var(--text-main);">${data.text}</span>
+                        <span style="color: var(--text-main);">${data.html_text || data.text}</span>
                         <div style="font-size: 0.75rem; color: var(--text-muted);">just now</div>
                     `;
                     commentsList.appendChild(commentDiv);

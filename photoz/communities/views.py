@@ -2,15 +2,13 @@ import logging
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.cache import cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from notifications.models import Notification
-from users.models import UserProfile
-
-from .forms import CommunityForm
-from .models import Community, CommunityMembership
+from communities.forms import CommunityForm
+from communities.models import Community, CommunityMembership
+from communities.signals import invitation_accepted, member_invited
+from users.services import get_user_profile_by_username
 
 logger = logging.getLogger("bses")
 
@@ -92,7 +90,7 @@ def invite_member(request, id):
         messages.error(request, "Only members can invite others.")
         return redirect("community_detail", id=community.id)
 
-    profile = UserProfile.objects.filter(username_display=username).first()
+    profile = get_user_profile_by_username(username)
 
     if not profile:
         logger.warning("Invite failed: User '%s' not found by %s", username, request.user.username)
@@ -123,11 +121,11 @@ def invite_member(request, id):
             community=community, user=target_user, role="member", status="pending"
         )
 
-        Notification.objects.create(
-            recipient=target_user,
-            sender=request.user,
-            type="community_invite",
-            message=f"{request.user.profile.first_name} invited you to join '{community.name}'.",
+        member_invited.send(
+            sender=Community,
+            community=community,
+            target_user=target_user,
+            inviter=request.user,
             membership=membership,
         )
         logger.info(
@@ -151,8 +149,8 @@ def respond_invitation(request, id):
         membership.status = "accepted"
         membership.save()
 
-        # Invalidate newsfeed cache so new community posts show up
-        cache.delete(f"feed:{request.user.id}")
+        # Emit signal so newsfeed can invalidate cache for new community posts
+        invitation_accepted.send(sender=CommunityMembership, user=request.user)
 
         logger.info(
             "User %s accepted invitation to community %s",

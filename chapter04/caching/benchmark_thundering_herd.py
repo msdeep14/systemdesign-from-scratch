@@ -29,11 +29,11 @@ Usage (run locally via SSH tunnels):
 """
 
 import argparse
+import concurrent.futures
 import os
 import re
 import sys
 import time
-import concurrent.futures
 
 import psycopg2
 import redis

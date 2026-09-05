@@ -26,7 +26,6 @@ Usage:
 
 import argparse
 import os
-import sys
 import threading
 import time
 
@@ -285,7 +284,7 @@ def main():
 
     monitor_conn.close()
 
-    print(f"\n  Write workload done:")
+    print("\n  Write workload done:")
     print(f"    Rows inserted:   {write_results.get('writes_done', 0):,}")
     print(f"    Duration:        {write_results.get('write_duration_s', 0):.1f}s")
     print(f"    Throughput:      {write_results.get('writes_per_sec', 0):.0f} rows/sec")
@@ -295,7 +294,7 @@ def main():
     print("  RESULTS: pg_stat_replication (DURING & AFTER workload)")
     print("=" * 100)
 
-    print(f"\n  Peak replication lag DURING write workload:")
+    print("\n  Peak replication lag DURING write workload:")
     print(
         f"    Peak write_lag:         {poll_results.get('peak_write_lag_ms', 0):.2f} ms"
     )
@@ -306,7 +305,7 @@ def main():
         f"    Peak bytes in flight:   {poll_results.get('peak_bytes_in_flight', 0):,} bytes"
     )
 
-    print(f"\n  Replica state AFTER workload:")
+    print("\n  Replica state AFTER workload:")
     print_separator()
     if replicas_after:
         print(

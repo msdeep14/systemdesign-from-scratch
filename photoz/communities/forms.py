@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Community
+from communities.models import Community
 
 
 class CommunityForm(forms.ModelForm):

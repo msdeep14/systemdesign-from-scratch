@@ -30,9 +30,9 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG_MODE", "False") == "True"
+DEBUG = os.getenv("DEBUG_MODE", "False") == "True"
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 
 # Application definition
@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "newsfeed.apps.NewsfeedConfig",
     "communities.apps.CommunitiesConfig",
     "notifications.apps.NotificationsConfig",
+    "stories.apps.StoriesConfig",
 ]
 
 try:

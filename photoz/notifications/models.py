@@ -7,6 +7,8 @@ class Notification(models.Model):
         ("community_invite", "Community Invite"),
         ("photo_like", "Photo Like"),
         ("photo_comment", "Photo Comment"),
+        ("photo_tag", "Photo Tag"),
+        ("story_tag", "Story Tag"),
     )
 
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
@@ -16,6 +18,7 @@ class Notification(models.Model):
     type = models.CharField(max_length=30, choices=TYPE_CHOICES)
     message = models.TextField()
     photo = models.ForeignKey("photos.Photo", on_delete=models.SET_NULL, null=True, blank=True)
+    story = models.ForeignKey("stories.Story", on_delete=models.SET_NULL, null=True, blank=True)
     membership = models.ForeignKey(
         "communities.CommunityMembership", on_delete=models.SET_NULL, null=True, blank=True
     )

@@ -172,3 +172,56 @@ PgBouncer runs in transaction mode, which breaks Django migrations (ALTER TABLE 
   * Chose **Django Signals** combined with **Service Layers**. This strictly decouples the codebase and resolves `import-linter` violations. While the execution time remains synchronous (adding latency to uploads), this perfectly positions the architecture for an easy transition to a real task queue later, as signal receivers can easily be converted to Celery tasks without modifying the core views.
 * **Actions Taken**:
   * Updated Implementation Plan artifact to formally define the Service Layer + Signals architecture and document the trade-offs.
+
+
+### Phase: Introduce Service Layers (Date: 2026-08-29, Commit: aca7a79a4e9d4cf03b0f60d4e6e265203e8a8e2f, Model: Gemini 3.1 Pro (High))
+
+**Analysis & Rationale:**
+- The application suffered from high cyclomatic complexity and cross-app coupling (e.g., `newsfeed/views.py` importing models directly from `photos`, `users`, and `communities`). 
+- To resolve `import-linter` domain violations and reduce logic embedded inside view functions, we introduced the Service Layer pattern.
+- This creates explicit boundaries where apps interact with other apps exclusively through dedicated `services.py` modules, abstracting away internal data queries and complex logic (like Redis caching).
+
+**Actions Taken:**
+- `[NEW]` Created `users/services.py`, `communities/services.py`, `photos/services.py`, and `newsfeed/services.py`.
+- `[MODIFY]` Refactored `newsfeed/views.py` to use the new service functions for fetching photos, user details, and communities, moving the entire Redis lock & polling logic to `newsfeed/services.py`.
+- `[MODIFY]` Refactored `photos/views.py` and `communities/views.py` to remove direct cross-domain model imports, replacing them with service calls.
+- `[MODIFY]` Removed resolved `ignore_imports` overrides from `.importlinter` to enforce the new strict architectural boundaries.
+- `[EXECUTE]` Baselined `drift-analyzer` to lock in the reduced Co-Change Coupling and Cyclomatic Complexity improvements.
+
+### Phase: Introduce Django Signals (Date: 2026-08-29, Commit: Pending, Model: Gemini 3.1 Pro (High))
+
+**Analysis & Rationale:**
+- The architecture requires breaking cross-app dependencies to satisfy import-linter and reduce cyclomatic complexity.
+- We needed to decouple the `photos` app from the `notifications` and `newsfeed` apps so that actions in `photos` (uploads, likes, comments, deletes) do not directly import logic from other domain areas.
+- Django Signals provide an asynchronous-like pub/sub mechanism to cleanly sever these dependencies. The `photos` app emits signals, while the relevant apps listen and respond independently.
+
+**Actions Taken:**
+- `[NEW]` Created `photos/signals.py` defining custom signals: `photo_uploaded`, `photo_deleted`, `photo_liked`, `photo_commented`.
+- `[MODIFY]` Refactored `photos/views.py` to emit signals and completely removed dependencies on `newsfeed.services` and `notifications.models`.
+- `[NEW]` Created `notifications/signals.py` to listen for `photo_liked` and `photo_commented` events, generating Notification records. Modified `notifications/apps.py` to wire these receivers on startup.
+- `[NEW]` Created `newsfeed/signals.py` to listen for `photo_uploaded` and `photo_deleted` events, orchestrating the Redis cache fan-out and invalidation via its local services. Modified `newsfeed/apps.py` to wire these receivers on startup.
+
+**Edge Cases & Learnings:**
+- Care was taken not to prematurely delete cache invalidation mechanisms for the CDN inside the `delete_photo` view; the `photo.delete()` operation and `invalidate_cache()` must remain synchronized in `photos/views.py`, delegating ONLY the user feed cache fan-out to the `newsfeed` signal receiver.
+
+## Phase: Infrastructure Configuration for ALLOWED_HOSTS (Date: 2026-08-29, Commit: 807eaf114c18a95a8d059d5d3ab4409a671f4cd9, Model: Gemini 3.1 Pro (High) )
+*   **Analysis:** The application used `ALLOWED_HOSTS = ["*"]`, which triggers security linters (e.g., Drift Analyzer insecure_default). Changing it directly to a local fallback (`"localhost,127.0.0.1"`) breaks production deployments where Nginx proxies traffic via the public Load Balancer IP/Domain.
+*   **Actions:**
+    *   Updated `iaac/aws/terraform/main.tf` to dynamically inject the LB node's private and public IPs into the generated `.env` file for the app nodes (`ALLOWED_HOSTS=$${aws_instance.lb_node.private_ip},$${aws_instance.lb_node.public_ip},localhost,127.0.0.1`).
+    *   Updated `photoz/bses/settings.py` to remove the temporary `"*"` fallback and safely rely on `os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")`.
+*   **Notes/Edge Cases:** This provides a seamless transition satisfying security linters without risking production downtime during the deployment cycle. Locally, it naturally falls back to `localhost,127.0.0.1`, enabling docker-compose local testing without any extra configuration.
+
+### Phase: Introduce Photo Tagging Feature (Date: 2026-08-29, Commit: Pending, Model: Gemini 3.1 Pro (High))
+* **Analysis**: Implemented Phase 5 to allow users to tag other users in photo captions using `@username` syntax. 
+* **Actions Taken**:
+  * `[NEW]` Created `PhotoTag` model in `photos/models.py`.
+  * `[NEW]` Created `user_tagged` signal in `photos/signals.py`.
+  * `[MODIFY]` Updated `upload_photo` in `photos/views.py` to extract tags from captions via regex, validate them with `get_user_profile_by_username`, save `PhotoTag`s, and emit the `user_tagged` signal. (Extracted into a helper `_process_photo_tags` to fix a cyclomatic complexity drift violation).
+  * `[MODIFY]` Updated `Notification.TYPE_CHOICES` in `notifications/models.py` with `photo_tag`.
+  * `[MODIFY]` Added receiver for `user_tagged` in `notifications/signals.py` to notify the tagged user.
+  * Configured `Tribute.js` for `@username` autocomplete on photo uploads and comments.
+  * Extended `linkify_hashtags` to handle `@username` strings, turning them into clickable profile links in both captions and comments.
+  * Passed tagged users via `PhotoTag` in the `photo_detail` view to explicitly display "With: @username" below captions.
+
+* **Edge Cases / Errors Fixed**: Resolved cognitive complexity issue flagged by drift-analyzer by extracting the tag parsing logic out of the main view body.
+  

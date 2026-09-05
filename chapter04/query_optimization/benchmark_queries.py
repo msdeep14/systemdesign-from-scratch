@@ -8,8 +8,8 @@ counts SQL queries per operation, and runs EXPLAIN ANALYZE on key queries.
 Requires: Seeded database (run seed_data.py first)
 """
 
-import sys
 import os
+import sys
 import time
 
 PHOTOZ_DIR = os.path.join(
@@ -28,14 +28,14 @@ from django.conf import settings
 
 settings.DEBUG = True
 
-from django.db import connection, reset_queries
-from django.db.models import Q, Count
-from django.core.paginator import Paginator
+from communities.models import CommunityMembership
 from django.contrib.auth.models import User
-from users.models import UserProfile, Follow
-from photos.models import Photo, Like, Comment
-from communities.models import Community, CommunityMembership
+from django.core.paginator import Paginator
+from django.db import connection, reset_queries
+from django.db.models import Count, Q
 from notifications.models import Notification
+from photos.models import Photo
+from users.models import Follow, UserProfile
 
 
 def print_header(title, subtitle=""):
@@ -50,7 +50,7 @@ def print_queries(queries, show_all=False, max_display=15):
     total_db_time = sum(float(q["time"]) for q in queries)
     print(f"\n  SQL queries fired: {len(queries)}")
     print(f"  Total DB time: {total_db_time * 1000:.1f}ms")
-    print(f"\n  Query breakdown:")
+    print("\n  Query breakdown:")
     print("  " + "-" * 66)
 
     display_count = len(queries) if show_all else min(max_display, len(queries))
@@ -195,14 +195,14 @@ def benchmark_newsfeed(user, verbose=False):
         and "membership" not in q["sql"]
     )
 
-    print(f"\n  Query breakdown by type:")
-    print(f"     Base queries (feed, follows, communities, likes):  ~5")
+    print("\n  Query breakdown by type:")
+    print("     Base queries (feed, follows, communities, likes):  ~5")
     print(f"     User lookups (N+1 per photo):       {user_queries}")
     print(f"     Profile lookups (N+1 per photo):    {profile_queries}")
     print(f"     Community lookups (N+1 per photo):  {community_queries}")
     print(f"     Like COUNT (N+1 per photo):         {like_count_queries}")
     print(f"     Comment COUNT (N+1 per photo):      {comment_count_queries}")
-    print(f"     -----------------------------------------")
+    print("     -----------------------------------------")
     print(f"     TOTAL:                              {len(queries)}")
 
     # EXPLAIN ANALYZE on the main feed query
@@ -397,11 +397,9 @@ def print_summary(results):
     print("  " + "-" * 58)
     print(f"  {'TOTAL (a single user browsing 5 pages)':<45} {total:>10}")
     print()
-    print("  This means a single user session fires ~{} SQL queries.".format(total))
+    print(f"  This means a single user session fires ~{total} SQL queries.")
     print(
-        "     With 100 concurrent users, that's ~{} queries hitting Postgres.".format(
-            total * 100
-        )
+        f"     With 100 concurrent users, that's ~{total * 100} queries hitting Postgres."
     )
     print()
     print("  The main culprits:")

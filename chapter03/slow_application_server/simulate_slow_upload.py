@@ -1,10 +1,10 @@
-import socket
-import time
-import sys
 import os
+import socket
+import sys
+import time
+import uuid
 
 import requests
-import uuid
 
 
 def slow_upload(host, port=80, path="/photos/upload/"):

@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Story by {{ story.user.profile.first_name }} - BSES{% endblock %}
+{% block content %}
+<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 9999; display: flex; flex-direction: column;">
+    
+    <!-- Header: User Info & Close button -->
+    <div style="position: absolute; top: 0; left: 0; right: 0; padding: 1rem; display: flex; justify-content: space-between; align-items: center; z-index: 10;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background-color: var(--border);">
+                {% if story.user.profile.profile_picture %}
+                    <img src="{{ story.user.profile.profile_picture.url }}" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                    <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: white; background-color: var(--primary); font-size: 1rem;">
+                        {{ story.user.profile.first_name|first|upper }}
+                    </div>
+                {% endif %}
+            </div>
+            <a href="{% url 'profile' story.user.profile.username_display %}" style="text-decoration: none; color: white; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">
+                {{ story.user.profile.username_display }}
+            </a>
+            <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">{{ story.created_at|timesince }} ago</span>
+        </div>
+        
+        <a href="{% url 'newsfeed' %}" style="color: white; text-decoration: none; font-size: 1.5rem; text-shadow: 0 1px 3px rgba(0,0,0,0.8);"><i class="fas fa-times"></i></a>
+    </div>
+
+    <!-- Progress Bars -->
+    <div style="position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 4px; z-index: 10;">
+        {% for s in user_active_stories %}
+            <div style="flex: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden;">
+                {% if forloop.counter0 < current_index %}
+                    <div style="height: 100%; background: white; width: 100%;"></div>
+                {% elif forloop.counter0 == current_index %}
+                    <div id="progress-bar" style="height: 100%; background: white; width: 0%; transition: width 0.1s linear;"></div>
+                {% else %}
+                    <div style="height: 100%; background: white; width: 0%;"></div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Navigation Overlay -->
+    <div style="position: absolute; top: 0; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; z-index: 5;">
+        <div id="nav-prev" style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: flex-start; cursor: pointer; padding-left: 1rem;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white;">
+                <i class="fas fa-chevron-left" style="font-size: 1.2rem;"></i>
+            </div>
+        </div>
+        <div id="nav-next" style="width: 50%; height: 100%; display: flex; align-items: center; justify-content: flex-end; cursor: pointer; padding-right: 1rem;">
+            <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; color: white;">
+                <i class="fas fa-chevron-right" style="font-size: 1.2rem;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- The Image and Caption -->
+    {% load hashtag_tags %}
+    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 80px; padding-bottom: 20px; overflow: hidden; position: relative; z-index: 1;">
+        <img src="{{ story.image.url }}" style="max-width: 100%; max-height: calc(100vh - 160px); object-fit: contain;">
+        
+        {% if story.caption %}
+        <div style="margin-top: 1rem; padding: 0 1rem; text-align: center; color: white; width: 100%; max-width: 500px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 10;">
+            {{ story.caption|linkify_hashtags }}
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Auto-close story after 5 seconds
+        const progressBar = document.getElementById('progress-bar');
+        const DURATION = 5000;
+        const interval = 50;
+        let elapsed = 0;
+        
+        const navigateNext = () => {
+            clearInterval(timer);
+            {% if next_story %}
+                window.location.href = "{% url 'view_story' next_story.id %}";
+            {% else %}
+                window.location.href = "{% url 'newsfeed' %}";
+            {% endif %}
+        };
+        
+        const navigatePrev = () => {
+            clearInterval(timer);
+            {% if prev_story %}
+                window.location.href = "{% url 'view_story' prev_story.id %}";
+            {% else %}
+                window.location.reload();
+            {% endif %}
+        };
+        
+        const timer = setInterval(() => {
+            elapsed += interval;
+            const percent = (elapsed / DURATION) * 100;
+            if (progressBar) {
+                progressBar.style.width = `${percent}%`;
+            }
+            
+            if (elapsed >= DURATION) {
+                navigateNext();
+            }
+        }, interval);
+
+        document.getElementById('nav-next').addEventListener('click', navigateNext);
+        document.getElementById('nav-prev').addEventListener('click', navigatePrev);
+    });
+</script>
+{% endblock %}

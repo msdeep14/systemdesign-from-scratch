@@ -7,8 +7,10 @@ FORCE_PRIMARY_COOKIE = "force_primary"
 FORCE_PRIMARY_TTL_SECONDS = 5
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
+__all__ = ["ReadYourWritesMiddleware", "is_primary_forced"]
 
-def is_primary_forced():
+
+def is_primary_forced() -> bool:
     """
     Returns True if the current thread should route reads to the primary.
     Called by the database router.

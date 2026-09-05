@@ -113,6 +113,13 @@ Once the prerequisites are installed, you must initialize TrueCourse in the `pho
    npx truecourse config llm setup --transport api --provider openai --model llama3.1:8b --api-key-env OLLAMA_DUMMY_KEY --base-url http://localhost:11434/v1
    ```
 
+   **NOTE:** If you wish to run truecourse from clean slate on subsequent runs, clear the cache and then run again:
+   ```bash
+   cd photoz
+   rm -rf .truecourse/.cache
+   npx truecourse analyze
+   ```
+
 ### 3. Execution
 
 You can now run TrueCourse to analyze the architecture and detect semantic drift:

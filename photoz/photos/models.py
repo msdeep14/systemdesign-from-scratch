@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
-from .utils import photo_upload_path
+from photos.utils import photo_upload_path
 
 
 class Photo(models.Model):
@@ -46,3 +46,15 @@ class Comment(models.Model):
         indexes = [
             models.Index(fields=["photo", "created_at"], name="idx_comment_photo_created"),
         ]
+
+
+class PhotoTag(models.Model):
+    photo = models.ForeignKey(Photo, on_delete=models.CASCADE, related_name="tags")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tagged_in")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["photo", "user"], name="unique_photo_tag")]
+
+    def __str__(self):
+        return f"{self.user.username} tagged in {self.photo.id}"

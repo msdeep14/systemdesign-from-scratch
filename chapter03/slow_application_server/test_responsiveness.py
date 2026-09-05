@@ -1,8 +1,9 @@
-import time
-import requests
-import sys
 import os
+import sys
+import time
 import uuid
+
+import requests
 
 
 def test_responsiveness(host, port=80):
@@ -44,7 +45,7 @@ def test_responsiveness(host, port=80):
         print(f"ERROR: Authentication request failed: {e}")
         return
 
-    print(f"Uploading 3 dummy photos to populate the newsfeed...")
+    print("Uploading 3 dummy photos to populate the newsfeed...")
     upload_url = f"{base_url}/photos/upload/"
 
     # Read actual image from disk to pass Pillow validation and upload to S3

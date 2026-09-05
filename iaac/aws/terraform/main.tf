@@ -260,6 +260,7 @@ NODE_IP=$LOCAL_IP
 REDIS_URL=${var.create_redis_node ? "redis://${aws_instance.redis_node[0].private_ip}:6379/1" : ""}
 AWS_S3_CUSTOM_DOMAIN=${aws_cloudfront_distribution.photoz_cdn.domain_name}
 CLOUDFRONT_DISTRIBUTION_ID=${aws_cloudfront_distribution.photoz_cdn.id}
+ALLOWED_HOSTS=${aws_instance.lb_node.private_ip},${aws_instance.lb_node.public_ip},localhost,127.0.0.1
 ENV
 
 docker compose -f docker-compose-app.yml up -d

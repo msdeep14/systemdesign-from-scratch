@@ -7,6 +7,9 @@ from django.db import connection
 logger = logging.getLogger("metrics")
 
 
+__all__ = ["CloudWatchMetricsMiddleware"]
+
+
 class QueryTimer:
     def __init__(self):
         self.query_count = 0

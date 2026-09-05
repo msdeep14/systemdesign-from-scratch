@@ -7,7 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
-from .models import Notification
+from notifications.models import Notification
 
 logger = logging.getLogger("bses")
 

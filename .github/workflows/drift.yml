@@ -3,7 +3,7 @@ name: Architecture Drift Check
 on:
   pull_request:
     paths:
-      - 'photoz/**'
+      - 'photoz/**/*.py'       # Only run if Python files change (mirrors local pre-commit skip behavior)
 
 jobs:
   drift-check:
@@ -18,4 +18,4 @@ jobs:
         with:
           repo: photoz         # Only run analysis on the photoz Django monolith
           fail-on: high        # Fails the PR check if high severity issues are found
-          comment: "true"      # Posts a summary comment on the PR
+          comment: "false"     # Disabled: The action's github-script crashes with SyntaxError

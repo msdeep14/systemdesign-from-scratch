@@ -1,6 +1,7 @@
-import time
-import requests
 import sys
+import time
+
+import requests
 
 
 def monitor(host, port=80):

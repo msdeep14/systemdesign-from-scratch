@@ -4,6 +4,8 @@ from django.conf import settings
 
 from bses.ryw_middleware import is_primary_forced
 
+__all__ = ["PrimaryReplicaRouter"]
+
 
 class PrimaryReplicaRouter:
     """
