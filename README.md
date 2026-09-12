@@ -27,6 +27,8 @@ This allows for a more practical understanding of how system designs evolve. The
 
 Every chapter and photoz/ directory has execution logs with commit history. You can follow this combination to grasp on the incremental implementation and architecture upgrade. Wherever needed, an additional README is included with setup/run instructions and test results/benchmarks.
 
+> **NOTE:** The code in this repository is sample implementation for educational purposes only. Most of the code is AI-generated and only light-weight review is done. If you are using this code for some purpose, please do extensive testing and security review before using it in production. 
+
 ## Table of Contents
 | Chapter         | Description                    | 
 | --------------- | ------------------------------ | 
