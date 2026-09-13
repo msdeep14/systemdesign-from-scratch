@@ -546,3 +546,10 @@
     - Updated `notifications/signals.py` to listen to `story_user_tagged` and create a notification.
     - Generated and applied DB migrations.
     - Added exceptions in `.importlinter` to satisfy the architectural rules.
+
+## Phase: Celebrity Users & Fan-Out Bottleneck (Date: 2026-09-13, Commit: pending, Model: Gemini 3.1 Pro (High))
+*   **Analysis**: To demonstrate the bottleneck in synchronous fan-out of photo uploads to followers' feeds, we needed to simulate high-load conditions by seeding celebrity users with a large number of followers.
+*   **Actions**:
+    *   Created `users/management/commands/seed_celebrity_users.py` to efficiently bulk create base users and follow relationships for 3 celebrities.
+    *   Created benchmarking script `chapter06/benchmarks/upload_timing.py` to time image uploads via HTTP and reproduce the Gunicorn timeout caused by the synchronous Redis fan-out.
+    *   Created `chapter06/README.md` to include setup instructions for Chapter 6 benchmarks.
