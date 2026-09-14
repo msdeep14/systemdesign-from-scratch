@@ -39,3 +39,45 @@ To easily filter these logs, you can run (inside photoz/ directory):
 docker-compose logs -f web | grep "RequestLatency"
 ```
 For the synchronous fan-out implementation, you will observe extremely high request latency or Gunicorn timeout errors (which defaults to taking longer than 120s for `@celeb_1m` and `@celeb_2m`).
+
+---
+
+## Hybrid Push/Pull Implementation
+
+The fix introduces a `follower_count` field on `UserProfile`. Users above 10,000 followers (celebrities) are skipped during write-time fan-out. Their photos are pulled at read time and merged into the feed.
+
+### 1. Apply Migration
+
+Run inside the `web` container (from `photoz/`):
+```bash
+docker-compose exec web python manage.py makemigrations
+docker-compose exec web python manage.py migrate
+```
+
+### 2. Backfill Follower Counts
+
+The existing `Follow` rows from the seeding script were created via `bulk_create`, which bypasses Django signals, so `follower_count` is `0` for all existing users. Run the backfill once:
+```bash
+docker-compose exec web python manage.py backfill_follower_counts
+```
+This recomputes follower counts from the `Follow` table and updates `UserProfile.follower_count` in batches. Expect this to take 1-2 minutes for 2M users.
+
+### 3. Restart the Web Container
+
+New Python code requires a container restart to take effect:
+```bash
+docker-compose restart web
+```
+
+### 4. Re-run Upload Benchmark
+
+After the migration and backfill:
+```bash
+python chapter06/benchmarks/upload_timing.py
+```
+All three celebrity uploads should now complete in under 1 second. Feed loads for followers of celebrities will show celebrity photos merged in at read time.
+
+### What to Look For
+
+- Upload latency: drops from 30s+ / timeout → <1s for all celebrities.
+- On a follower's feed load: one additional DB query for celebrity photos (`SELECT ... WHERE user_id IN (...)`). Check `DatabaseLatency` in logs — this should be a small, fast query.

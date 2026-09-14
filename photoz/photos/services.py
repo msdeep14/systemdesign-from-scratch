@@ -26,3 +26,15 @@ def get_photos_by_ids(photo_ids):
     photos_qs = Photo.objects.filter(id__in=photo_ids).select_related("user__profile", "community")
     photos_dict = {p.id: p for p in photos_qs}
     return [photos_dict[pid] for pid in photo_ids if pid in photos_dict]
+
+
+def get_celebrity_photo_ids(celebrity_user_ids: list[int], limit: int = 20) -> list[int]:
+    """
+    Returns the most recent photo IDs from celebrity accounts.
+    Only public photos (no community restriction) are included.
+    """
+    return list(
+        Photo.objects.filter(user_id__in=celebrity_user_ids, community__isnull=True)
+        .order_by("-created_at")
+        .values_list("id", flat=True)[:limit]
+    )

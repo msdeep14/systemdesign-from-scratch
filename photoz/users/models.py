@@ -11,6 +11,7 @@ class UserProfile(models.Model):
     profile_picture = models.ImageField(upload_to="profiles/", blank=True, null=True)
     interests = models.TextField(blank=True)
     bio = models.TextField(blank=True)
+    follower_count = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -6,11 +6,15 @@ from django.core.cache import cache
 from redis import exceptions as redis_exceptions
 
 from communities.services import get_accepted_community_ids
-from photos.services import get_feed_photo_ids
+from photos.services import get_celebrity_photo_ids, get_feed_photo_ids
 from stories.services import get_active_stories_for_users
-from users.services import get_followed_user_ids
+from users.services import get_celebrity_followed_ids, get_followed_user_ids
 
 logger = logging.getLogger("bses")
+
+CELEBRITY_FOLLOWER_THRESHOLD = 10_000
+CELEBRITY_IDS_CACHE_TTL = 300  # 5 minutes
+CELEBRITY_FEED_PHOTO_LIMIT = 20
 
 
 def _get_redis_client():
@@ -68,12 +72,27 @@ def _wait_for_feed_promise(client, cache_key):
     return None
 
 
+def get_celebrity_user_ids(user_id: int) -> list[int]:
+    """
+    Returns IDs of celebrity accounts (above follower threshold) that this user follows.
+    Result is cached in Redis per user with a short TTL.
+    """
+    cache_key = f"celebrity_ids:{user_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    celebrity_ids = get_celebrity_followed_ids(user_id, CELEBRITY_FOLLOWER_THRESHOLD)
+    cache.set(cache_key, celebrity_ids, timeout=CELEBRITY_IDS_CACHE_TTL)
+    return celebrity_ids
+
+
 def get_cached_feed(user_id):
     """
-    Fetches the feed photo IDs for a user, checking Redis/cache first.
-    If a cache miss occurs, attempts to lock, fetch from DB, and cache.
-    Falls back to a 503 if polling fails (Thundering herd prevention).
-    Returns a list of photo IDs, or None if the feed is currently generating (503).
+    Fetches the feed photo IDs for a user.
+    Merges push-based Redis feed (regular users) with pull-based DB query (celebrity users).
+    Falls back to a 503 if cache population fails (thundering herd prevention).
+    Returns a list of photo IDs, or None if the feed is currently generating.
     """
     client = _get_redis_client()
     cache_key = f":1:feed:{user_id}" if client else f"feed:{user_id}"
@@ -81,27 +100,36 @@ def get_cached_feed(user_id):
 
     photo_ids = _get_feed_from_redis(client, cache_key) if client else cache.get(cache_key)
 
-    if photo_ids is not None:
-        return photo_ids
+    if photo_ids is None:
+        acquired = True
+        if client:
+            with handle_redis_error("Redis lock failed for %s: %s", lock_key):
+                acquired = client.set(lock_key, b"1", nx=True, ex=5)
 
-    acquired = True
-    if client:
-        with handle_redis_error("Redis lock failed for %s: %s", lock_key):
-            acquired = client.set(lock_key, b"1", nx=True, ex=5)
+        if acquired:
+            try:
+                photo_ids = _populate_feed(user_id)
+                if client:
+                    _save_feed_to_redis(client, cache_key, photo_ids)
+                else:
+                    cache.set(cache_key, photo_ids, timeout=3600)
+            finally:
+                if client:
+                    with contextlib.suppress(redis_exceptions.RedisError):
+                        client.delete(lock_key)
+        else:
+            photo_ids = _wait_for_feed_promise(client, cache_key)
 
-    if acquired:
-        try:
-            photo_ids = _populate_feed(user_id)
-            if client:
-                _save_feed_to_redis(client, cache_key, photo_ids)
-            else:
-                cache.set(cache_key, photo_ids, timeout=3600)
-        finally:
-            if client:
-                with contextlib.suppress(redis_exceptions.RedisError):
-                    client.delete(lock_key)
-    else:
-        photo_ids = _wait_for_feed_promise(client, cache_key)
+    if photo_ids is None:
+        return None
+
+    # Pull celebrity photos at read time and merge
+    celebrity_ids = get_celebrity_user_ids(user_id)
+    if celebrity_ids:
+        celeb_photo_ids = get_celebrity_photo_ids(celebrity_ids, limit=CELEBRITY_FEED_PHOTO_LIMIT)
+        if celeb_photo_ids:
+            merged = list(dict.fromkeys(celeb_photo_ids + photo_ids))
+            return merged
 
     return photo_ids
 

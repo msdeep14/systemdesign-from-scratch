@@ -13,6 +13,16 @@ def get_follower_user_ids(user):
     return list(Follow.objects.filter(following=user).values_list("follower_id", flat=True))
 
 
+def get_celebrity_followed_ids(user_id: int, follower_threshold: int) -> list[int]:
+    """Returns IDs of users above follower_threshold that this user follows."""
+    return list(
+        Follow.objects.filter(follower_id=user_id)
+        .select_related("following__profile")
+        .filter(following__profile__follower_count__gt=follower_threshold)
+        .values_list("following_id", flat=True)
+    )
+
+
 def search_users(query):
     """Searches for users by username or name."""
     if not query:

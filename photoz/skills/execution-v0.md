@@ -547,9 +547,23 @@
     - Generated and applied DB migrations.
     - Added exceptions in `.importlinter` to satisfy the architectural rules.
 
-## Phase: Celebrity Users & Fan-Out Bottleneck (Date: 2026-09-13, Commit: pending, Model: Gemini 3.1 Pro (High))
+## Phase: Celebrity Users & Fan-Out Bottleneck (Date: 2026-09-13, Commit: 2e4f672b275548d6625ca406a59f285308799ca9, Model: Gemini 3.1 Pro (High))
 *   **Analysis**: To demonstrate the bottleneck in synchronous fan-out of photo uploads to followers' feeds, we needed to simulate high-load conditions by seeding celebrity users with a large number of followers.
 *   **Actions**:
     *   Created `users/management/commands/seed_celebrity_users.py` to efficiently bulk create base users and follow relationships for 3 celebrities.
     *   Created benchmarking script `chapter06/benchmarks/upload_timing.py` to time image uploads via HTTP and reproduce the Gunicorn timeout caused by the synchronous Redis fan-out.
     *   Created `chapter06/README.md` to include setup instructions for Chapter 6 benchmarks.
+*   **Benchmark results**: `celeb_500k` upload took 30.24s; `celeb_1m` and `celeb_2m` returned 504. Root cause: `newsfeed/signals.py` synchronously pushed photo ID to all follower Redis feeds in the HTTP thread.
+
+## Phase: Hybrid Push/Pull Fan-Out Fix (Date: 2026-09-14, Commit: pending, Model: Claude Sonnet 4.6 Thinking)
+*   **Analysis**: Chose Hybrid Push/Pull over pure async Pub/Sub. Pub/Sub still does 2M Redis writes (just off the HTTP thread). Hybrid eliminates celebrity fan-out entirely at write time and pulls at read time instead.
+*   **Actions**:
+    *   Added `follower_count = PositiveIntegerField(default=0, db_index=True)` to `UserProfile` + migration.
+    *   Created `users/signals.py`: `post_save`/`post_delete` on `Follow` atomically update `follower_count` via `F()` expressions.
+    *   Wired signals in `UsersConfig.ready()` in `users/apps.py`.
+    *   Added `get_celebrity_followed_ids(user_id, threshold)` to `users/services.py`.
+    *   Created `users/management/commands/backfill_follower_counts.py` for one-time sync of existing `Follow` rows.
+    *   Updated `newsfeed/signals.py`: celebrities (>10,000 followers) skip fan-out; regular users keep push-on-write.
+    *   Updated `newsfeed/services.py`: `get_celebrity_user_ids()` (Redis-cached, 5min TTL); `get_cached_feed()` merges celebrity pull at read time.
+    *   Added `get_celebrity_photo_ids()` to `photos/services.py`.
+*   **Edge case**: `bulk_update` requires DB-fetched objects (PK set), not in-memory instances. Fixed backfill command accordingly.
