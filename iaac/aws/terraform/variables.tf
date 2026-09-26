@@ -100,6 +100,24 @@ variable "app_instance_type" {
   description = "EC2 instance type for the App nodes"
 }
 
+variable "app_desired_capacity" {
+  type        = number
+  default     = 2
+  description = "Desired number of App instances in the Auto Scaling Group"
+}
+
+variable "app_max_size" {
+  type        = number
+  default     = 4
+  description = "Maximum number of App instances in the Auto Scaling Group"
+}
+
+variable "app_min_size" {
+  type        = number
+  default     = 2
+  description = "Minimum number of App instances in the Auto Scaling Group"
+}
+
 variable "db_instance_type" {
   type        = string
   default     = "t3.micro"

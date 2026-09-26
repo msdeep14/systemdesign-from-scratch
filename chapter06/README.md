@@ -81,3 +81,26 @@ All three celebrity uploads should now complete in under 1 second. Feed loads fo
 
 - Upload latency: drops from 30s+ / timeout → <1s for all celebrities.
 - On a follower's feed load: one additional DB query for celebrity photos (`SELECT ... WHERE user_id IN (...)`). Check `DatabaseLatency` in logs — this should be a small, fast query.
+
+---
+
+## Follower Count Hot Row Benchmark
+
+If thousands of users try to follow a celebrity at the exact same time, they all queue up for a lock on the exact same row in the `UserProfile` table.
+
+### 1. Run the Hot Row Benchmark
+
+script simulating real users attempting to follow `@celeb_2m` simultaneously.
+
+Run this command from the project root (`systemdesignfromscratch/`):
+```bash
+python chapter06/benchmarks/follow_timing.py --host http://localhost --concurrency 200
+```
+
+### 2. Prove the DB Lock is the Limiting Factor
+
+Even locally, you can prove that the database lock limits throughput by comparing a scattered workload (hitting different rows) against a concentrated workload (hitting the same row).
+
+```bash
+python chapter06/benchmarks/compare_hot_row.py --host http://<your-alb-dns> --concurrency 5000
+```

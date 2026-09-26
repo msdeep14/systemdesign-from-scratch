@@ -116,6 +116,9 @@ if [ "${var.seed_database}" = "true" ]; then
   python manage.py migrate
   
   python ../chapter04/query_optimization/seed_data.py --reset
+  
+  # Seed celebrity users
+  python manage.py seed_celebrity_users
 fi
 EOF
 
@@ -278,9 +281,9 @@ EOF
 resource "aws_autoscaling_group" "app_nodes" {
   name                = "photoz-app-asg${local.env_suffix}"
   vpc_zone_identifier = local.subnet_ids
-  desired_capacity    = 2
-  max_size            = 4
-  min_size            = 2
+  desired_capacity    = var.app_desired_capacity
+  max_size            = var.app_max_size
+  min_size            = var.app_min_size
 
   depends_on = [aws_cloudwatch_log_group.app_logs]
 

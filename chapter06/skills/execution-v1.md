@@ -22,3 +22,10 @@
     *   Added `get_celebrity_photo_ids(celebrity_user_ids, limit)` to `photos/services.py`.
 *   **Edge case**: `bulk_update` requires objects fetched from the DB (with PK set), not in-memory constructed instances. Fixed the backfill command accordingly.
 *   **Note**: Only 25,004 `UserProfile` rows exist (3 celebrities + ~25,001 signup users). The 2M seeded follower accounts are bare `auth_user` rows with no profile — they're synthetic accounts and will never upload photos. The backfill correctly skips them.
+
+## Phase: Replicate Follower Count Hot Row Problem (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: The `F("follower_count") + 1` operation in `users/signals.py` causes a synchronous row-level lock in PostgreSQL on `UserProfile`. We wrote HTTP benchmarking scripts to hit the `/users/<celeb>/follow/` endpoint concurrently to replicate this bottleneck.
+*   **Actions**:
+    *   Created `chapter06/benchmarks/follow_timing.py` to simulate N users concurrently clicking "Follow". Discovered that pulling CSRF tokens inline inside the concurrent block flooded the Gunicorn queue, creating a false benchmark reading. Factored the GET requests out to the setup phase to isolate the POST latency.
+    *   Created `chapter06/benchmarks/compare_hot_row.py` to definitively prove the DB lock limits throughput by comparing a "Scattered Load" (hitting different rows) against a "Concentrated Load" (hitting a single row). 
+    *   Identified the **Connection Funnel**: Our Docker setup strictly limits traffic to 10 max concurrent DB connections. At this scale, the DB resolves locks in <1ms, so the system never bottlenecks on the database row lock locally, only at the web server limit (~1,000 RPS).
