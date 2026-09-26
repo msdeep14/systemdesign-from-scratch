@@ -3,31 +3,31 @@
   "description" : "A photo-sharing social network",
   "documentation" : { },
   "id" : 1,
-  "lastModifiedDate" : "2026-08-23T12:38:35Z",
+  "lastModifiedDate" : "2026-09-26T16:55:13Z",
   "model" : {
     "people" : [ {
-      "description" : "A user of the Photoz application.",
+      "description" : "User of Photoz",
       "id" : "1",
       "name" : "User",
       "properties" : {
         "structurizr.dsl.identifier" : "user"
       },
       "relationships" : [ {
-        "description" : "Visits photoz.com for HTML/JSON and static assets",
+        "description" : "Visits site",
         "destinationId" : "3",
-        "id" : "16",
+        "id" : "18",
         "sourceId" : "1",
         "tags" : "Relationship"
       }, {
-        "description" : "Visits photoz.com for HTML/JSON and static assets",
+        "description" : "Visits site",
         "destinationId" : "2",
-        "id" : "17",
-        "linkedRelationshipId" : "16",
+        "id" : "19",
+        "linkedRelationshipId" : "18",
         "sourceId" : "1"
       }, {
-        "description" : "Fetches images",
-        "destinationId" : "14",
-        "id" : "18",
+        "description" : "Gets images",
+        "destinationId" : "16",
+        "id" : "20",
         "sourceId" : "1",
         "tags" : "Relationship"
       } ],
@@ -35,7 +35,7 @@
     } ],
     "softwareSystems" : [ {
       "containers" : [ {
-        "description" : "Routes incoming traffic to available app servers and serves static assets.",
+        "description" : "Routes HTTP traffic",
         "documentation" : { },
         "group" : "Load Balancer Node",
         "id" : "3",
@@ -44,40 +44,40 @@
           "structurizr.dsl.identifier" : "loadBalancer"
         },
         "relationships" : [ {
-          "description" : "Routes dynamic traffic to",
+          "description" : "Routes traffic",
           "destinationId" : "5",
-          "id" : "22",
+          "id" : "24",
           "sourceId" : "3",
           "tags" : "Relationship"
         }, {
-          "description" : "Routes traffic",
+          "description" : "Routes",
           "destinationId" : "6",
-          "id" : "34",
+          "id" : "40",
           "sourceId" : "3",
           "tags" : "Relationship"
         }, {
-          "description" : "Routes traffic",
+          "description" : "Routes",
           "destinationId" : "7",
-          "id" : "35",
+          "id" : "41",
           "sourceId" : "3",
           "tags" : "Relationship"
         }, {
-          "description" : "Routes traffic",
+          "description" : "Routes",
           "destinationId" : "8",
-          "id" : "36",
+          "id" : "42",
           "sourceId" : "3",
           "tags" : "Relationship"
         }, {
-          "description" : "Routes traffic",
+          "description" : "Routes",
           "destinationId" : "9",
-          "id" : "37",
+          "id" : "43",
           "sourceId" : "3",
           "tags" : "Relationship"
         } ],
         "tags" : "Element,Container",
         "technology" : "Nginx"
       }, {
-        "description" : "Service discovery and health checking to assist with autoscaling.",
+        "description" : "Service Discovery",
         "documentation" : { },
         "group" : "Load Balancer Node",
         "id" : "4",
@@ -86,9 +86,9 @@
           "structurizr.dsl.identifier" : "consul"
         },
         "relationships" : [ {
-          "description" : "Updates routing config with healthy nodes",
+          "description" : "Updates routing",
           "destinationId" : "3",
-          "id" : "20",
+          "id" : "22",
           "sourceId" : "4",
           "tags" : "Relationship"
         } ],
@@ -96,7 +96,7 @@
         "technology" : "HashiCorp Consul"
       }, {
         "components" : [ {
-          "description" : "Manages user accounts, profiles, and authentication.",
+          "description" : "Accounts and Auth",
           "documentation" : { },
           "id" : "6",
           "name" : "Users App",
@@ -104,16 +104,16 @@
             "structurizr.dsl.identifier" : "usersApp"
           },
           "relationships" : [ {
-            "description" : "Reads/Writes User Data",
-            "destinationId" : "11",
-            "id" : "29",
+            "description" : "User Data",
+            "destinationId" : "12",
+            "id" : "35",
             "sourceId" : "6",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
         }, {
-          "description" : "Manages photo uploads, processing, and metadata.",
+          "description" : "Photo Logic",
           "documentation" : { },
           "id" : "7",
           "name" : "Photos App",
@@ -121,22 +121,22 @@
             "structurizr.dsl.identifier" : "photosApp"
           },
           "relationships" : [ {
-            "description" : "Reads/Writes Photo Data",
-            "destinationId" : "11",
-            "id" : "30",
+            "description" : "Photo Data",
+            "destinationId" : "12",
+            "id" : "36",
             "sourceId" : "7",
             "tags" : "Relationship"
           }, {
-            "description" : "Uploads photos via",
-            "destinationId" : "15",
-            "id" : "38",
+            "description" : "Uploads",
+            "destinationId" : "17",
+            "id" : "44",
             "sourceId" : "7",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
         }, {
-          "description" : "Manages communities, memberships, and posts.",
+          "description" : "Community Logic",
           "documentation" : { },
           "id" : "8",
           "name" : "Communities App",
@@ -144,16 +144,16 @@
             "structurizr.dsl.identifier" : "communitiesApp"
           },
           "relationships" : [ {
-            "description" : "Reads/Writes Community Data",
-            "destinationId" : "11",
-            "id" : "31",
+            "description" : "Community Data",
+            "destinationId" : "12",
+            "id" : "37",
             "sourceId" : "8",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
         }, {
-          "description" : "Aggregates posts for the user's feed.",
+          "description" : "Feed Logic",
           "documentation" : { },
           "id" : "9",
           "name" : "Newsfeed App",
@@ -161,16 +161,16 @@
             "structurizr.dsl.identifier" : "newsfeedApp"
           },
           "relationships" : [ {
-            "description" : "Caches and retrieves feeds",
-            "destinationId" : "13",
-            "id" : "32",
+            "description" : "Feeds",
+            "destinationId" : "14",
+            "id" : "38",
             "sourceId" : "9",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
         }, {
-          "description" : "Manages and delivers notifications.",
+          "description" : "Notifications",
           "documentation" : { },
           "id" : "10",
           "name" : "Notifications App",
@@ -178,76 +178,109 @@
             "structurizr.dsl.identifier" : "notificationsApp"
           },
           "relationships" : [ {
-            "description" : "Reads/Writes Notification Data",
-            "destinationId" : "11",
-            "id" : "33",
+            "description" : "Notifications",
+            "destinationId" : "12",
+            "id" : "39",
             "sourceId" : "10",
             "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
         } ],
-        "description" : "Horizontally scalable application servers handling business logic.",
+        "description" : "Business Logic",
         "documentation" : { },
+        "group" : "App Node (Auto Scaling Group)",
         "id" : "5",
         "name" : "App Servers",
         "properties" : {
           "structurizr.dsl.identifier" : "webApp"
         },
         "relationships" : [ {
-          "description" : "Registers service and reports health",
+          "description" : "Registers",
           "destinationId" : "4",
-          "id" : "21",
-          "sourceId" : "5",
-          "tags" : "Relationship"
-        }, {
-          "description" : "Writes to",
-          "destinationId" : "11",
           "id" : "23",
           "sourceId" : "5",
           "tags" : "Relationship"
         }, {
-          "description" : "Reads from",
+          "description" : "Writes",
           "destinationId" : "12",
-          "id" : "24",
+          "id" : "25",
           "sourceId" : "5",
           "tags" : "Relationship"
         }, {
-          "description" : "Reads from and writes to",
+          "description" : "Reads",
           "destinationId" : "13",
           "id" : "26",
           "sourceId" : "5",
           "tags" : "Relationship"
         }, {
-          "description" : "Uploads photos",
-          "destinationId" : "15",
-          "id" : "27",
+          "description" : "Caches/Reads",
+          "destinationId" : "14",
+          "id" : "28",
+          "sourceId" : "5",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Uploads",
+          "destinationId" : "17",
+          "id" : "29",
+          "sourceId" : "5",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Pushes tasks",
+          "destinationId" : "14",
+          "id" : "34",
           "sourceId" : "5",
           "tags" : "Relationship"
         } ],
-        "tags" : "Element,Container",
+        "tags" : "Element,Container,WebApp",
         "technology" : "Python and Django"
       }, {
-        "description" : "Stores user profiles, photos metadata, communities, and relationships (Writes).",
+        "description" : "Background tasks",
         "documentation" : { },
+        "group" : "App Node (Auto Scaling Group)",
         "id" : "11",
+        "name" : "Celery Worker",
+        "properties" : {
+          "structurizr.dsl.identifier" : "celeryWorker"
+        },
+        "relationships" : [ {
+          "description" : "Pulls tasks",
+          "destinationId" : "14",
+          "id" : "32",
+          "sourceId" : "11",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Bulk writes",
+          "destinationId" : "12",
+          "id" : "33",
+          "sourceId" : "11",
+          "tags" : "Relationship"
+        } ],
+        "tags" : "Element,Container,Worker",
+        "technology" : "Celery"
+      }, {
+        "description" : "Core DB (Writes)",
+        "documentation" : { },
+        "group" : "Database Node",
+        "id" : "12",
         "name" : "Primary Database",
         "properties" : {
           "structurizr.dsl.identifier" : "databasePrimary"
         },
         "relationships" : [ {
-          "description" : "Replicates data to",
-          "destinationId" : "12",
-          "id" : "25",
-          "sourceId" : "11",
+          "description" : "Replicates",
+          "destinationId" : "13",
+          "id" : "27",
+          "sourceId" : "12",
           "tags" : "Relationship"
         } ],
         "tags" : "Element,Container,Database",
         "technology" : "PostgreSQL"
       }, {
-        "description" : "Read-only database replicas for scaling read queries.",
+        "description" : "Core DB (Reads)",
         "documentation" : { },
-        "id" : "12",
+        "group" : "Database Replica Node",
+        "id" : "13",
         "name" : "Read Replicas",
         "properties" : {
           "structurizr.dsl.identifier" : "databaseReplica"
@@ -255,17 +288,36 @@
         "tags" : "Element,Container,Database",
         "technology" : "PostgreSQL"
       }, {
-        "description" : "Caches newsfeeds and frequently accessed data.",
+        "description" : "Cache and Queue",
         "documentation" : { },
-        "id" : "13",
-        "name" : "Cache",
+        "group" : "Redis Node",
+        "id" : "14",
+        "name" : "Cache and Message Broker",
         "properties" : {
           "structurizr.dsl.identifier" : "cache"
         },
-        "tags" : "Element,Container,Database",
+        "tags" : "Element,Container,Cache",
         "technology" : "Redis"
+      }, {
+        "description" : "Task Scheduler",
+        "documentation" : { },
+        "group" : "Redis Node",
+        "id" : "15",
+        "name" : "Celery Beat",
+        "properties" : {
+          "structurizr.dsl.identifier" : "celeryBeat"
+        },
+        "relationships" : [ {
+          "description" : "Pushes tasks",
+          "destinationId" : "14",
+          "id" : "31",
+          "sourceId" : "15",
+          "tags" : "Relationship"
+        } ],
+        "tags" : "Element,Container,Worker",
+        "technology" : "Celery"
       } ],
-      "description" : "Allows users to upload photos, join communities, and view their newsfeed.",
+      "description" : "Core Platform",
       "documentation" : { },
       "id" : "2",
       "name" : "Photoz System",
@@ -273,33 +325,33 @@
         "structurizr.dsl.identifier" : "photozSystem"
       },
       "relationships" : [ {
-        "description" : "Uploads photos",
-        "destinationId" : "15",
-        "id" : "28",
-        "linkedRelationshipId" : "27",
+        "description" : "Uploads",
+        "destinationId" : "17",
+        "id" : "30",
+        "linkedRelationshipId" : "29",
         "sourceId" : "2"
       } ],
       "tags" : "Element,Software System"
     }, {
-      "description" : "Caches and serves uploaded images globally.",
+      "description" : "Global CDN",
       "documentation" : { },
-      "id" : "14",
+      "id" : "16",
       "name" : "CloudFront CDN",
       "properties" : {
         "structurizr.dsl.identifier" : "cdn"
       },
       "relationships" : [ {
-        "description" : "Fetches images from origin",
-        "destinationId" : "15",
-        "id" : "19",
-        "sourceId" : "14",
+        "description" : "Gets origin",
+        "destinationId" : "17",
+        "id" : "21",
+        "sourceId" : "16",
         "tags" : "Relationship"
       } ],
       "tags" : "Element,Software System,AWS CloudFront"
     }, {
-      "description" : "Object storage for uploaded photos (CDN Origin).",
+      "description" : "Object Storage",
       "documentation" : { },
-      "id" : "15",
+      "id" : "17",
       "name" : "Amazon S3",
       "properties" : {
         "structurizr.dsl.identifier" : "s3"
@@ -309,8 +361,8 @@
   },
   "name" : "Photoz",
   "properties" : {
-    "structurizr.inspection.error" : "26",
-    "structurizr.dsl" : "d29ya3NwYWNlICJQaG90b3oiICJBIHBob3RvLXNoYXJpbmcgc29jaWFsIG5ldHdvcmsiIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIkEgdXNlciBvZiB0aGUgUGhvdG96IGFwcGxpY2F0aW9uLiIKCiAgICAgICAgcGhvdG96U3lzdGVtID0gc29mdHdhcmVTeXN0ZW0gIlBob3RveiBTeXN0ZW0iICJBbGxvd3MgdXNlcnMgdG8gdXBsb2FkIHBob3Rvcywgam9pbiBjb21tdW5pdGllcywgYW5kIHZpZXcgdGhlaXIgbmV3c2ZlZWQuIiB7CiAgICAgICAgICAgIAogICAgICAgICAgICBncm91cCAiTG9hZCBCYWxhbmNlciBOb2RlIiB7CiAgICAgICAgICAgICAgICBsb2FkQmFsYW5jZXIgPSBjb250YWluZXIgIk5naW54IExvYWQgQmFsYW5jZXIiICJSb3V0ZXMgaW5jb21pbmcgdHJhZmZpYyB0byBhdmFpbGFibGUgYXBwIHNlcnZlcnMgYW5kIHNlcnZlcyBzdGF0aWMgYXNzZXRzLiIgIk5naW54IgogICAgICAgICAgICAgICAgY29uc3VsID0gY29udGFpbmVyICJDb25zdWwgU2VydmVyIiAiU2VydmljZSBkaXNjb3ZlcnkgYW5kIGhlYWx0aCBjaGVja2luZyB0byBhc3Npc3Qgd2l0aCBhdXRvc2NhbGluZy4iICJIYXNoaUNvcnAgQ29uc3VsIgogICAgICAgICAgICB9CiAgICAgICAgICAgIAogICAgICAgICAgICB3ZWJBcHAgPSBjb250YWluZXIgIkFwcCBTZXJ2ZXJzIiAiSG9yaXpvbnRhbGx5IHNjYWxhYmxlIGFwcGxpY2F0aW9uIHNlcnZlcnMgaGFuZGxpbmcgYnVzaW5lc3MgbG9naWMuIiAiUHl0aG9uIGFuZCBEamFuZ28iIHsKICAgICAgICAgICAgICAgIHVzZXJzQXBwID0gY29tcG9uZW50ICJVc2VycyBBcHAiICJNYW5hZ2VzIHVzZXIgYWNjb3VudHMsIHByb2ZpbGVzLCBhbmQgYXV0aGVudGljYXRpb24uIiAiRGphbmdvIEFwcCIKICAgICAgICAgICAgICAgIHBob3Rvc0FwcCA9IGNvbXBvbmVudCAiUGhvdG9zIEFwcCIgIk1hbmFnZXMgcGhvdG8gdXBsb2FkcywgcHJvY2Vzc2luZywgYW5kIG1ldGFkYXRhLiIgIkRqYW5nbyBBcHAiCiAgICAgICAgICAgICAgICBjb21tdW5pdGllc0FwcCA9IGNvbXBvbmVudCAiQ29tbXVuaXRpZXMgQXBwIiAiTWFuYWdlcyBjb21tdW5pdGllcywgbWVtYmVyc2hpcHMsIGFuZCBwb3N0cy4iICJEamFuZ28gQXBwIgogICAgICAgICAgICAgICAgbmV3c2ZlZWRBcHAgPSBjb21wb25lbnQgIk5ld3NmZWVkIEFwcCIgIkFnZ3JlZ2F0ZXMgcG9zdHMgZm9yIHRoZSB1c2VyJ3MgZmVlZC4iICJEamFuZ28gQXBwIgogICAgICAgICAgICAgICAgbm90aWZpY2F0aW9uc0FwcCA9IGNvbXBvbmVudCAiTm90aWZpY2F0aW9ucyBBcHAiICJNYW5hZ2VzIGFuZCBkZWxpdmVycyBub3RpZmljYXRpb25zLiIgIkRqYW5nbyBBcHAiCiAgICAgICAgICAgIH0KICAgICAgICAgICAgCiAgICAgICAgICAgIGRhdGFiYXNlUHJpbWFyeSA9IGNvbnRhaW5lciAiUHJpbWFyeSBEYXRhYmFzZSIgIlN0b3JlcyB1c2VyIHByb2ZpbGVzLCBwaG90b3MgbWV0YWRhdGEsIGNvbW11bml0aWVzLCBhbmQgcmVsYXRpb25zaGlwcyAoV3JpdGVzKS4iICJQb3N0Z3JlU1FMIiAiRGF0YWJhc2UiCiAgICAgICAgICAgIAogICAgICAgICAgICBkYXRhYmFzZVJlcGxpY2EgPSBjb250YWluZXIgIlJlYWQgUmVwbGljYXMiICJSZWFkLW9ubHkgZGF0YWJhc2UgcmVwbGljYXMgZm9yIHNjYWxpbmcgcmVhZCBxdWVyaWVzLiIgIlBvc3RncmVTUUwiICJEYXRhYmFzZSIKICAgICAgICAgICAgCiAgICAgICAgICAgIGNhY2hlID0gY29udGFpbmVyICJDYWNoZSIgIkNhY2hlcyBuZXdzZmVlZHMgYW5kIGZyZXF1ZW50bHkgYWNjZXNzZWQgZGF0YS4iICJSZWRpcyIgIkRhdGFiYXNlIgogICAgICAgIH0KCiAgICAgICAgY2RuID0gc29mdHdhcmVTeXN0ZW0gIkNsb3VkRnJvbnQgQ0ROIiAiQ2FjaGVzIGFuZCBzZXJ2ZXMgdXBsb2FkZWQgaW1hZ2VzIGdsb2JhbGx5LiIgIkFXUyBDbG91ZEZyb250IgogICAgICAgIHMzID0gc29mdHdhcmVTeXN0ZW0gIkFtYXpvbiBTMyIgIk9iamVjdCBzdG9yYWdlIGZvciB1cGxvYWRlZCBwaG90b3MgKENETiBPcmlnaW4pLiIgIkFXUyBTMyIKCiAgICAgICAgIyBFeHRlcm5hbCBSZWxhdGlvbnNoaXBzCiAgICAgICAgdXNlciAtPiBsb2FkQmFsYW5jZXIgIlZpc2l0cyBwaG90b3ouY29tIGZvciBIVE1ML0pTT04gYW5kIHN0YXRpYyBhc3NldHMiCiAgICAgICAgdXNlciAtPiBjZG4gIkZldGNoZXMgaW1hZ2VzIgogICAgICAgIGNkbiAtPiBzMyAiRmV0Y2hlcyBpbWFnZXMgZnJvbSBvcmlnaW4iCiAgICAgICAgCiAgICAgICAgIyBDb250YWluZXIgUmVsYXRpb25zaGlwcwogICAgICAgIGNvbnN1bCAtPiBsb2FkQmFsYW5jZXIgIlVwZGF0ZXMgcm91dGluZyBjb25maWcgd2l0aCBoZWFsdGh5IG5vZGVzIgogICAgICAgIHdlYkFwcCAtPiBjb25zdWwgIlJlZ2lzdGVycyBzZXJ2aWNlIGFuZCByZXBvcnRzIGhlYWx0aCIKICAgICAgICBsb2FkQmFsYW5jZXIgLT4gd2ViQXBwICJSb3V0ZXMgZHluYW1pYyB0cmFmZmljIHRvIgogICAgICAgIHdlYkFwcCAtPiBkYXRhYmFzZVByaW1hcnkgIldyaXRlcyB0byIKICAgICAgICB3ZWJBcHAgLT4gZGF0YWJhc2VSZXBsaWNhICJSZWFkcyBmcm9tIgogICAgICAgIGRhdGFiYXNlUHJpbWFyeSAtPiBkYXRhYmFzZVJlcGxpY2EgIlJlcGxpY2F0ZXMgZGF0YSB0byIKICAgICAgICB3ZWJBcHAgLT4gY2FjaGUgIlJlYWRzIGZyb20gYW5kIHdyaXRlcyB0byIKICAgICAgICB3ZWJBcHAgLT4gczMgIlVwbG9hZHMgcGhvdG9zIgoKICAgICAgICAjIENvbXBvbmVudCBSZWxhdGlvbnNoaXBzIChIaWdoLUxldmVsIEludGVudCkKICAgICAgICB1c2Vyc0FwcCAtPiBkYXRhYmFzZVByaW1hcnkgIlJlYWRzL1dyaXRlcyBVc2VyIERhdGEiCiAgICAgICAgcGhvdG9zQXBwIC0+IGRhdGFiYXNlUHJpbWFyeSAiUmVhZHMvV3JpdGVzIFBob3RvIERhdGEiCiAgICAgICAgY29tbXVuaXRpZXNBcHAgLT4gZGF0YWJhc2VQcmltYXJ5ICJSZWFkcy9Xcml0ZXMgQ29tbXVuaXR5IERhdGEiCiAgICAgICAgbmV3c2ZlZWRBcHAgLT4gY2FjaGUgIkNhY2hlcyBhbmQgcmV0cmlldmVzIGZlZWRzIgogICAgICAgIG5vdGlmaWNhdGlvbnNBcHAgLT4gZGF0YWJhc2VQcmltYXJ5ICJSZWFkcy9Xcml0ZXMgTm90aWZpY2F0aW9uIERhdGEiCgogICAgICAgIGxvYWRCYWxhbmNlciAtPiB1c2Vyc0FwcCAiUm91dGVzIHRyYWZmaWMiCiAgICAgICAgbG9hZEJhbGFuY2VyIC0+IHBob3Rvc0FwcCAiUm91dGVzIHRyYWZmaWMiCiAgICAgICAgbG9hZEJhbGFuY2VyIC0+IGNvbW11bml0aWVzQXBwICJSb3V0ZXMgdHJhZmZpYyIKICAgICAgICBsb2FkQmFsYW5jZXIgLT4gbmV3c2ZlZWRBcHAgIlJvdXRlcyB0cmFmZmljIgogICAgICAgIAogICAgICAgIHBob3Rvc0FwcCAtPiBzMyAiVXBsb2FkcyBwaG90b3MgdmlhIgogICAgfQoKICAgIHZpZXdzIHsKICAgICAgICBzeXN0ZW1Db250ZXh0IHBob3RvelN5c3RlbSAiU3lzdGVtQ29udGV4dCIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgaW5jbHVkZSBjZG4KICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIHBob3RvelN5c3RlbSAiQ29udGFpbmVycyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgaW5jbHVkZSBjZG4KICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgY29tcG9uZW50IHdlYkFwcCAiQ29tcG9uZW50cyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgc3R5bGVzIHsKICAgICAgICAgICAgZWxlbWVudCAiRWxlbWVudCIgewogICAgICAgICAgICAgICAgZm9udFNpemUgMzIKICAgICAgICAgICAgfQogICAgICAgICAgICAKICAgICAgICB9CiAgICB9Cn0=",
+    "structurizr.inspection.error" : "30",
+    "structurizr.dsl" : "d29ya3NwYWNlICJQaG90b3oiICJBIHBob3RvLXNoYXJpbmcgc29jaWFsIG5ldHdvcmsiIHsKCiAgICBtb2RlbCB7CiAgICAgICAgdXNlciA9IHBlcnNvbiAiVXNlciIgIlVzZXIgb2YgUGhvdG96IiAiUGVyc29uIgoKICAgICAgICBwaG90b3pTeXN0ZW0gPSBzb2Z0d2FyZVN5c3RlbSAiUGhvdG96IFN5c3RlbSIgIkNvcmUgUGxhdGZvcm0iIHsKICAgICAgICAgICAgCiAgICAgICAgICAgIGdyb3VwICJMb2FkIEJhbGFuY2VyIE5vZGUiIHsKICAgICAgICAgICAgICAgIGxvYWRCYWxhbmNlciA9IGNvbnRhaW5lciAiTmdpbnggTG9hZCBCYWxhbmNlciIgIlJvdXRlcyBIVFRQIHRyYWZmaWMiICJOZ2lueCIKICAgICAgICAgICAgICAgIGNvbnN1bCA9IGNvbnRhaW5lciAiQ29uc3VsIFNlcnZlciIgIlNlcnZpY2UgRGlzY292ZXJ5IiAiSGFzaGlDb3JwIENvbnN1bCIKICAgICAgICAgICAgfQogICAgICAgICAgICAKICAgICAgICAgICAgZ3JvdXAgIkFwcCBOb2RlIChBdXRvIFNjYWxpbmcgR3JvdXApIiB7CiAgICAgICAgICAgICAgICB3ZWJBcHAgPSBjb250YWluZXIgIkFwcCBTZXJ2ZXJzIiAiQnVzaW5lc3MgTG9naWMiICJQeXRob24gYW5kIERqYW5nbyIgIldlYkFwcCIgewogICAgICAgICAgICAgICAgICAgIHVzZXJzQXBwID0gY29tcG9uZW50ICJVc2VycyBBcHAiICJBY2NvdW50cyBhbmQgQXV0aCIgIkRqYW5nbyBBcHAiCiAgICAgICAgICAgICAgICAgICAgcGhvdG9zQXBwID0gY29tcG9uZW50ICJQaG90b3MgQXBwIiAiUGhvdG8gTG9naWMiICJEamFuZ28gQXBwIgogICAgICAgICAgICAgICAgICAgIGNvbW11bml0aWVzQXBwID0gY29tcG9uZW50ICJDb21tdW5pdGllcyBBcHAiICJDb21tdW5pdHkgTG9naWMiICJEamFuZ28gQXBwIgogICAgICAgICAgICAgICAgICAgIG5ld3NmZWVkQXBwID0gY29tcG9uZW50ICJOZXdzZmVlZCBBcHAiICJGZWVkIExvZ2ljIiAiRGphbmdvIEFwcCIKICAgICAgICAgICAgICAgICAgICBub3RpZmljYXRpb25zQXBwID0gY29tcG9uZW50ICJOb3RpZmljYXRpb25zIEFwcCIgIk5vdGlmaWNhdGlvbnMiICJEamFuZ28gQXBwIgogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgY2VsZXJ5V29ya2VyID0gY29udGFpbmVyICJDZWxlcnkgV29ya2VyIiAiQmFja2dyb3VuZCB0YXNrcyIgIkNlbGVyeSIgIldvcmtlciIKICAgICAgICAgICAgfQogICAgICAgICAgICAKICAgICAgICAgICAgZ3JvdXAgIkRhdGFiYXNlIE5vZGUiIHsKICAgICAgICAgICAgICAgIGRhdGFiYXNlUHJpbWFyeSA9IGNvbnRhaW5lciAiUHJpbWFyeSBEYXRhYmFzZSIgIkNvcmUgREIgKFdyaXRlcykiICJQb3N0Z3JlU1FMIiAiRGF0YWJhc2UiCiAgICAgICAgICAgIH0KICAgICAgICAgICAgCiAgICAgICAgICAgIGdyb3VwICJEYXRhYmFzZSBSZXBsaWNhIE5vZGUiIHsKICAgICAgICAgICAgICAgIGRhdGFiYXNlUmVwbGljYSA9IGNvbnRhaW5lciAiUmVhZCBSZXBsaWNhcyIgIkNvcmUgREIgKFJlYWRzKSIgIlBvc3RncmVTUUwiICJEYXRhYmFzZSIKICAgICAgICAgICAgfQogICAgICAgICAgICAKICAgICAgICAgICAgZ3JvdXAgIlJlZGlzIE5vZGUiIHsKICAgICAgICAgICAgICAgIGNhY2hlID0gY29udGFpbmVyICJDYWNoZSBhbmQgTWVzc2FnZSBCcm9rZXIiICJDYWNoZSBhbmQgUXVldWUiICJSZWRpcyIgIkNhY2hlIgogICAgICAgICAgICAgICAgY2VsZXJ5QmVhdCA9IGNvbnRhaW5lciAiQ2VsZXJ5IEJlYXQiICJUYXNrIFNjaGVkdWxlciIgIkNlbGVyeSIgIldvcmtlciIKICAgICAgICAgICAgfQogICAgICAgIH0KCiAgICAgICAgY2RuID0gc29mdHdhcmVTeXN0ZW0gIkNsb3VkRnJvbnQgQ0ROIiAiR2xvYmFsIENETiIgIkFXUyBDbG91ZEZyb250IgogICAgICAgIHMzID0gc29mdHdhcmVTeXN0ZW0gIkFtYXpvbiBTMyIgIk9iamVjdCBTdG9yYWdlIiAiQVdTIFMzIgoKICAgICAgICAjIEV4dGVybmFsIFJlbGF0aW9uc2hpcHMKICAgICAgICB1c2VyIC0+IGxvYWRCYWxhbmNlciAiVmlzaXRzIHNpdGUiCiAgICAgICAgdXNlciAtPiBjZG4gIkdldHMgaW1hZ2VzIgogICAgICAgIGNkbiAtPiBzMyAiR2V0cyBvcmlnaW4iCiAgICAgICAgCiAgICAgICAgIyBDb250YWluZXIgUmVsYXRpb25zaGlwcwogICAgICAgIGNvbnN1bCAtPiBsb2FkQmFsYW5jZXIgIlVwZGF0ZXMgcm91dGluZyIKICAgICAgICB3ZWJBcHAgLT4gY29uc3VsICJSZWdpc3RlcnMiCiAgICAgICAgbG9hZEJhbGFuY2VyIC0+IHdlYkFwcCAiUm91dGVzIHRyYWZmaWMiCiAgICAgICAgd2ViQXBwIC0+IGRhdGFiYXNlUHJpbWFyeSAiV3JpdGVzIgogICAgICAgIHdlYkFwcCAtPiBkYXRhYmFzZVJlcGxpY2EgIlJlYWRzIgogICAgICAgIGRhdGFiYXNlUHJpbWFyeSAtPiBkYXRhYmFzZVJlcGxpY2EgIlJlcGxpY2F0ZXMiCiAgICAgICAgd2ViQXBwIC0+IGNhY2hlICJDYWNoZXMvUmVhZHMiCiAgICAgICAgd2ViQXBwIC0+IHMzICJVcGxvYWRzIgogICAgICAgIAogICAgICAgIGNlbGVyeUJlYXQgLT4gY2FjaGUgIlB1c2hlcyB0YXNrcyIKICAgICAgICBjZWxlcnlXb3JrZXIgLT4gY2FjaGUgIlB1bGxzIHRhc2tzIgogICAgICAgIGNlbGVyeVdvcmtlciAtPiBkYXRhYmFzZVByaW1hcnkgIkJ1bGsgd3JpdGVzIgogICAgICAgIHdlYkFwcCAtPiBjYWNoZSAiUHVzaGVzIHRhc2tzIgoKICAgICAgICAjIENvbXBvbmVudCBSZWxhdGlvbnNoaXBzIChIaWdoLUxldmVsIEludGVudCkKICAgICAgICB1c2Vyc0FwcCAtPiBkYXRhYmFzZVByaW1hcnkgIlVzZXIgRGF0YSIKICAgICAgICBwaG90b3NBcHAgLT4gZGF0YWJhc2VQcmltYXJ5ICJQaG90byBEYXRhIgogICAgICAgIGNvbW11bml0aWVzQXBwIC0+IGRhdGFiYXNlUHJpbWFyeSAiQ29tbXVuaXR5IERhdGEiCiAgICAgICAgbmV3c2ZlZWRBcHAgLT4gY2FjaGUgIkZlZWRzIgogICAgICAgIG5vdGlmaWNhdGlvbnNBcHAgLT4gZGF0YWJhc2VQcmltYXJ5ICJOb3RpZmljYXRpb25zIgoKICAgICAgICBsb2FkQmFsYW5jZXIgLT4gdXNlcnNBcHAgIlJvdXRlcyIKICAgICAgICBsb2FkQmFsYW5jZXIgLT4gcGhvdG9zQXBwICJSb3V0ZXMiCiAgICAgICAgbG9hZEJhbGFuY2VyIC0+IGNvbW11bml0aWVzQXBwICJSb3V0ZXMiCiAgICAgICAgbG9hZEJhbGFuY2VyIC0+IG5ld3NmZWVkQXBwICJSb3V0ZXMiCiAgICAgICAgCiAgICAgICAgcGhvdG9zQXBwIC0+IHMzICJVcGxvYWRzIgogICAgfQoKICAgIHZpZXdzIHsKICAgICAgICBzeXN0ZW1Db250ZXh0IHBob3RvelN5c3RlbSAiU3lzdGVtQ29udGV4dCIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgaW5jbHVkZSBjZG4KICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIHBob3RvelN5c3RlbSAiQ29udGFpbmVycyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgaW5jbHVkZSBjZG4KICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgY29tcG9uZW50IHdlYkFwcCAiQ29tcG9uZW50cyIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICAgICAgYXV0b0xheW91dAogICAgICAgIH0KCiAgICAgICAgc3R5bGVzIHsKICAgICAgICAgICAgZWxlbWVudCAiRWxlbWVudCIgewogICAgICAgICAgICAgICAgZm9udFNpemUgMzIKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJTb2Z0d2FyZSBTeXN0ZW0iIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzExNjhiZAogICAgICAgICAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgICAgICB9CiAgICAgICAgICAgIGVsZW1lbnQgIkNvbnRhaW5lciIgewogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjNDM4ZGQ1CiAgICAgICAgICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgICAgIH0KICAgICAgICAgICAgZWxlbWVudCAiV2ViQXBwIiB7CiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICMyMDVjNDAKICAgICAgICAgICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJXb3JrZXIiIHsKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzRhOWM2ZAogICAgICAgICAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgICAgICB9CiAgICAgICAgICAgIGVsZW1lbnQgIkRhdGFiYXNlIiB7CiAgICAgICAgICAgICAgICBzaGFwZSBDeWxpbmRlcgogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjYjAzYTJlCiAgICAgICAgICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgICAgIH0KICAgICAgICAgICAgZWxlbWVudCAiQ2FjaGUiIHsKICAgICAgICAgICAgICAgIHNoYXBlIEN5bGluZGVyCiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICNkMzU0MDAKICAgICAgICAgICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJQZXJzb24iIHsKICAgICAgICAgICAgICAgIHNoYXBlIFBlcnNvbgogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjMDg0MjdiCiAgICAgICAgICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgICAgIH0KICAgICAgICAgICAgcmVsYXRpb25zaGlwICJSZWxhdGlvbnNoaXAiIHsKICAgICAgICAgICAgICAgIGZvbnRTaXplIDQwCiAgICAgICAgICAgICAgICB0aGlja25lc3MgMwogICAgICAgICAgICAgICAgY29sb3IgIzAwMDAwMAogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfQp9",
     "structurizr.inspection.info" : "0",
     "structurizr.inspection.ignore" : "0",
     "structurizr.inspection.warning" : "0"
@@ -350,15 +402,15 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "11",
+        "id" : "12",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "13",
+        "id" : "14",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "15",
+        "id" : "17",
         "x" : 0,
         "y" : 0
       } ],
@@ -367,18 +419,6 @@
       "name" : "Component View: Photoz System - App Servers",
       "order" : 3,
       "relationships" : [ {
-        "id" : "29"
-      }, {
-        "id" : "30"
-      }, {
-        "id" : "31"
-      }, {
-        "id" : "32"
-      }, {
-        "id" : "33"
-      }, {
-        "id" : "34"
-      }, {
         "id" : "35"
       }, {
         "id" : "36"
@@ -386,13 +426,62 @@
         "id" : "37"
       }, {
         "id" : "38"
+      }, {
+        "id" : "39"
+      }, {
+        "id" : "40"
+      }, {
+        "id" : "41"
+      }, {
+        "id" : "42"
+      }, {
+        "id" : "43"
+      }, {
+        "id" : "44"
       } ]
     } ],
     "configuration" : {
       "styles" : {
         "elements" : [ {
+          "background" : "#d35400",
+          "color" : "#ffffff",
+          "shape" : "Cylinder",
+          "tag" : "Cache"
+        }, {
+          "background" : "#438dd5",
+          "color" : "#ffffff",
+          "tag" : "Container"
+        }, {
+          "background" : "#b03a2e",
+          "color" : "#ffffff",
+          "shape" : "Cylinder",
+          "tag" : "Database"
+        }, {
           "fontSize" : 32,
           "tag" : "Element"
+        }, {
+          "background" : "#08427b",
+          "color" : "#ffffff",
+          "shape" : "Person",
+          "tag" : "Person"
+        }, {
+          "background" : "#1168bd",
+          "color" : "#ffffff",
+          "tag" : "Software System"
+        }, {
+          "background" : "#205c40",
+          "color" : "#ffffff",
+          "tag" : "WebApp"
+        }, {
+          "background" : "#4a9c6d",
+          "color" : "#ffffff",
+          "tag" : "Worker"
+        } ],
+        "relationships" : [ {
+          "color" : "#000000",
+          "fontSize" : 40,
+          "tag" : "Relationship",
+          "thickness" : 3
         } ]
       },
       "terminology" : { }
@@ -441,17 +530,21 @@
         "id" : "15",
         "x" : 0,
         "y" : 0
+      }, {
+        "id" : "16",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "17",
+        "x" : 0,
+        "y" : 0
       } ],
       "externalSoftwareSystemBoundariesVisible" : false,
       "key" : "Containers",
       "name" : "Container View: Photoz System",
       "order" : 2,
       "relationships" : [ {
-        "id" : "16"
-      }, {
         "id" : "18"
-      }, {
-        "id" : "19"
       }, {
         "id" : "20"
       }, {
@@ -468,6 +561,18 @@
         "id" : "26"
       }, {
         "id" : "27"
+      }, {
+        "id" : "28"
+      }, {
+        "id" : "29"
+      }, {
+        "id" : "31"
+      }, {
+        "id" : "32"
+      }, {
+        "id" : "33"
+      }, {
+        "id" : "34"
       } ],
       "softwareSystemId" : "2"
     } ],
@@ -488,11 +593,11 @@
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "14",
+        "id" : "16",
         "x" : 0,
         "y" : 0
       }, {
-        "id" : "15",
+        "id" : "17",
         "x" : 0,
         "y" : 0
       } ],
@@ -501,13 +606,13 @@
       "name" : "System Context View: Photoz System",
       "order" : 1,
       "relationships" : [ {
-        "id" : "17"
-      }, {
-        "id" : "18"
-      }, {
         "id" : "19"
       }, {
-        "id" : "28"
+        "id" : "20"
+      }, {
+        "id" : "21"
+      }, {
+        "id" : "30"
       } ],
       "softwareSystemId" : "2"
     } ]

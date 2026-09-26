@@ -1,61 +1,76 @@
 workspace "Photoz" "A photo-sharing social network" {
 
     model {
-        user = person "User" "A user of the Photoz application."
+        user = person "User" "User of Photoz" "Person"
 
-        photozSystem = softwareSystem "Photoz System" "Allows users to upload photos, join communities, and view their newsfeed." {
+        photozSystem = softwareSystem "Photoz System" "Core Platform" {
             
             group "Load Balancer Node" {
-                loadBalancer = container "Nginx Load Balancer" "Routes incoming traffic to available app servers and serves static assets." "Nginx"
-                consul = container "Consul Server" "Service discovery and health checking to assist with autoscaling." "HashiCorp Consul"
+                loadBalancer = container "Nginx Load Balancer" "Routes HTTP traffic" "Nginx"
+                consul = container "Consul Server" "Service Discovery" "HashiCorp Consul"
             }
             
-            webApp = container "App Servers" "Horizontally scalable application servers handling business logic." "Python and Django" {
-                usersApp = component "Users App" "Manages user accounts, profiles, and authentication." "Django App"
-                photosApp = component "Photos App" "Manages photo uploads, processing, and metadata." "Django App"
-                communitiesApp = component "Communities App" "Manages communities, memberships, and posts." "Django App"
-                newsfeedApp = component "Newsfeed App" "Aggregates posts for the user's feed." "Django App"
-                notificationsApp = component "Notifications App" "Manages and delivers notifications." "Django App"
+            group "App Node (Auto Scaling Group)" {
+                webApp = container "App Servers" "Business Logic" "Python and Django" "WebApp" {
+                    usersApp = component "Users App" "Accounts and Auth" "Django App"
+                    photosApp = component "Photos App" "Photo Logic" "Django App"
+                    communitiesApp = component "Communities App" "Community Logic" "Django App"
+                    newsfeedApp = component "Newsfeed App" "Feed Logic" "Django App"
+                    notificationsApp = component "Notifications App" "Notifications" "Django App"
+                }
+                celeryWorker = container "Celery Worker" "Background tasks" "Celery" "Worker"
             }
             
-            databasePrimary = container "Primary Database" "Stores user profiles, photos metadata, communities, and relationships (Writes)." "PostgreSQL" "Database"
+            group "Database Node" {
+                databasePrimary = container "Primary Database" "Core DB (Writes)" "PostgreSQL" "Database"
+            }
             
-            databaseReplica = container "Read Replicas" "Read-only database replicas for scaling read queries." "PostgreSQL" "Database"
+            group "Database Replica Node" {
+                databaseReplica = container "Read Replicas" "Core DB (Reads)" "PostgreSQL" "Database"
+            }
             
-            cache = container "Cache" "Caches newsfeeds and frequently accessed data." "Redis" "Database"
+            group "Redis Node" {
+                cache = container "Cache and Message Broker" "Cache and Queue" "Redis" "Cache"
+                celeryBeat = container "Celery Beat" "Task Scheduler" "Celery" "Worker"
+            }
         }
 
-        cdn = softwareSystem "CloudFront CDN" "Caches and serves uploaded images globally." "AWS CloudFront"
-        s3 = softwareSystem "Amazon S3" "Object storage for uploaded photos (CDN Origin)." "AWS S3"
+        cdn = softwareSystem "CloudFront CDN" "Global CDN" "AWS CloudFront"
+        s3 = softwareSystem "Amazon S3" "Object Storage" "AWS S3"
 
         # External Relationships
-        user -> loadBalancer "Visits photoz.com for HTML/JSON and static assets"
-        user -> cdn "Fetches images"
-        cdn -> s3 "Fetches images from origin"
+        user -> loadBalancer "Visits site"
+        user -> cdn "Gets images"
+        cdn -> s3 "Gets origin"
         
         # Container Relationships
-        consul -> loadBalancer "Updates routing config with healthy nodes"
-        webApp -> consul "Registers service and reports health"
-        loadBalancer -> webApp "Routes dynamic traffic to"
-        webApp -> databasePrimary "Writes to"
-        webApp -> databaseReplica "Reads from"
-        databasePrimary -> databaseReplica "Replicates data to"
-        webApp -> cache "Reads from and writes to"
-        webApp -> s3 "Uploads photos"
+        consul -> loadBalancer "Updates routing"
+        webApp -> consul "Registers"
+        loadBalancer -> webApp "Routes traffic"
+        webApp -> databasePrimary "Writes"
+        webApp -> databaseReplica "Reads"
+        databasePrimary -> databaseReplica "Replicates"
+        webApp -> cache "Caches/Reads"
+        webApp -> s3 "Uploads"
+        
+        celeryBeat -> cache "Pushes tasks"
+        celeryWorker -> cache "Pulls tasks"
+        celeryWorker -> databasePrimary "Bulk writes"
+        webApp -> cache "Pushes tasks"
 
         # Component Relationships (High-Level Intent)
-        usersApp -> databasePrimary "Reads/Writes User Data"
-        photosApp -> databasePrimary "Reads/Writes Photo Data"
-        communitiesApp -> databasePrimary "Reads/Writes Community Data"
-        newsfeedApp -> cache "Caches and retrieves feeds"
-        notificationsApp -> databasePrimary "Reads/Writes Notification Data"
+        usersApp -> databasePrimary "User Data"
+        photosApp -> databasePrimary "Photo Data"
+        communitiesApp -> databasePrimary "Community Data"
+        newsfeedApp -> cache "Feeds"
+        notificationsApp -> databasePrimary "Notifications"
 
-        loadBalancer -> usersApp "Routes traffic"
-        loadBalancer -> photosApp "Routes traffic"
-        loadBalancer -> communitiesApp "Routes traffic"
-        loadBalancer -> newsfeedApp "Routes traffic"
+        loadBalancer -> usersApp "Routes"
+        loadBalancer -> photosApp "Routes"
+        loadBalancer -> communitiesApp "Routes"
+        loadBalancer -> newsfeedApp "Routes"
         
-        photosApp -> s3 "Uploads photos via"
+        photosApp -> s3 "Uploads"
     }
 
     views {
@@ -80,7 +95,42 @@ workspace "Photoz" "A photo-sharing social network" {
             element "Element" {
                 fontSize 32
             }
-            
+            element "Software System" {
+                background #1168bd
+                color #ffffff
+            }
+            element "Container" {
+                background #438dd5
+                color #ffffff
+            }
+            element "WebApp" {
+                background #205c40
+                color #ffffff
+            }
+            element "Worker" {
+                background #4a9c6d
+                color #ffffff
+            }
+            element "Database" {
+                shape Cylinder
+                background #b03a2e
+                color #ffffff
+            }
+            element "Cache" {
+                shape Cylinder
+                background #d35400
+                color #ffffff
+            }
+            element "Person" {
+                shape Person
+                background #08427b
+                color #ffffff
+            }
+            relationship "Relationship" {
+                fontSize 40
+                thickness 3
+                color #000000
+            }
         }
     }
 }

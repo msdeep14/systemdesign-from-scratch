@@ -104,3 +104,36 @@ Even locally, you can prove that the database lock limits throughput by comparin
 ```bash
 python chapter06/benchmarks/compare_hot_row.py --host http://<your-alb-dns> --concurrency 5000
 ```
+
+### 3. Visualize the New Architecture (Celery + Redis)
+
+To solve the Hot Row, we are introducing **Celery** (Workers) and **Celery Beat** (Scheduler) using **Redis** as the message broker. 
+
+We have updated the system's C4 Architecture Diagram (Structurizr) to reflect this new deployment view (specifically mapping the Celery Worker to the App Auto Scaling Group, and Celery Beat to the Redis Singleton Node).
+
+To view the updated architectural diagrams in your browser:
+
+1. Navigate to the `photoz` directory.
+2. Start the Structurizr Lite container mapping the `structurizr` folder:
+   ```bash
+   cd photoz
+   docker run -it --rm -p 8080:8080 -v $(pwd)/structurizr:/usr/local/structurizr structurizr/structurizr local
+   ```
+3. Open [http://localhost:8080](http://localhost:8080) in your browser and view the "System Context" and "Container" views.
+
+**FINOS CALM (Architecture as Code)**
+
+We have also updated the FINOS CALM architecture model (`photoz/architecture/photoz.calm.json`) to serve as our compliance ground truth. 
+
+To visualize the CALM architecture diagram locally (requires Node.js):
+```bash
+cd photoz
+# Validate the new architecture against our guardrails
+calm validate -a architecture/photoz.calm.json -p architecture/guardrails.pattern.json
+
+# Generate and serve the interactive documentation site
+calm docify -a architecture/photoz.calm.json -o architecture/docs
+cd architecture/docs
+npm install
+npm run start
+```

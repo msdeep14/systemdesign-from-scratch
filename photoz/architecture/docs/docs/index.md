@@ -31,6 +31,8 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
 
 
     s3["Amazon S3"]:::node
+    celery-beat["Celery Beat"]:::node
+    celery-worker["Celery Worker"]:::node
     cdn["CloudFront CDN"]:::node
     web-app["Django App Servers"]:::node
     load-balancer["Nginx Load Balancer"]:::node
@@ -48,6 +50,9 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
     cdn -->|Fetches images from origin| s3
     node_end-user -->|Browses the site, manages profile, and uploads photos| load-balancer
     node_end-user -->|Downloads and views photos| cdn
+    celery-beat -->|Pushes scheduled tasks to queue| cache
+    celery-worker -->|Pulls tasks from queue| cache
+    celery-worker -->|Bulk writes to database| primary-db
 
 
 
@@ -62,6 +67,8 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
 - [Redis Cache](nodes/cache)
 - [CloudFront CDN](nodes/cdn)
 - [Amazon S3](nodes/s3)
+- [Celery Worker](nodes/celery-worker)
+- [Celery Beat](nodes/celery-beat)
 
 ## Relationships
 - [Lb To Webapp](relationships/lb-to-webapp)
@@ -73,6 +80,9 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
 - [Cdn To S3](relationships/cdn-to-s3)
 - [User To Lb](relationships/user-to-lb)
 - [User To Cdn](relationships/user-to-cdn)
+- [Celerybeat To Cache](relationships/celerybeat-to-cache)
+- [Celeryworker To Cache](relationships/celeryworker-to-cache)
+- [Celeryworker To Primarydb](relationships/celeryworker-to-primarydb)
 
 ## Flows
 _No flows defined._

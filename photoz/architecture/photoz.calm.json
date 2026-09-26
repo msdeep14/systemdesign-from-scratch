@@ -51,6 +51,18 @@
       "node-type": "service",
       "name": "Amazon S3",
       "description": "Object storage for uploaded photos."
+    },
+    {
+      "unique-id": "celery-worker",
+      "node-type": "service",
+      "name": "Celery Worker",
+      "description": "Executes background async tasks and batch database writes."
+    },
+    {
+      "unique-id": "celery-beat",
+      "node-type": "service",
+      "name": "Celery Beat",
+      "description": "Singleton scheduler pushing periodic tasks to the queue."
     }
   ],
   "relationships": [
@@ -182,6 +194,51 @@
         }
       },
       "description": "Downloads and views photos"
+    },
+    {
+      "unique-id": "celerybeat-to-cache",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "celery-beat"
+          },
+          "destination": {
+            "node": "cache"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Pushes scheduled tasks to queue"
+    },
+    {
+      "unique-id": "celeryworker-to-cache",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "celery-worker"
+          },
+          "destination": {
+            "node": "cache"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Pulls tasks from queue"
+    },
+    {
+      "unique-id": "celeryworker-to-primarydb",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "celery-worker"
+          },
+          "destination": {
+            "node": "primary-db"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Bulk writes to database"
     }
   ]
 }
