@@ -28,6 +28,9 @@ class PrimaryReplicaRouter:
         Reads go to a random replica, unless the RYW middleware has set the
         force-primary flag for this thread (meaning the client just wrote data).
         """
+        if model._meta.app_label in ("sessions", "auth", "admin", "contenttypes"):
+            return "default"
+
         if is_primary_forced():
             return "default"
         return random.choice(self.replicas)

@@ -32,7 +32,7 @@ def search_users(query):
             Q(username_display__icontains=query)
             | Q(first_name__icontains=query)
             | Q(last_name__icontains=query)
-        )
+        )[:50]
     )
 
 

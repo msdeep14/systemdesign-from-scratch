@@ -76,6 +76,7 @@ def login_view(request):
     return render(request, "users/login.html")
 
 
+@require_POST
 def logout_view(request):
     logger.info("User logged out: %s", request.user.username)
     logout(request)

@@ -29,3 +29,9 @@
     *   Created `chapter06/benchmarks/follow_timing.py` to simulate N users concurrently clicking "Follow". Discovered that pulling CSRF tokens inline inside the concurrent block flooded the Gunicorn queue, creating a false benchmark reading. Factored the GET requests out to the setup phase to isolate the POST latency.
     *   Created `chapter06/benchmarks/compare_hot_row.py` to definitively prove the DB lock limits throughput by comparing a "Scattered Load" (hitting different rows) against a "Concentrated Load" (hitting a single row). 
     *   Identified the **Connection Funnel**: Our Docker setup strictly limits traffic to 10 max concurrent DB connections. At this scale, the DB resolves locks in <1ms, so the system never bottlenecks on the database row lock locally, only at the web server limit (~1,000 RPS).
+
+## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro)
+*   **Analysis**: URL path collision caused users to be logged out when searching for certain names (e.g. "logout").
+*   **Actions**:
+    *   Modified `logout_view` in `users/views.py` to enforce `@require_POST`.
+    *   Added reserved username validation to `UserRegistrationForm`.

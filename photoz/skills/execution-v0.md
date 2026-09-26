@@ -567,3 +567,9 @@
     *   Updated `newsfeed/services.py`: `get_celebrity_user_ids()` (Redis-cached, 5min TTL); `get_cached_feed()` merges celebrity pull at read time.
     *   Added `get_celebrity_photo_ids()` to `photos/services.py`.
 *   **Edge case**: `bulk_update` requires DB-fetched objects (PK set), not in-memory instances. Fixed backfill command accordingly.
+
+## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro)
+*   **Analysis**: Users were randomly getting logged out while searching or viewing search results. We identified this as a URL path collision vulnerability. The search results UI links to `/users/<username>/`. If someone created a user with `username_display="logout"`, the link became `/users/logout/`. Because `logout_view` didn't strictly require POST, any browser pre-fetch or user click on that link resulted in a GET request that immediately executed the logout.
+*   **Actions**:
+    *   Updated `users/views.py`: Added `@require_POST` decorator to `logout_view` to prevent accidental logouts via GET requests and mitigate CSRF.
+    *   Updated `users/forms.py`: Added validation in `UserRegistrationForm.clean_username_display()` to reserve system usernames (`login`, `logout`, `signup`, `api`, `admin`, `search`).

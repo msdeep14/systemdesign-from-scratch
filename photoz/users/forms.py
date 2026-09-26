@@ -14,6 +14,13 @@ class UserRegistrationForm(forms.Form):
 
     def clean_username_display(self):
         username = self.cleaned_data.get("username_display")
+
+        reserved_usernames = {"login", "logout", "signup", "api", "admin", "search"}
+        if username.lower() in reserved_usernames:
+            raise forms.ValidationError(
+                f"The username '{username}' is reserved and cannot be used."
+            )
+
         if UserProfile.objects.filter(username_display__iexact=username).exists():
             raise forms.ValidationError("This username is already taken.")
         return username
