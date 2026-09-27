@@ -2,7 +2,6 @@ import uuid
 
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
 from users.models import Follow, UserProfile
 
@@ -17,11 +16,10 @@ class Command(BaseCommand):
         celebs_data = [("celeb_500k", 500_000), ("celeb_1m", 1_000_000), ("celeb_2m", 2_000_000)]
         max_followers = max(count for _, count in celebs_data)
 
-        with transaction.atomic():
-            celebs = self._create_celebrities(celebs_data)
-            self._create_base_users(max_followers, len(celebs_data))
-            base_user_ids = self._get_base_user_ids(celebs, max_followers)
-            self._create_follows(celebs_data, celebs, base_user_ids)
+        celebs = self._create_celebrities(celebs_data)
+        self._create_base_users(max_followers, len(celebs_data))
+        base_user_ids = self._get_base_user_ids(celebs, max_followers)
+        self._create_follows(celebs_data, celebs, base_user_ids)
 
         self.stdout.write(self.style.SUCCESS("Successfully seeded celebrity users and followers."))
 
