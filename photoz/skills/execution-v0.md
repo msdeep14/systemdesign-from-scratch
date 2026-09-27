@@ -568,16 +568,28 @@
     *   Added `get_celebrity_photo_ids()` to `photos/services.py`.
 *   **Edge case**: `bulk_update` requires DB-fetched objects (PK set), not in-memory instances. Fixed backfill command accordingly.
 
-## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro)
+## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: f2c0c61, Model: Gemini 3.1 Pro)
 *   **Analysis**: Users were randomly getting logged out while searching or viewing search results. We identified this as a URL path collision vulnerability. The search results UI links to `/users/<username>/`. If someone created a user with `username_display="logout"`, the link became `/users/logout/`. Because `logout_view` didn't strictly require POST, any browser pre-fetch or user click on that link resulted in a GET request that immediately executed the logout.
 *   **Actions**:
     *   Updated `users/views.py`: Added `@require_POST` decorator to `logout_view` to prevent accidental logouts via GET requests and mitigate CSRF.
     *   Updated `users/forms.py`: Added validation in `UserRegistrationForm.clean_username_display()` to reserve system usernames (`login`, `logout`, `signup`, `api`, `admin`, `search`).
-* Phase: Follower Count Redis Optimization (Date: 2026-09-26, Commit: pending, Model: Antigravity)
-    * Replaced synchronous DB `follower_count` increments in `users/signals.py` with Redis `INCR/DECR` logic.
-    * Added `increment_follower_count_redis`, `decrement_follower_count_redis`, and `get_follower_count` to `users/services.py` for eventual consistency.
-    * Refactored `users/views.py` (`profile_view`, `toggle_follow_view`) to compute the total follower count directly from the Redis delta + DB baseline instead of computing `Follow.objects.count()`.
-    * Implemented `flush_follower_counts_task` in `users/tasks.py` as a Celery task to asynchronously sync Redis deltas to PostgreSQL.
-    * Added Celery and Celery Beat configurations in `bses/celery.py`, `bses/__init__.py`, and `bses/settings.py`.
-    * Updated `docker-compose.yml` to include `celery` and `celery-beat` services.
-    * Updated `requirements.txt` to add `celery` and `redis`.
+
+## Phase: Follower Count Redis Optimization (Date: 2026-09-26, Commit: b546c5c, Model: Antigravity)
+*   **Analysis**: Synchronous PostgreSQL updates for `follower_count` resulted in heavy row-level lock contention during mass follows ("Hot Row" problem). Offloading increments to Redis and flushing asynchronously to the DB resolves this write-heavy bottleneck.
+*   **Actions**:
+    *   Replaced synchronous DB `follower_count` increments in `users/signals.py` with Redis `INCR/DECR` logic.
+    *   Added `increment_follower_count_redis`, `decrement_follower_count_redis`, and `get_follower_count` to `users/services.py` for eventual consistency.
+    *   Refactored `users/views.py` (`profile_view`, `toggle_follow_view`) to compute the total follower count directly from the Redis delta + DB baseline instead of computing `Follow.objects.count()`.
+    *   Implemented `flush_follower_counts_task` in `users/tasks.py` as a Celery task to asynchronously sync Redis deltas to PostgreSQL.
+    *   Added Celery and Celery Beat configurations in `bses/celery.py`, `bses/__init__.py`, and `bses/settings.py`.
+    *   Updated `docker-compose.yml` to include `celery` and `celery-beat` services.
+    *   Updated `requirements.txt` to add `celery` and `redis`.
+
+## Phase: High Availability Celery Scheduler (RedBeat) (Date: 2026-09-27, Commit: b546c5c, Model: Antigravity)
+*   **Analysis**: Running Celery Beat on a single infrastructure node creates a Single Point of Failure (SPOF) and ties application scheduling logic directly to the database/cache tier. To support future scale (e.g., Redis clusters), the scheduler must be distributed across the App servers.
+*   **Actions**:
+    *   Installed `celery-redbeat` and updated `bses/settings.py` to use `redbeat.RedBeatScheduler`.
+    *   Modified `docker-compose-app.yml` to run `celery-beat` natively on the App Server Auto Scaling Group.
+    *   Removed `docker-compose-redis.yml` and stripped application dependencies from the Redis node in `iaac/aws/terraform/main.tf` to isolate it as a pure data-tier component.
+    *   Added dynamic security group rules in `security.tf` to allow the Redis Node (running Celery Beat) outbound PostgreSQL access.
+    *   Updated Structurizr C4 diagrams (`workspace.dsl`) and FINOS CALM architecture (`photoz.calm.json`) to reflect the new distributed scheduler architecture.
