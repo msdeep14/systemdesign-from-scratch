@@ -146,12 +146,12 @@ for i, host in enumerate(replica_hosts):
 DATABASE_ROUTERS = ["bses.routers.PrimaryReplicaRouter"]
 
 # Caching Configuration
-redis_url = os.environ.get("REDIS_URL")
-if redis_url:
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+if REDIS_URL:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": redis_url,
+            "LOCATION": REDIS_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             },
@@ -289,5 +289,24 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+    },
+}
+
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_ACKS_LATE = True
+CELERY_BEAT_SCHEDULER = "redbeat.RedBeatScheduler"
+REDBEAT_REDIS_URL = CELERY_BROKER_URL
+
+
+CELERY_BEAT_SCHEDULE = {
+    "flush_follower_counts_every_10_seconds": {
+        "task": "users.tasks.flush_follower_counts_task",
+        "schedule": 10.0,
     },
 }

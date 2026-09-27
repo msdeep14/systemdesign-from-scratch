@@ -30,6 +30,30 @@ services:
       - POSTGRES_PORT=6432
       - REPLICA_DB_PORT=6432
 
+  celery:
+    build: .
+    restart: always
+    command: bash -c "celery -A bses worker -l INFO"
+    volumes:
+      - .:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION}"
+        awslogs-group: "photoz-app-logs${ENV_SUFFIX}"
+        awslogs-stream: "celery-worker-${NODE_IP}"
+        awslogs-create-group: "true"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_PORT=6432
+      - REPLICA_DB_PORT=6432
+
   consul-agent:
     image: hashicorp/consul:latest
     # Host networking is strictly required so the agent registers the true EC2 Private IP
@@ -38,3 +62,27 @@ services:
     volumes:
       - ./consul/web.json:/consul/config/web.json:ro
     command: ["agent", "-retry-join=${CONSUL_SERVER_IP}", "-bind={{ GetPrivateInterfaces | attr \"address\" }}"]
+
+  celery-beat:
+    build: .
+    restart: always
+    command: bash -c "celery -A bses beat -l INFO"
+    volumes:
+      - .:/app
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: "${AWS_REGION}"
+        awslogs-group: "photoz-app-logs${ENV_SUFFIX}"
+        awslogs-stream: "celery-beat-${NODE_IP}"
+        awslogs-create-group: "true"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_PORT=6432
+      - REPLICA_DB_PORT=6432

@@ -573,3 +573,11 @@
 *   **Actions**:
     *   Updated `users/views.py`: Added `@require_POST` decorator to `logout_view` to prevent accidental logouts via GET requests and mitigate CSRF.
     *   Updated `users/forms.py`: Added validation in `UserRegistrationForm.clean_username_display()` to reserve system usernames (`login`, `logout`, `signup`, `api`, `admin`, `search`).
+* Phase: Follower Count Redis Optimization (Date: 2026-09-26, Commit: pending, Model: Antigravity)
+    * Replaced synchronous DB `follower_count` increments in `users/signals.py` with Redis `INCR/DECR` logic.
+    * Added `increment_follower_count_redis`, `decrement_follower_count_redis`, and `get_follower_count` to `users/services.py` for eventual consistency.
+    * Refactored `users/views.py` (`profile_view`, `toggle_follow_view`) to compute the total follower count directly from the Redis delta + DB baseline instead of computing `Follow.objects.count()`.
+    * Implemented `flush_follower_counts_task` in `users/tasks.py` as a Celery task to asynchronously sync Redis deltas to PostgreSQL.
+    * Added Celery and Celery Beat configurations in `bses/celery.py`, `bses/__init__.py`, and `bses/settings.py`.
+    * Updated `docker-compose.yml` to include `celery` and `celery-beat` services.
+    * Updated `requirements.txt` to add `celery` and `redis`.

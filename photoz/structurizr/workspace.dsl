@@ -19,6 +19,7 @@ workspace "Photoz" "A photo-sharing social network" {
                     notificationsApp = component "Notifications App" "Notifications" "Django App"
                 }
                 celeryWorker = container "Celery Worker" "Background tasks" "Celery" "Worker"
+                celeryBeat = container "Celery Beat" "Distributed Task Scheduler" "Celery and RedBeat" "Worker"
             }
             
             group "Database Node" {
@@ -31,7 +32,6 @@ workspace "Photoz" "A photo-sharing social network" {
             
             group "Redis Node" {
                 cache = container "Cache and Message Broker" "Cache and Queue" "Redis" "Cache"
-                celeryBeat = container "Celery Beat" "Task Scheduler" "Celery" "Worker"
             }
         }
 

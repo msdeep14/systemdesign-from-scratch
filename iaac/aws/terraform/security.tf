@@ -137,6 +137,28 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.db_replica[0].id]
   }
 
+  dynamic "ingress" {
+    for_each = var.create_redis_node ? [1] : []
+    content {
+      description     = "Postgres from Redis Node (Celery Beat)"
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [aws_security_group.redis[0].id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.create_redis_node ? [1] : []
+    content {
+      description     = "PgBouncer from Redis Node (Celery Beat)"
+      from_port       = 6432
+      to_port         = 6432
+      protocol        = "tcp"
+      security_groups = [aws_security_group.redis[0].id]
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

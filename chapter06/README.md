@@ -109,7 +109,7 @@ python chapter06/benchmarks/compare_hot_row.py --host http://<your-alb-dns> --co
 
 To solve the Hot Row, we are introducing **Celery** (Workers) and **Celery Beat** (Scheduler) using **Redis** as the message broker. 
 
-We have updated the system's C4 Architecture Diagram (Structurizr) to reflect this new deployment view (specifically mapping the Celery Worker to the App Auto Scaling Group, and Celery Beat to the Redis Singleton Node).
+We have updated the system's C4 Architecture Diagram (Structurizr) to reflect this new deployment view (specifically mapping both the Celery Worker and Celery Beat to the App Auto Scaling Group, utilizing celery-redbeat for distributed scheduling).
 
 To view the updated architectural diagrams in your browser:
 

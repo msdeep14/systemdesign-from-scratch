@@ -62,7 +62,7 @@
       "unique-id": "celery-beat",
       "node-type": "service",
       "name": "Celery Beat",
-      "description": "Singleton scheduler pushing periodic tasks to the queue."
+      "description": "Distributed scheduler (via RedBeat) pushing periodic tasks to the queue."
     }
   ],
   "relationships": [

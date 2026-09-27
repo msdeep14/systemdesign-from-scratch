@@ -35,3 +35,8 @@
 *   **Actions**:
     *   Modified `logout_view` in `users/views.py` to enforce `@require_POST`.
     *   Added reserved username validation to `UserRegistrationForm`.
+
+* Phase: Implement Celery/Redis for Follower Counts (Date: 2026-09-26, Commit: pending, Model: Antigravity)
+    * Updated Terraform `iaac/aws/terraform/main.tf` and `docker-compose-app.yml` to provision Celery worker on app node ASG.
+    * Updated Terraform `main.tf` to provision `docker-compose-redis.yml` (Celery Beat) on the Redis singleton node.
+    * Added Django application logic (`users/services.py`, `tasks.py`, `celery.py`) for asynchronous follower count flush via Redis `INCR` to eliminate PostgreSQL hot row locking.

@@ -51,6 +51,42 @@ services:
       - pgbouncer-replica
       - redis
 
+  celery:
+    build: .
+    restart: always
+    command: bash -c "celery -A bses worker -l INFO"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=pgbouncer
+      - POSTGRES_PORT=6432
+      - REPLICA_DB_HOST=pgbouncer-replica
+      - REPLICA_DB_PORT=6432
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - db
+      - pgbouncer
+      - redis
+
+  celery-beat:
+    build: .
+    restart: always
+    command: bash -c "celery -A bses beat -l INFO"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=pgbouncer
+      - POSTGRES_PORT=6432
+      - REPLICA_DB_HOST=pgbouncer-replica
+      - REPLICA_DB_PORT=6432
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - redis
+
   nginx:
     build: ./nginx
     ports:

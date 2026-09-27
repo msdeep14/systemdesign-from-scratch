@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from users.forms import UserProfileEditForm, UserRegistrationForm
 from users.models import Follow, UserProfile
-from users.services import search_users
+from users.services import get_follower_count, search_users
 
 logger = logging.getLogger("bses")
 
@@ -95,7 +95,7 @@ def profile_view(request, username):
         else []
     )
 
-    followers_count = user_obj.followers.count()
+    followers_count = get_follower_count(user_obj.id, profile.follower_count)
     following_count = user_obj.following.count()
 
     is_following = False
@@ -188,7 +188,7 @@ def toggle_follow_view(request, username):
 
     cache.delete(f"feed:{request.user.id}")
 
-    followers_count = target_user.followers.count()
+    followers_count = get_follower_count(target_user.id, profile.follower_count)
 
     return JsonResponse({"is_following": is_following, "followers_count": followers_count})
 

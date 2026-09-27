@@ -1,6 +1,34 @@
+import redis
+from django.conf import settings
 from django.db.models import Q
 
 from users.models import Follow, UserProfile
+
+# Initialize Redis client
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+def increment_follower_count_redis(user_id: int):
+    """Increments the follower count for a user in Redis."""
+    key = f"user:{user_id}:follower_count"
+    redis_client.incr(key)
+    redis_client.sadd("users_with_pending_follower_counts", user_id)
+
+
+def decrement_follower_count_redis(user_id: int):
+    """Decrements the follower count for a user in Redis."""
+    key = f"user:{user_id}:follower_count"
+    redis_client.decr(key)
+    redis_client.sadd("users_with_pending_follower_counts", user_id)
+
+
+def get_follower_count(user_id: int, db_follower_count: int) -> int:
+    """Gets the live follower count for a user (Redis delta + DB baseline)."""
+    key = f"user:{user_id}:follower_count"
+    delta = redis_client.get(key)
+    if delta is not None:
+        return db_follower_count + int(delta)
+    return db_follower_count
 
 
 def get_followed_user_ids(user):
