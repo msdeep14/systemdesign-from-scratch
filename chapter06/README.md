@@ -137,3 +137,44 @@ cd architecture/docs
 npm install
 npm run start
 ```
+
+### 4. Inspecting Celery Health & Distributed Scheduling (RedBeat)
+
+With Celery and RedBeat running in our App cluster, you can verify their health, observe the leader election, and inspect the Redis lock directly.
+
+**Check Celery Worker Health**
+Run this to ping the workers and verify they are listening to the Redis queues:
+```bash
+docker compose exec celery celery -A bses inspect ping
+docker compose exec celery celery -A bses inspect active
+```
+
+**Observe RedBeat Leader Election**
+Since we are using `celery-redbeat` for distributed scheduling, check the logs of your Celery Beat instances. Only one instance will successfully acquire the lock and dispatch tasks:
+```bash
+docker compose logs celery-beat
+```
+*You should see logs indicating RedBeat "acquiring lock" and "waking up".*
+
+**Identify the Redis Lock**
+You can connect directly to Redis to see the lock key and the task definitions that RedBeat stores.
+
+**Locally:** Run these from the `photoz/` directory on your machine:
+```bash
+# List all RedBeat keys in Redis
+docker compose exec redis redis-cli -n 1 KEYS "redbeat:*"
+
+# Check which instance currently holds the distributed lock
+docker compose exec redis redis-cli -n 1 GET "redbeat::lock"
+
+# Inspect the stored schedule for our flush task
+docker compose exec redis redis-cli -n 1 HGETALL "redbeat:flush_follower_counts_task"
+```
+
+**On AWS Infrastructure:**
+SSH into your dedicated Redis Node and run `redis-cli` directly. Note the `-n 1` flag is required because our application connects to Redis Database 1 (via `REDIS_URL=redis://...:6379/1`):
+```bash
+redis-cli -n 1 KEYS "redbeat:*"
+redis-cli -n 1 GET "redbeat::lock"
+redis-cli -n 1 HGETALL "redbeat:flush_follower_counts_task"
+```
