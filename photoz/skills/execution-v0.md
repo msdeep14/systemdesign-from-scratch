@@ -593,3 +593,17 @@
     *   Removed `docker-compose-redis.yml` and stripped application dependencies from the Redis node in `iaac/aws/terraform/main.tf` to isolate it as a pure data-tier component.
     *   Added dynamic security group rules in `security.tf` to allow the Redis Node (running Celery Beat) outbound PostgreSQL access.
     *   Updated Structurizr C4 diagrams (`workspace.dsl`) and FINOS CALM architecture (`photoz.calm.json`) to reflect the new distributed scheduler architecture.
+
+## Phase: Asynchronous Newsfeed Fan-out (Date: 2026-09-28, Commit: pending, Model: Antigravity)
+*   **Analysis**: For non-celebrity users with many followers (e.g., 9,999), executing `push_to_feed_cache` sequentially within the HTTP request thread blocks the response, degrading upload latency. Since Celery/Redis infrastructure is now available, offloading this fan-out to asynchronous background workers isolates the write path and ensures instant API responses.
+*   **Actions**:
+    *   Created `newsfeed/tasks.py` defining `fanout_photo_uploaded_task` and `fanout_photo_deleted_task` to iterate through followers and update their Redis feeds asynchronously.
+    *   Refactored `newsfeed/signals.py` to trigger these Celery tasks via `.delay()` instead of processing them synchronously.
+    *   Updated `.importlinter` to replace the `newsfeed.signals -> users.services` ignore rule with `newsfeed.tasks -> users.services` to reflect the dependency shift.
+
+## Phase: Asynchronous Notifications (Date: 2026-09-28, Commit: pending, Model: Antigravity)
+*   **Analysis**: While single notification database inserts (`O(1)`) are fast enough to run synchronously, processing notifications synchronously prevents future integration of slow, external notification channels (Emails, SMS, Mobile Push Notifications). Standardizing on asynchronous celery tasks for all notification handlers prepares the architecture for external push notification services without risk of blocking HTTP threads.
+*   **Actions**:
+    *   Created `notifications/tasks.py` encapsulating the `Notification.objects.create()` logic inside `send_*_notification_task` Celery tasks for all notification triggers (photo like, comment, tag, story tag, community invite).
+    *   Refactored `notifications/signals.py` to fire `.delay()` on the new tasks instead of direct database inserts.
+    *   Updated `.importlinter` to explicitly whitelist dependencies from `notifications.tasks` to target domain models (`photos.models`, `communities.models`, `stories.models`).

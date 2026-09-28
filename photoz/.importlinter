@@ -21,7 +21,7 @@ modules =
 ignore_imports =
     communities.views -> users.services
     newsfeed.services -> users.services
-    newsfeed.signals -> users.services
+    newsfeed.tasks -> users.services
     photos.views -> users.services
     stories.views -> users.services
     newsfeed.views -> photos.services
@@ -32,6 +32,9 @@ ignore_imports =
     notifications.signals -> photos.signals
     notifications.signals -> communities.signals
     notifications.signals -> stories.signals
+    notifications.tasks -> photos.models
+    notifications.tasks -> communities.models
+    notifications.tasks -> stories.models
     photos.views -> communities.services
     newsfeed.services -> stories.services
     stories.forms -> photos.utils

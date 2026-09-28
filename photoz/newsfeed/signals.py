@@ -7,8 +7,8 @@ from newsfeed.services import (
     invalidate_feed_cache,
     push_to_feed_cache,
 )
+from newsfeed.tasks import fanout_photo_deleted_task, fanout_photo_uploaded_task
 from photos.signals import photo_deleted, photo_uploaded
-from users.services import get_follower_user_ids
 
 
 @receiver(photo_uploaded)
@@ -23,9 +23,8 @@ def _handle_photo_uploaded(sender, photo, **kwargs):
         # Celebrity: skip fan-out. Followers will pull this photo at read time.
         return
 
-    # Regular user: push to all followers' feeds
-    for f_id in get_follower_user_ids(photo.user):
-        push_to_feed_cache(f_id, photo.id)
+    # Regular user: push to all followers' feeds asynchronously
+    fanout_photo_uploaded_task.delay(photo.user.id, photo.id)
 
 
 @receiver(photo_deleted)
@@ -38,8 +37,7 @@ def _handle_photo_deleted(sender, user, **kwargs):
     if follower_count > CELEBRITY_FOLLOWER_THRESHOLD:
         return
 
-    for f_id in get_follower_user_ids(user):
-        invalidate_feed_cache(f_id)
+    fanout_photo_deleted_task.delay(user.id)
 
 
 @receiver(invitation_accepted)
