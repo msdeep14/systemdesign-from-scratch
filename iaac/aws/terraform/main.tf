@@ -119,6 +119,9 @@ if [ "${var.seed_database}" = "true" ]; then
   
   # Seed celebrity users
   python manage.py seed_celebrity_users
+  
+  # Backfill follower counts since bulk_create bypasses signals
+  python manage.py backfill_follower_counts
 fi
 EOF
 

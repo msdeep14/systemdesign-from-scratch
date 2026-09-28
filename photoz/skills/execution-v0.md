@@ -607,3 +607,9 @@
     *   Created `notifications/tasks.py` encapsulating the `Notification.objects.create()` logic inside `send_*_notification_task` Celery tasks for all notification triggers (photo like, comment, tag, story tag, community invite).
     *   Refactored `notifications/signals.py` to fire `.delay()` on the new tasks instead of direct database inserts.
     *   Updated `.importlinter` to explicitly whitelist dependencies from `notifications.tasks` to target domain models (`photos.models`, `communities.models`, `stories.models`).
+
+## Phase: Throttling AWS DB Seeding & Backfill (Date: 2026-09-28, Commit: pending, Model: Gemini 3.1 Pro)
+*   **Analysis**: When running `seed_celebrity_users` on AWS EC2 instances, the unthrottled massive `bulk_create` operations (3.5M rows) caused the Primary DB and Replica DB to sustain 100% CPU/IO utilization for several minutes. This hardware starvation caused Docker's internal DNS resolver to drop UDP packets. When PgBouncer attempted to resolve the `db` hostname for authentication queries, the DNS lookup failed, and PgBouncer aggressively cached the failure (`server DNS lookup failed`), forcibly severing the seed script connection and breaking the API (e.g. search). Furthermore, because `bulk_create` bypasses signals, `follower_count` in `UserProfile` remained at `0` because the `backfill_follower_counts` script was not executed after seeding in Terraform.
+*   **Actions**:
+    *   Updated `seed_celebrity_users.py` to reduce the `bulk_create` batch size from 50,000 to 10,000 and added a `time.sleep(0.2)` throttle between batches to allow the DB and Replica to breathe and process DNS/health requests.
+    *   Updated `iaac/aws/terraform/main.tf` to execute `python manage.py backfill_follower_counts` immediately after `seed_celebrity_users` in the DB node's `user_data` to ensure follower counts correctly propagate for search visibility.
