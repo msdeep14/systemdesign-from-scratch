@@ -601,7 +601,7 @@
     *   Refactored `newsfeed/signals.py` to trigger these Celery tasks via `.delay()` instead of processing them synchronously.
     *   Updated `.importlinter` to replace the `newsfeed.signals -> users.services` ignore rule with `newsfeed.tasks -> users.services` to reflect the dependency shift.
 
-## Phase: Asynchronous Notifications (Date: 2026-09-28, Commit: pending, Model: Antigravity)
+## Phase: Asynchronous Notifications (Date: 2026-09-28, Commit: b6887bd819c622b433d324042911ceea65e1e016, Model: Gemini 3.1 Pro)
 *   **Analysis**: While single notification database inserts (`O(1)`) are fast enough to run synchronously, processing notifications synchronously prevents future integration of slow, external notification channels (Emails, SMS, Mobile Push Notifications). Standardizing on asynchronous celery tasks for all notification handlers prepares the architecture for external push notification services without risk of blocking HTTP threads.
 *   **Actions**:
     *   Created `notifications/tasks.py` encapsulating the `Notification.objects.create()` logic inside `send_*_notification_task` Celery tasks for all notification triggers (photo like, comment, tag, story tag, community invite).

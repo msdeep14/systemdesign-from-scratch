@@ -1,3 +1,4 @@
+import time
 import uuid
 
 from django.contrib.auth.models import User
@@ -45,13 +46,14 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"Creating {needed_users} base users (this may take a few minutes)..."
             )
-            batch_size = 50000
+            batch_size = 10000
             for i in range(0, needed_users, batch_size):
                 users_to_create = [
                     User(username=str(uuid.uuid4()))
                     for _ in range(min(batch_size, needed_users - i))
                 ]
                 User.objects.bulk_create(users_to_create, ignore_conflicts=True)
+                time.sleep(0.2)  # Give DB a chance to breathe
                 if (i + batch_size) % 100000 == 0:
                     self.stdout.write(f"Created {i + batch_size} users...")
 
@@ -74,13 +76,14 @@ class Command(BaseCommand):
             if needed_follows > 0:
                 self.stdout.write(f"Creating {needed_follows} follows for {username}...")
                 follower_ids_to_add = base_user_ids[existing_count:follower_count]
-                batch_size = 50000
+                batch_size = 10000
                 for i in range(0, len(follower_ids_to_add), batch_size):
                     follows_to_create = [
                         Follow(follower_id=fid, following=celeb_user)
                         for fid in follower_ids_to_add[i : i + batch_size]
                     ]
                     Follow.objects.bulk_create(follows_to_create, ignore_conflicts=True)
+                    time.sleep(0.2)  # Give DB a chance to breathe
                     if (i + batch_size) % 100000 == 0:
                         self.stdout.write(f"Created {i + batch_size} follows for {username}...")
             else:

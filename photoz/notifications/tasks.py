@@ -8,31 +8,15 @@ from stories.models import Story
 
 
 @shared_task
-def send_photo_liked_notification_task(photo_id: int, liker_id: int):
+def send_photo_activity_notification_task(photo_id: int, actor_id: int, notif_type: str, verb: str):
     try:
         photo = Photo.objects.get(id=photo_id)
-        liker = User.objects.get(id=liker_id)
+        actor = User.objects.get(id=actor_id)
         Notification.objects.create(
             recipient=photo.user,
-            sender=liker,
-            type="photo_like",
-            message=f"{liker.profile.first_name} liked your photo.",
-            photo=photo,
-        )
-    except (Photo.DoesNotExist, User.DoesNotExist):
-        pass
-
-
-@shared_task
-def send_photo_commented_notification_task(photo_id: int, commenter_id: int):
-    try:
-        photo = Photo.objects.get(id=photo_id)
-        commenter = User.objects.get(id=commenter_id)
-        Notification.objects.create(
-            recipient=photo.user,
-            sender=commenter,
-            type="photo_comment",
-            message=f"{commenter.profile.first_name} commented on your photo.",
+            sender=actor,
+            type=notif_type,
+            message=f"{actor.profile.first_name} {verb} your photo.",
             photo=photo,
         )
     except (Photo.DoesNotExist, User.DoesNotExist):
@@ -61,36 +45,28 @@ def send_member_invited_notification_task(
 
 
 @shared_task
-def send_user_tagged_notification_task(photo_id: int, tagged_user_id: int, tagger_id: int):
+def send_tagged_notification_task(
+    object_id: int, tagged_user_id: int, tagger_id: int, object_type: str
+):
     try:
-        photo = Photo.objects.get(id=photo_id)
         tagged_user = User.objects.get(id=tagged_user_id)
         tagger = User.objects.get(id=tagger_id)
 
-        Notification.objects.create(
-            recipient=tagged_user,
-            sender=tagger,
-            type="photo_tag",
-            message=f"{tagger.profile.first_name} tagged you in a photo.",
-            photo=photo,
-        )
-    except (Photo.DoesNotExist, User.DoesNotExist):
-        pass
+        notif_type = f"{object_type}_tag"
+        message = f"{tagger.profile.first_name} tagged you in a {object_type}."
 
+        notif_kwargs = {
+            "recipient": tagged_user,
+            "sender": tagger,
+            "type": notif_type,
+            "message": message,
+        }
 
-@shared_task
-def send_story_user_tagged_notification_task(story_id: int, tagged_user_id: int, tagger_id: int):
-    try:
-        story = Story.objects.get(id=story_id)
-        tagged_user = User.objects.get(id=tagged_user_id)
-        tagger = User.objects.get(id=tagger_id)
+        if object_type == "photo":
+            notif_kwargs["photo"] = Photo.objects.get(id=object_id)
+        elif object_type == "story":
+            notif_kwargs["story"] = Story.objects.get(id=object_id)
 
-        Notification.objects.create(
-            recipient=tagged_user,
-            sender=tagger,
-            type="story_tag",
-            message=f"{tagger.profile.first_name} tagged you in a story.",
-            story=story,
-        )
-    except (Story.DoesNotExist, User.DoesNotExist):
+        Notification.objects.create(**notif_kwargs)
+    except (Photo.DoesNotExist, Story.DoesNotExist, User.DoesNotExist):
         pass
