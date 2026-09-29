@@ -8,7 +8,7 @@
     *   Created `chapter06/README.md` to document the setup steps.
 *   **Benchmark results**: `celeb_500k` upload took 30.24s; `celeb_1m` and `celeb_2m` returned 504 (Gunicorn timeout). Root cause: `newsfeed/signals.py` pushed to all follower Redis feeds synchronously in the HTTP thread.
 
-## Phase: Hybrid Push/Pull Fan-Out Fix (Date: 2026-09-14, Commit: pending, Model: Claude Sonnet 4.6 Thinking)
+## Phase: Hybrid Push/Pull Fan-Out Fix (Date: 2026-09-14, Commit: 3296471544ed79d7370ec304c3cdb02f16e01097, Model: Claude Sonnet 4.6 Thinking)
 *   **Analysis**: Pure async Pub/Sub moves the 2M Redis writes off the HTTP thread but does not reduce the total write volume. The Hybrid Push/Pull approach eliminates celebrity fan-out entirely at write time and merges their photos at read time instead. This is the same strategy used by Instagram and Twitter.
 *   **Decision**: Denormalize `follower_count` on `UserProfile` (indexed). Checked at upload time via `photo.user.profile.follower_count`. Above 10,000 threshold = celebrity, skip fan-out. At feed read time, query celebrity photos directly from DB and merge with the Redis-cached regular feed.
 *   **Actions**:
@@ -23,14 +23,14 @@
 *   **Edge case**: `bulk_update` requires objects fetched from the DB (with PK set), not in-memory constructed instances. Fixed the backfill command accordingly.
 *   **Note**: Only 25,004 `UserProfile` rows exist (3 celebrities + ~25,001 signup users). The 2M seeded follower accounts are bare `auth_user` rows with no profile — they're synthetic accounts and will never upload photos. The backfill correctly skips them.
 
-## Phase: Replicate Follower Count Hot Row Problem (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro High)
+## Phase: Replicate Follower Count Hot Row Problem (Date: 2026-09-26, Commit: 5e6750e1ad27da279000689f8def475ca1fc457e, Model: Gemini 3.1 Pro High)
 *   **Analysis**: The `F("follower_count") + 1` operation in `users/signals.py` causes a synchronous row-level lock in PostgreSQL on `UserProfile`. We wrote HTTP benchmarking scripts to hit the `/users/<celeb>/follow/` endpoint concurrently to replicate this bottleneck.
 *   **Actions**:
     *   Created `chapter06/benchmarks/follow_timing.py` to simulate N users concurrently clicking "Follow". Discovered that pulling CSRF tokens inline inside the concurrent block flooded the Gunicorn queue, creating a false benchmark reading. Factored the GET requests out to the setup phase to isolate the POST latency.
     *   Created `chapter06/benchmarks/compare_hot_row.py` to definitively prove the DB lock limits throughput by comparing a "Scattered Load" (hitting different rows) against a "Concentrated Load" (hitting a single row). 
     *   Identified the **Connection Funnel**: Our Docker setup strictly limits traffic to 10 max concurrent DB connections. At this scale, the DB resolves locks in <1ms, so the system never bottlenecks on the database row lock locally, only at the web server limit (~1,000 RPS).
 
-## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: pending, Model: Gemini 3.1 Pro)
+## Phase: Fix Search Logout Bug (Date: 2026-09-26, Commit: f010727ad9b70d3c7cb5b7faadba09a68a438d17, Model: Gemini 3.1 Pro)
 *   **Analysis**: URL path collision caused users to be logged out when searching for certain names (e.g. "logout").
 *   **Actions**:
     *   Modified `logout_view` in `users/views.py` to enforce `@require_POST`.
@@ -40,3 +40,15 @@
     * Updated Terraform `iaac/aws/terraform/main.tf` and `docker-compose-app.yml` to provision Celery worker on app node ASG.
     * Updated Terraform `main.tf` to provision `docker-compose-redis.yml` (Celery Beat) on the Redis singleton node.
     * Added Django application logic (`users/services.py`, `tasks.py`, `celery.py`) for asynchronous follower count flush via Redis `INCR` to eliminate PostgreSQL hot row locking.
+
+## Phase: Likes Hot Row Replication (Date: 2026-09-29, Commit: Pending, Model: Claude Sonnet 4.6 Thinking)
+*   **Analysis**: Replicated the row-level lock contention for `photos_photo.likes_count`. Every like fires `UPDATE photos_photo SET likes_count = likes_count + 1 WHERE id = ?`, which acquires an exclusive row lock. Under high concurrency all requests serialize behind that lock. Local tests masked this because Django HTTP overhead (~200ms) dwarfs the ~0.1ms lock wait. The effect is only visible on AWS where PgBouncer connection pool (pool_size=20) and network latency (3-5ms per DB hop) compound with the lock queue.
+*   **Actions**:
+    *   Created `chapter06/benchmarks/benchmark_likes_hot_row.py` — N concurrent users all like the same celebrity photo (one burst, same pattern as `compare_hot_row.py`). Script signs up sessions, fires all likes simultaneously, reports total time, throughput, avg/p95/p99/min/max latency.
+    *   Fixed `users/management/commands/backfill_follower_counts.py` — original command loaded all 3.5M users into one dict and issued a single huge `IN (...)` query, killing the DB connection. Rewrote to use `.iterator(chunk_size=5000)` and compute follower counts per batch to avoid memory spike and connection timeouts.
+    *   Updated `chapter06/README.md` with new benchmark instructions.
+*   **Benchmark results on AWS (3000 concurrency)**:
+    *   300 users: 0.75s total, 401 req/s, p99=716ms — lock drains fast at low concurrency.
+    *   3000 users: 75.22s total, 30 req/s, p99=4839ms, 723 failures — lock queue grows faster than it drains. `pg_stat_activity` showed `max_connections` fully exhausted (`sorry, too many clients already`) during the run — both row-lock serialization and connection pool saturation confirmed.
+*   **Edge case**: `backfill_follower_counts` ran successfully on AWS manual invocation but crashed mid-way (PgBouncer connection drop) during cloud-init because the old implementation loaded all 3.5M user IDs into memory at once. The celebrity profiles happened to be in an early batch that committed before the crash. The batched rewrite eliminates this.
+

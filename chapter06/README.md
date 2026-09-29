@@ -178,3 +178,70 @@ redis-cli -n 1 KEYS "redbeat:*"
 redis-cli -n 1 GET "redbeat::lock"
 redis-cli -n 1 HGETALL "redbeat:flush_follower_counts_task"
 ```
+
+---
+
+## Likes Hot Row Benchmark
+
+When many users like the same photo at the same time, every request runs:
+```sql
+UPDATE photos_photo SET likes_count = likes_count + 1 WHERE id = ?
+```
+Each update acquires an exclusive row lock. Concurrent requests queue behind each other, causing latency to spike even though the database is otherwise idle.
+
+The benchmark mirrors `compare_hot_row.py`:
+- **Scattered phase**: Each worker uploads their own photo and likes it. Every like hits a different row — true zero contention.
+- **Hot row phase**: All workers like a single celebrity photo. Every like hits the same row — full serialization.
+
+### 1. Get a Celebrity Photo ID
+
+SSH into any app node and run:
+```bash
+sudo docker exec -it photoz-web-1 python manage.py shell -c \
+  "from photos.models import Photo; from django.contrib.auth.models import User; u = User.objects.get(username='celeb_2m'); p = Photo.objects.filter(user=u).first(); print(p.id if p else 'No photos — create one first')"
+```
+
+If no photo exists for the celebrity, create one:
+```bash
+sudo docker exec -it photoz-web-1 python manage.py shell -c \
+  "from photos.models import Photo; from django.contrib.auth.models import User; u = User.objects.get(username='celeb_2m'); p = Photo.objects.create(user=u, image='placeholder.jpg', caption='Hot row benchmark'); print('Created photo id:', p.id)"
+```
+
+### 2. Run the Benchmark Locally
+
+From the project root, with venv activated:
+```bash
+python chapter06/benchmarks/benchmark_likes_hot_row.py \
+  --host http://localhost \
+  --concurrency 300 \
+  --hot-photo-id <celebrity_photo_id>
+```
+
+### 3. Run the Benchmark on AWS
+
+From your local machine:
+```bash
+python chapter06/benchmarks/benchmark_likes_hot_row.py \
+  --host http://<your-load-balancer-ip> \
+  --concurrency 500 \
+  --hot-photo-id <celebrity_photo_id>
+```
+
+The script handles everything: it signs up N users, uploads one photo per user (for the scattered phase), then runs both phases automatically.
+
+### What to Look For
+
+| Phase | Expected Behaviour |
+|---|---|
+| Scattered (own photos) | Fast — each request hits a different row, no lock wait |
+| Hot Row (celebrity photo) | Slower total time, requests serializing behind the row lock |
+
+To observe the lock queue in real time during the hot row phase:
+```bash
+sudo docker exec -it photoz-db-1 psql -U postgres -d bses -c \
+  "SELECT pid, state, wait_event_type, wait_event, query FROM pg_stat_activity WHERE state != 'idle' ORDER BY wait_event_type;"
+```
+You will see multiple connections in `Lock` wait state, all blocked on the same `UPDATE`.
+
+
+
