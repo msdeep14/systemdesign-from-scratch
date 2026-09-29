@@ -41,12 +41,16 @@
     * Updated Terraform `main.tf` to provision `docker-compose-redis.yml` (Celery Beat) on the Redis singleton node.
     * Added Django application logic (`users/services.py`, `tasks.py`, `celery.py`) for asynchronous follower count flush via Redis `INCR` to eliminate PostgreSQL hot row locking.
 
-## Phase: Likes Hot Row Replication (Date: 2026-09-29, Commit: Pending, Model: Claude Sonnet 4.6 Thinking)
+## Phase: Likes Hot Row Replication (Date: 2026-09-29, Commit: 70e390a5d3745db767cb1a2b9828b6b5890bfa12, Model: Claude Sonnet 4.6 Thinking)
 *   **Analysis**: Replicated the row-level lock contention for `photos_photo.likes_count`. Every like fires `UPDATE photos_photo SET likes_count = likes_count + 1 WHERE id = ?`, which acquires an exclusive row lock. Under high concurrency all requests serialize behind that lock. Local tests masked this because Django HTTP overhead (~200ms) dwarfs the ~0.1ms lock wait. The effect is only visible on AWS where PgBouncer connection pool (pool_size=20) and network latency (3-5ms per DB hop) compound with the lock queue.
 *   **Actions**:
     *   Created `chapter06/benchmarks/benchmark_likes_hot_row.py` — N concurrent users all like the same celebrity photo (one burst, same pattern as `compare_hot_row.py`). Script signs up sessions, fires all likes simultaneously, reports total time, throughput, avg/p95/p99/min/max latency.
     *   Fixed `users/management/commands/backfill_follower_counts.py` — original command loaded all 3.5M users into one dict and issued a single huge `IN (...)` query, killing the DB connection. Rewrote to use `.iterator(chunk_size=5000)` and compute follower counts per batch to avoid memory spike and connection timeouts.
     *   Updated `chapter06/README.md` with new benchmark instructions.
+    *   **Fix Implementation**: Implemented the "Full Count" Redis strategy for likes to completely bypass the database hot row on write.
+        *   Added `get_photo_likes_count` and `update_like_count_redis` in `photos/services.py` to maintain the absolute like count in Redis and a set of pending updates.
+        *   Updated `toggle_like` and `photo_detail` in `photos/views.py` to read/write from Redis instead of hitting PostgreSQL directly.
+        *   Created `flush_like_counts_task` in `photos/tasks.py` and scheduled it in `bses/settings.py` via Celery Beat to flush counts to PostgreSQL every 10 seconds.
 *   **Benchmark results on AWS (3000 concurrency)**:
     *   300 users: 0.75s total, 401 req/s, p99=716ms — lock drains fast at low concurrency.
     *   3000 users: 75.22s total, 30 req/s, p99=4839ms, 723 failures — lock queue grows faster than it drains. `pg_stat_activity` showed `max_connections` fully exhausted (`sorry, too many clients already`) during the run — both row-lock serialization and connection pool saturation confirmed.

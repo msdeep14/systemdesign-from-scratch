@@ -1,3 +1,5 @@
+import redis
+from django.conf import settings
 from django.db.models import Q
 
 from photos.models import Photo
@@ -38,3 +40,35 @@ def get_celebrity_photo_ids(celebrity_user_ids: list[int], limit: int = 20) -> l
         .order_by("-created_at")
         .values_list("id", flat=True)[:limit]
     )
+
+
+redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, decode_responses=True)
+
+
+def get_photo_likes_count(photo_id: int, db_likes_count: int) -> int:
+    """Gets the live like count for a photo using Full Count strategy."""
+    key = f"photo:{photo_id}:likes_count"
+    count = redis_client.get(key)
+    if count is not None:
+        return int(count)
+
+    # Cache Miss: We pass `db_likes_count` from the caller (which already fetched the
+    # Photo object from the DB) to avoid firing a redundant DB query inside this function.
+    redis_client.set(key, db_likes_count)
+    return db_likes_count
+
+
+def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool = True):
+    """Updates the like count for a photo in Redis."""
+    key = f"photo:{photo_id}:likes_count"
+
+    # Ensure baseline is set if it was evicted or not yet cached.
+    # Uses caller's `db_likes_count` to avoid an extra DB lookup.
+    if not redis_client.exists(key):
+        redis_client.set(key, db_likes_count)
+
+    if increment:
+        redis_client.incr(key)
+    else:
+        redis_client.decr(key)
+    redis_client.sadd("photos_with_pending_like_counts", photo_id)

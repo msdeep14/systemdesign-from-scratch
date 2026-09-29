@@ -19,6 +19,10 @@ from communities.services import (
 from photos.cdn import invalidate_cache
 from photos.forms import PhotoUploadForm
 from photos.models import Comment, Like, Photo, PhotoTag
+from photos.services import (
+    get_photo_likes_count,
+    update_like_count_redis,
+)
 from photos.signals import photo_commented, photo_deleted, photo_liked, photo_uploaded, user_tagged
 from photos.templatetags.hashtag_tags import linkify_hashtags
 from users.services import get_user_profile_by_username, search_users
@@ -99,7 +103,7 @@ def photo_detail(request, id):
         "photos/detail.html",
         {
             "photo": photo,
-            "likes_count": photo.likes_count,
+            "likes_count": get_photo_likes_count(photo.id, photo.likes_count),
             "comments_count": photo.comments_count,
             "has_liked": has_liked,
             "comments": comments,
@@ -140,12 +144,12 @@ def toggle_like(request, id):
 
     if like_obj:
         like_obj.delete()
-        Photo.objects.filter(id=photo.id).update(likes_count=F("likes_count") - 1)
+        update_like_count_redis(photo.id, photo.likes_count, increment=False)
         has_liked = False
         logger.info("User %s unliked photo %s", request.user.username, id)
     else:
         Like.objects.create(user=request.user, photo=photo)
-        Photo.objects.filter(id=photo.id).update(likes_count=F("likes_count") + 1)
+        update_like_count_redis(photo.id, photo.likes_count, increment=True)
         has_liked = True
         logger.info("User %s liked photo %s", request.user.username, id)
 
@@ -153,8 +157,8 @@ def toggle_like(request, id):
         if photo.user != request.user:
             photo_liked.send(sender=Like, photo=photo, liker=request.user)
 
-    photo.refresh_from_db(fields=["likes_count"])
-    return JsonResponse({"has_liked": has_liked, "likes_count": photo.likes_count})
+    likes_count = get_photo_likes_count(photo.id, photo.likes_count)
+    return JsonResponse({"has_liked": has_liked, "likes_count": likes_count})
 
 
 @login_required

@@ -309,4 +309,8 @@ CELERY_BEAT_SCHEDULE = {
         "task": "users.tasks.flush_follower_counts_task",
         "schedule": 10.0,
     },
+    "flush_like_counts_every_10_seconds": {
+        "task": "photos.tasks.flush_like_counts_task",
+        "schedule": 10.0,
+    },
 }
