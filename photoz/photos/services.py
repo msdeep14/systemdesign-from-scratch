@@ -1,3 +1,6 @@
+import json
+import time
+
 import redis
 from django.conf import settings
 from django.db.models import Q
@@ -72,3 +75,81 @@ def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool 
     else:
         redis_client.decr(key)
     redis_client.sadd("photos_with_pending_like_counts", photo_id)
+
+
+def _serialize_photo(photo: Photo) -> str:
+    """Serializes a Photo object for caching."""
+    return json.dumps(
+        {
+            "id": photo.id,
+            "caption": photo.caption,
+            "image_url": photo.image.url if photo.image else None,
+            "created_at": photo.created_at.isoformat(),
+            "user_id": photo.user_id,
+            "user_username": photo.user.profile.username_display,
+            "community_id": photo.community_id,
+        }
+    )
+
+
+def get_cached_photo(photo_id: int):
+    """
+    Fetches the photo from cache. If missing, implements a Mutex Lock (Cache Promise)
+    using Redis Pub/Sub to prevent a Thundering Herd from hitting the database.
+    """
+    key = f"photo:{photo_id}:data"
+    cached = redis_client.get(key)
+    if cached:
+        return json.loads(cached)
+
+    lock_key = f"lock:photo:{photo_id}"
+    channel = f"channel:photo:{photo_id}:populated"
+
+    # Try to acquire lock
+    if redis_client.setnx(lock_key, "1"):
+        # We are the winner. We fetch from DB, populate cache, and publish.
+        redis_client.expire(lock_key, 10)  # 10s safety timeout
+
+        # Query DB
+        photo = Photo.objects.select_related("user__profile").filter(id=photo_id).first()
+        if not photo:
+            redis_client.delete(lock_key)
+            return None
+
+        photo_data = _serialize_photo(photo)
+
+        # Determine TTL based on celebrity status
+        is_celebrity = photo.user.profile.follower_count > settings.CELEBRITY_FOLLOWER_THRESHOLD
+        ttl = (
+            settings.CACHE_TTL_CELEBRITY_PHOTO if is_celebrity else settings.CACHE_TTL_NORMAL_PHOTO
+        )
+
+        redis_client.setex(key, ttl, photo_data)
+
+        # Release lock and notify waiting clients via push
+        redis_client.delete(lock_key)
+        redis_client.publish(channel, "READY")
+
+        return json.loads(photo_data)
+    else:
+        # We are part of the herd. Wait for the winner via Pub/Sub push notification
+        pubsub = redis_client.pubsub()
+        pubsub.subscribe(channel)
+
+        start_time = time.time()
+        # Wait up to 5 seconds for the READY message
+        while time.time() - start_time < 5.0:
+            message = pubsub.get_message(timeout=1.0)
+            if message and message["type"] == "message" and message["data"] == "READY":
+                break
+
+        pubsub.unsubscribe(channel)
+
+        # Now read from the newly populated cache
+        cached = redis_client.get(key)
+        if cached:
+            return json.loads(cached)
+
+        # Fallback if something went wrong
+        photo = Photo.objects.select_related("user__profile").filter(id=photo_id).first()
+        return json.loads(_serialize_photo(photo)) if photo else None

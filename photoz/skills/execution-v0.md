@@ -614,10 +614,18 @@
     *   Updated `seed_celebrity_users.py` to reduce the `bulk_create` batch size from 50,000 to 10,000 and added a `time.sleep(0.2)` throttle between batches to allow the DB and Replica to breathe and process DNS/health requests.
     *   Updated `iaac/aws/terraform/main.tf` to execute `python manage.py backfill_follower_counts` immediately after `seed_celebrity_users` in the DB node's `user_data` to ensure follower counts correctly propagate for search visibility.
 
-## Phase: Likes Hot Row Replication & Fix (Date: 2026-09-29, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Likes Hot Row Replication & Fix (Date: 2026-09-29, Commit: de9857f9e33cf2915659b71bb08365fde8d3003a, Model: Gemini 3.1 Pro High)
 *   **Analysis**: Similar to the follower count bottleneck, `likes_count` suffered from heavy row-level lock contention because every like fired `UPDATE photos_photo SET likes_count = likes_count + 1 WHERE id = ?`. Under high concurrency, these serialized behind the lock and exhausted the PgBouncer connection pool.
 *   **Actions**:
     *   Implemented the "Full Count" Redis strategy for likes to completely bypass the database hot row on write.
     *   Added `get_photo_likes_count` and `update_like_count_redis` in `photos/services.py` to maintain the absolute like count in Redis and track a set of pending updates. (Merged into `update_like_count_redis` to pass drift structural checks).
     *   Updated `toggle_like` and `photo_detail` in `photos/views.py` to read/write from Redis instead of hitting PostgreSQL directly.
     *   Created `flush_like_counts_task` in `photos/tasks.py` and scheduled it in `bses/settings.py` via Celery Beat to flush counts to PostgreSQL every 10 seconds.
+
+## Phase: Object Caching & Thundering Herd Prevention (Date: 2026-09-30, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: While the "Full Count" strategy fixed the write bottleneck for likes, celebrity photos still face a massive read bottleneck. If a celebrity photo isn't cached (or expires), a "Thundering Herd" of concurrent feed requests could crash the database with identical `SELECT * FROM photos_photo WHERE id = ?` queries.
+*   **Actions**:
+    *   Implemented full `Photo` object caching in Redis (`photo:{id}:data`) via `_serialize_photo()`.
+    *   Created `get_cached_photo` in `photos/services.py` implementing a Cache Promise (Mutex Lock) using `SETNX`.
+    *   Solved the Thundering Herd waiting mechanism by leveraging **Redis Pub/Sub (Push) instead of polling**: the thread acquiring the lock fetches from the DB, populates the cache, and calls `PUBLISH channel:photo:{id}:populated READY`. Waiting threads efficiently block via `pubsub.subscribe()` and `get_message()` until notified.
+    *   Centralized TTL constants in `bses/settings.py` (`CACHE_TTL_CELEBRITY_PHOTO` = 24h, `CACHE_TTL_NORMAL_PHOTO` = 1h, `CELEBRITY_FOLLOWER_THRESHOLD` = 10000) to apply a hybrid lazy-loading vs. proactive caching strategy depending on the uploader's follower count.

@@ -56,3 +56,11 @@
     *   3000 users: 75.22s total, 30 req/s, p99=4839ms, 723 failures — lock queue grows faster than it drains. `pg_stat_activity` showed `max_connections` fully exhausted (`sorry, too many clients already`) during the run — both row-lock serialization and connection pool saturation confirmed.
 *   **Edge case**: `backfill_follower_counts` ran successfully on AWS manual invocation but crashed mid-way (PgBouncer connection drop) during cloud-init because the old implementation loaded all 3.5M user IDs into memory at once. The celebrity profiles happened to be in an early batch that committed before the crash. The batched rewrite eliminates this.
 
+## Phase: Object Caching & Thundering Herd Prevention (Date: 2026-09-30, Commit: Pending, Model: Gemini 3.1 Prod)
+*   **Analysis**: While the "Full Count" strategy fixed the write bottleneck for likes, celebrity photos still face a massive read bottleneck. If a celebrity photo isn't cached (or expires), a "Thundering Herd" of concurrent feed requests could crash the database with identical `SELECT * FROM photos_photo WHERE id = ?` queries.
+*   **Actions**:
+    *   Implemented full `Photo` object caching in Redis (`photo:{id}:data`) via `_serialize_photo()`.
+    *   Created `get_cached_photo` in `photos/services.py` implementing a Cache Promise (Mutex Lock) using `SETNX`.
+    *   Solved the Thundering Herd waiting mechanism by leveraging **Redis Pub/Sub (Push) instead of polling**: the thread acquiring the lock fetches from the DB, populates the cache, and calls `PUBLISH channel:photo:{id}:populated READY`. Waiting threads efficiently block via `pubsub.subscribe()` and `get_message()` until notified.
+    *   Centralized TTL constants in `bses/settings.py` (`CACHE_TTL_CELEBRITY_PHOTO` = 24h, `CACHE_TTL_NORMAL_PHOTO` = 1h, `CELEBRITY_FOLLOWER_THRESHOLD` = 10000) to apply a hybrid lazy-loading vs. proactive caching strategy depending on the uploader's follower count.
+
