@@ -342,3 +342,33 @@ Spike Redis Latency (Blocked): 1272.64 ms
 ```
 *At 20 concurrent tasks, the single-threaded Redis server is crushed. Unrelated API requests experience over 1.2 seconds of latency! Background asynchronous workers have essentially brought down the synchronous web application.*
 
+### 3. End-to-End Simulation (Web Traffic Impact)
+
+To truly see the "blast radius" of this bottleneck, we must observe how this background task impacts the synchronous Django Application Server. Because Django relies on Redis to serve the Newsfeed, a blocked Redis event loop means Django HTTP requests will hang.
+
+We created an End-to-End benchmark that simulates Celery workers firing massive pipelines while a background thread continuously fetches the newsfeed via HTTP:
+
+**Running Locally:**
+```bash
+python chapter06/benchmarks/benchmark_e2e_pipeline_limits.py --concurrency 5
+```
+
+**Running on AWS:**
+```bash
+python chapter06/benchmarks/benchmark_e2e_pipeline_limits.py --host http://<lb-ip> --redis-host <redis-ec2-ip> --concurrency 25
+```
+
+**Results (25 Concurrent Pipelines):**
+```
+Normal HTTP Latency (Baseline): 17.65 ms
+Spike HTTP Latency (Blocked): 1919.49 ms
+Total HTTP Errors/Timeouts: 414
+```
+
+**Conclusion:** 
+When the background Celery Workers flood Redis with massive pipelines, standard HTTP traffic hangs for nearly 2 seconds. If this block exceeds Gunicorn or Nginx's timeout, the web server returns a 502/504 Bad Gateway. This proves that a poorly designed background task can take down the entire synchronous web application.
+
+---
+
+
+
