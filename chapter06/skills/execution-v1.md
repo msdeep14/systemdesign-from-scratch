@@ -73,7 +73,7 @@
     *   Updated the script with `--concurrency` utilizing `concurrent.futures.ThreadPoolExecutor` to perform concurrent photo uploads.
     *   Updated `chapter06/README.md` with instructions on how to test this end-to-end via AWS and an explanation of the results (4 uploads took 8s, 15 uploads took 39s).
 
-## Phase: Step 1 Fix - Redis Pipelining (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro)
+## Phase: Step 1 Fix - Redis Pipelining (Date: 2026-10-02, Commit: 28e751728d0943d91135c309fdbb6e611a427419, Model: Gemini 3.1 Pro)
 *   **Analysis**: The Celery fan-out loop was performing thousands of independent TCP requests to Redis. By wrapping the loop in a `redis_client.pipeline()`, we batch these commands into a single round-trip, drastically reducing the network latency bottleneck.
 *   **Actions**:
     *   Created `push_to_feed_cache_bulk` in `photoz/newsfeed/services.py`. It uses a 2-phase pipeline strategy: phase 1 batches `EXISTS` checks, and phase 2 batches `LPUSH` and `LTRIM` operations only on the existing caches to prevent creating partial cold feeds.

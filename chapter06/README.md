@@ -307,3 +307,38 @@ Throughput: 42698 Redis LPUSH operations per second
 **Note on Postgres Replication Lag:** 
 Because the benchmark performs a massive `bulk_create` of 150,000 follow edges directly to the Postgres Primary, and the Celery worker immediately reads from the Postgres Replica, there is a risk of replication lag. If the worker queries the replica before the edges synchronize, it will see 0 followers and incorrectly succeed instantly. A 15-second `time.sleep()` is injected into the benchmark script to allow the replica to catch up before triggering the uploads.
 
+---
+
+## Redis Pipelining Bottlenecks (Event Loop Blocking)
+
+While pipelining solves the network latency bottleneck, another bottleneck appeared.
+
+When a Celery worker sends a massive pipeline (e.g., 500,000 commands) to Redis, it forces Redis to process that entire buffer sequentially. During this time, the Redis Event Loop is completely blocked. This means if a normal user attempts to load their newsfeed (which requires a fast read from Redis) exactly while a pipeline is executing, their HTTP request will hang until the massive pipeline finishes!
+
+### 1. Run the Pipeline Limit Benchmark
+
+**Running Locally:**
+```bash
+python chapter06/benchmarks/benchmark_redis_pipeline_limits.py --redis-host localhost --concurrency 5
+```
+
+### 2. Results
+
+Multiple massive pipelines concurrently perfectly replicates what happens when multiple Celery workers process fanout tasks simultaneously.
+
+**Concurrency = 5 (2.5M Operations):**
+```
+Total Execution Time: 15.08 seconds
+Normal Redis Latency (Baseline): 19.41 ms
+Spike Redis Latency (Blocked): 391.72 ms
+```
+*Even with just 5 concurrent tasks, unrelated users experience nearly 400ms of latency just trying to fetch a cache key!*
+
+**Concurrency = 20 (10M Operations):**
+```
+Total Execution Time: 70.88 seconds
+Normal Redis Latency (Baseline): 66.83 ms
+Spike Redis Latency (Blocked): 1272.64 ms
+```
+*At 20 concurrent tasks, the single-threaded Redis server is crushed. Unrelated API requests experience over 1.2 seconds of latency! Background asynchronous workers have essentially brought down the synchronous web application.*
+

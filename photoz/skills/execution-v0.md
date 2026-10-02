@@ -638,8 +638,14 @@
     *   Updated the script with `--concurrency` utilizing `concurrent.futures.ThreadPoolExecutor` to perform concurrent photo uploads.
     *   Updated `chapter06/README.md` with instructions on how to test this end-to-end via AWS and an explanation of the results (4 uploads took 8s, 15 uploads took 39s).
 
-## Phase: Step 1 Fix - Redis Pipelining (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro)
+## Phase: Step 1 Fix - Redis Pipelining (Date: 2026-10-02, Commit: 28e751728d0943d91135c309fdbb6e611a427419, Model: Gemini 3.1 Pro)
 *   **Analysis**: The Celery fan-out loop was performing thousands of independent TCP requests to Redis. By wrapping the loop in a `redis_client.pipeline()`, we batch these commands into a single round-trip, drastically reducing the network latency bottleneck.
 *   **Actions**:
     *   Created `push_to_feed_cache_bulk` in `photoz/newsfeed/services.py`. It uses a 2-phase pipeline strategy: phase 1 batches `EXISTS` checks, and phase 2 batches `LPUSH` and `LTRIM` operations only on the existing caches to prevent creating partial cold feeds.
     *   Updated `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to fetch `follower_ids` and pass them to the bulk pipeline function.
+
+## Phase: Redis Pipelining Bottlenecks (Event Loop Blocking) (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: While pipelining solved network latency (reducing fanout time from 39s to 3.5s), it exposed a fundamental limit of Redis's single-threaded nature. A massive pipeline forces Redis to process a huge buffer sequentially, completely blocking the event loop for all other clients (like users trying to load their feed over HTTP).
+*   **Actions**:
+    *   Created `chapter06/benchmarks/benchmark_redis_pipeline_limits.py` to mathematically isolate and simulate Celery workers sending massive pipelines concurrently.
+    *   Verified that executing just 5 concurrent 500k-command pipelines causes unrelated Redis ping latency to spike from ~19ms to nearly 400ms. Running 20 concurrent pipelines spiked latency to over 1.2 seconds, proving how background async tasks can accidentally take down the synchronous web application when they share the same Redis instance.
