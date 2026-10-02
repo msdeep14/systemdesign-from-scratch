@@ -284,11 +284,26 @@ Total time taken by Celery Workers: 8.23 seconds
 Throughput: 4861 Redis LPUSH operations per second
 ```
 
-**Concurrency = 15:**
+**Concurrency = 15 (Without Pipelining):**
 ```
 Total concurrent uploads: 15
 Total followers fanned out to: 149985
 Total time taken by Celery Workers: 39.06 seconds
 Throughput: 3840 Redis LPUSH operations per second
 ```
+
+### 3. Step 1 Fix: Redis Pipelining
+
+By wrapping the sequential `LPUSH` commands inside a `redis_client.pipeline()`, we batch all network commands into a single TCP round-trip. Re-running the benchmark yields a massive latency reduction:
+
+**Concurrency = 15 (With Pipelining):**
+```
+Total concurrent uploads: 15
+Total followers fanned out to: 149985
+Total time taken by Celery Workers: 3.51 seconds
+Throughput: 42698 Redis LPUSH operations per second
+```
+
+**Note on Postgres Replication Lag:** 
+Because the benchmark performs a massive `bulk_create` of 150,000 follow edges directly to the Postgres Primary, and the Celery worker immediately reads from the Postgres Replica, there is a risk of replication lag. If the worker queries the replica before the edges synchronize, it will see 0 followers and incorrectly succeed instantly. A 15-second `time.sleep()` is injected into the benchmark script to allow the replica to catch up before triggering the uploads.
 

@@ -82,6 +82,9 @@ def main():
     # The last follower's ID is what we'll monitor for each uploader
     last_follower_id = created_users[-1].id
     
+    print(f"   Waiting 15 seconds for Postgres Read Replica to catch up to the 150k new follow edges...")
+    time.sleep(15)
+    
     print(f"2. Logging in via API...")
     sessions = []
     for uploader_username, _ in uploaders:
