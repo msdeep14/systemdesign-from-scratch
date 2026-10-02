@@ -243,5 +243,52 @@ sudo docker exec -it photoz-db-1 psql -U postgres -d bses -c \
 ```
 You will see multiple connections in `Lock` wait state, all blocked on the same `UPDATE`.
 
+---
 
+## Celery Fanout Bottleneck (Worker Starvation)
+
+When a "Power User" (a user with thousands of followers, but just under the celebrity threshold) uploads a photo, our current architecture uses a Celery task to asynchronously push the photo ID into every follower's Redis feed.
+
+If a user has 9,999 followers, the Celery worker executes a synchronous loop, performing 9,999 sequential `LPUSH` network calls to Redis.
+
+### 1. Run the Fanout Benchmark
+
+This benchmark script simulates concurrent power users uploading photos to expose how a long-running synchronous network loop blocks Celery workers.
+
+**Running Locally:**
+```bash
+python chapter06/benchmarks/benchmark_celery_fanout.py \
+  --concurrency 4
+```
+
+**Running on AWS:**
+To run the script from local machine, update security groups for postgres to allow 5432 port for your ip and 6379 port for redis sg for your ip.
+```bash
+python chapter06/benchmarks/benchmark_celery_fanout.py \
+  --host http://<your-load-balancer-ip> \
+  --redis-host <redis-ec2-ip> \
+  --db-host <db-ec2-ip> \
+  --db-password <your-postgres-password> \
+  --concurrency 15
+```
+
+### 2. Analyze the Bottleneck (Worker Starvation)
+
+When we run the benchmark with varying concurrency, we observe the following results:
+
+**Concurrency = 4:**
+```
+Total concurrent uploads: 4
+Total followers fanned out to: 39996
+Total time taken by Celery Workers: 8.23 seconds
+Throughput: 4861 Redis LPUSH operations per second
+```
+
+**Concurrency = 15:**
+```
+Total concurrent uploads: 15
+Total followers fanned out to: 149985
+Total time taken by Celery Workers: 39.06 seconds
+Throughput: 3840 Redis LPUSH operations per second
+```
 

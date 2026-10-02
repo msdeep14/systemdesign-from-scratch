@@ -64,3 +64,12 @@
     *   Solved the Thundering Herd waiting mechanism by leveraging **Redis Pub/Sub (Push) instead of polling**: the thread acquiring the lock fetches from the DB, populates the cache, and calls `PUBLISH channel:photo:{id}:populated READY`. Waiting threads efficiently block via `pubsub.subscribe()` and `get_message()` until notified.
     *   Centralized TTL constants in `bses/settings.py` (`CACHE_TTL_CELEBRITY_PHOTO` = 24h, `CACHE_TTL_NORMAL_PHOTO` = 1h, `CELEBRITY_FOLLOWER_THRESHOLD` = 10000) to apply a hybrid lazy-loading vs. proactive caching strategy depending on the uploader's follower count.
 
+
+## Phase: Prove Celery Fanout Bottleneck (Worker Starvation) (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro)
+*   **Analysis**: To demonstrate why a naive Celery loop over 10,000 followers causes "Worker Starvation", we needed a script that bypassed the slow HTTP login layer to inject 10k users directly into the DB, and then test multiple concurrent photo uploads to saturate the worker pool.
+*   **Actions**:
+    *   Created `chapter06/benchmarks/benchmark_celery_fanout.py` which seeds N "Power Users" (each with 9,999 followers) into the database in under a second using `bulk_create`.
+    *   Iterated on the script to properly fix DB injection rules (Postgres Foreign Key constraints) and properly handle the "Cache Warming" (the celery worker ignores cold caches).
+    *   Updated the script with `--concurrency` utilizing `concurrent.futures.ThreadPoolExecutor` to perform concurrent photo uploads.
+    *   Updated `chapter06/README.md` with instructions on how to test this end-to-end via AWS and an explanation of the results (4 uploads took 8s, 15 uploads took 39s).
+
