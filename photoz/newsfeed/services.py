@@ -151,6 +151,37 @@ def push_to_feed_cache(user_id, photo_id):
                 client.delete(cache_key)
 
 
+def push_to_feed_cache_bulk(user_ids, photo_id):
+    """Pushes a new photo ID to multiple users' cached feeds using Redis pipelining."""
+    client = _get_redis_client()
+    if not client or not user_ids:
+        return
+
+    cache_keys = [f":1:feed:{uid}" for uid in user_ids]
+
+    # Phase 1: Pipeline to check which feed caches actually exist
+    # (We ignore cold caches so we don't create 1-item partial feeds)
+    pipeline = client.pipeline(transaction=False)
+    for key in cache_keys:
+        pipeline.exists(key)
+
+    with handle_redis_error("Failed bulk redis pipeline (exists)", "multiple"):
+        exists_results = pipeline.execute()
+
+    # Phase 2: Pipeline to execute LPUSH and LTRIM only on warm caches
+    pipeline = client.pipeline(transaction=False)
+    commands_queued = False
+    for key, exists in zip(cache_keys, exists_results, strict=False):
+        if exists:
+            pipeline.lpush(key, photo_id)
+            pipeline.ltrim(key, 0, 999)
+            commands_queued = True
+
+    if commands_queued:
+        with handle_redis_error("Failed bulk redis pipeline (push)", "multiple"):
+            pipeline.execute()
+
+
 def invalidate_feed_cache(user_id):
     """Invalidates the feed cache for a user."""
     cache.delete(f"feed:{user_id}")

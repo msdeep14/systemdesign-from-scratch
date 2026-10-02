@@ -622,7 +622,7 @@
     *   Updated `toggle_like` and `photo_detail` in `photos/views.py` to read/write from Redis instead of hitting PostgreSQL directly.
     *   Created `flush_like_counts_task` in `photos/tasks.py` and scheduled it in `bses/settings.py` via Celery Beat to flush counts to PostgreSQL every 10 seconds.
 
-## Phase: Object Caching & Thundering Herd Prevention (Date: 2026-09-30, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Object Caching & Thundering Herd Prevention (Date: 2026-09-30, Commit: d91784756300a10df02f629a17e1224065d22260, Model: Gemini 3.1 Pro High)
 *   **Analysis**: While the "Full Count" strategy fixed the write bottleneck for likes, celebrity photos still face a massive read bottleneck. If a celebrity photo isn't cached (or expires), a "Thundering Herd" of concurrent feed requests could crash the database with identical `SELECT * FROM photos_photo WHERE id = ?` queries.
 *   **Actions**:
     *   Implemented full `Photo` object caching in Redis (`photo:{id}:data`) via `_serialize_photo()`.
@@ -630,10 +630,16 @@
     *   Solved the Thundering Herd waiting mechanism by leveraging **Redis Pub/Sub (Push) instead of polling**: the thread acquiring the lock fetches from the DB, populates the cache, and calls `PUBLISH channel:photo:{id}:populated READY`. Waiting threads efficiently block via `pubsub.subscribe()` and `get_message()` until notified.
     *   Centralized TTL constants in `bses/settings.py` (`CACHE_TTL_CELEBRITY_PHOTO` = 24h, `CACHE_TTL_NORMAL_PHOTO` = 1h, `CELEBRITY_FOLLOWER_THRESHOLD` = 10000) to apply a hybrid lazy-loading vs. proactive caching strategy depending on the uploader's follower count.
 
-## Phase: Prove Celery Fanout Bottleneck (Worker Starvation) (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro)
+## Phase: Prove Celery Fanout Bottleneck (Worker Starvation) (Date: 2026-10-02, Commit: 907e6a7f1f687b3523286f2fac3dbb6c799714e0, Model: Gemini 3.1 Pro)
 *   **Analysis**: To demonstrate why a naive Celery loop over 10,000 followers causes "Worker Starvation", we needed a script that bypassed the slow HTTP login layer to inject 10k users directly into the DB, and then test multiple concurrent photo uploads to saturate the worker pool.
 *   **Actions**:
     *   Created `chapter06/benchmarks/benchmark_celery_fanout.py` which seeds N "Power Users" (each with 9,999 followers) into the database in under a second using `bulk_create`.
     *   Iterated on the script to properly fix DB injection rules (Postgres Foreign Key constraints) and properly handle "Cache Warming" (since the celery worker ignores cold caches).
     *   Updated the script with `--concurrency` utilizing `concurrent.futures.ThreadPoolExecutor` to perform concurrent photo uploads.
     *   Updated `chapter06/README.md` with instructions on how to test this end-to-end via AWS and an explanation of the results (4 uploads took 8s, 15 uploads took 39s).
+
+## Phase: Step 1 Fix - Redis Pipelining (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro)
+*   **Analysis**: The Celery fan-out loop was performing thousands of independent TCP requests to Redis. By wrapping the loop in a `redis_client.pipeline()`, we batch these commands into a single round-trip, drastically reducing the network latency bottleneck.
+*   **Actions**:
+    *   Created `push_to_feed_cache_bulk` in `photoz/newsfeed/services.py`. It uses a 2-phase pipeline strategy: phase 1 batches `EXISTS` checks, and phase 2 batches `LPUSH` and `LTRIM` operations only on the existing caches to prevent creating partial cold feeds.
+    *   Updated `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to fetch `follower_ids` and pass them to the bulk pipeline function.
