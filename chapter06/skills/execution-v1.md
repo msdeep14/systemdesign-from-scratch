@@ -78,10 +78,18 @@
 *   **Actions**:
     *   Created `push_to_feed_cache_bulk` in `photoz/newsfeed/services.py`. It uses a 2-phase pipeline strategy: phase 1 batches `EXISTS` checks, and phase 2 batches `LPUSH` and `LTRIM` operations only on the existing caches to prevent creating partial cold feeds.
     *   Updated `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to fetch `follower_ids` and pass them to the bulk pipeline function.
-## Phase: Prove Pipeline E2E Bottleneck (Event Loop Blocking) (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro)
+
+## Phase: Prove Pipeline E2E Bottleneck (Event Loop Blocking) (Date: 2026-10-03, Commit: d3b12d3924a8395740ffd77e09f3ca312768da36, Model: Gemini 3.1 Pro)
 *   **Analysis**: While pipelining solved network latency, a new bottleneck emerged: Redis is single-threaded. A massive pipeline forces Redis to process a huge buffer sequentially, completely blocking the event loop. We needed to prove that a background async task (like a Celery fanout) could accidentally take down the synchronous web application (HTTP requests) when they share the same Redis instance.
 *   **Actions**:
     *   Created `chapter06/benchmarks/benchmark_e2e_pipeline_limits.py` to simulate Celery workers sending massive pipelines directly to Redis while simultaneously fetching the newsfeed via HTTP in a background thread.
     *   Fixed a hardcoded `/photos/` URL to point to `/` so it properly hits the Django newsfeed endpoint and queries Redis.
     *   Discovered that massive payloads (e.g., 625MB for 25 workers * 500k commands) fail over standard residential internet due to TCP timeouts. Adapted the AWS testing instructions to use a smaller pipeline size (50,000) to flawlessly demonstrate the blocked event loop via the public Load Balancer.
-    *   Updated `chapter06/README.md` with the End-to-End simulation results, proving that HTTP latency spikes (e.g., hanging for ~350ms) exactly when Redis is blocked by pipelines.
+
+## Phase: Fix Event Loop Block via Celery Chunking (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: To prevent the Redis single-threaded execution engine from blocking on massive pipelines, we must enforce a hard cap on the pipeline size. By orchestrating the fan-out task into smaller chunks, we allow the Redis Event Loop to process a chunk, yield to process normal HTTP requests, and then process the next chunk.
+*   **Actions**:
+    *   Refactored `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to act as an Orchestrator. It now slices the follower list into chunks and dispatches them.
+    *   Created `fanout_photo_uploaded_chunk_task` as the new sub-task to handle a single bounded chunk of users.
+    *   Utilized Celery Canvas (`group`) to efficiently dispatch all chunk sub-tasks concurrently across the worker fleet.
+    *   Extracted the chunk size limit into `photoz/bses/settings.py` as `FANOUT_PIPELINE_CHUNK_SIZE = 1000` to make it easily configurable and self-documenting.

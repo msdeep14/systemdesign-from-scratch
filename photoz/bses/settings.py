@@ -236,6 +236,7 @@ LOGOUT_REDIRECT_URL = "login"
 BSES_PAGE_SIZE = 20
 CELEBRITY_FOLLOWER_THRESHOLD = 10000
 CACHE_TTL_CELEBRITY_PHOTO = 86400  # 24 hours
+FANOUT_PIPELINE_CHUNK_SIZE = 1000  # Number of followers to process per Celery task chunk
 CACHE_TTL_NORMAL_PHOTO = 3600  # 1 hour
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -644,8 +644,16 @@
     *   Created `push_to_feed_cache_bulk` in `photoz/newsfeed/services.py`. It uses a 2-phase pipeline strategy: phase 1 batches `EXISTS` checks, and phase 2 batches `LPUSH` and `LTRIM` operations only on the existing caches to prevent creating partial cold feeds.
     *   Updated `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to fetch `follower_ids` and pass them to the bulk pipeline function.
 
-## Phase: Redis Pipelining Bottlenecks (Event Loop Blocking) (Date: 2026-10-02, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Redis Pipelining Bottlenecks (Event Loop Blocking) (Date: 2026-10-02, Commit: d3b12d3924a8395740ffd77e09f3ca312768da36, Model: Gemini 3.1 Pro High)
 *   **Analysis**: While pipelining solved network latency (reducing fanout time from 39s to 3.5s), it exposed a fundamental limit of Redis's single-threaded nature. A massive pipeline forces Redis to process a huge buffer sequentially, completely blocking the event loop for all other clients (like users trying to load their feed over HTTP).
 *   **Actions**:
     *   Created `chapter06/benchmarks/benchmark_redis_pipeline_limits.py` to mathematically isolate and simulate Celery workers sending massive pipelines concurrently.
     *   Verified that executing just 5 concurrent 500k-command pipelines causes unrelated Redis ping latency to spike from ~19ms to nearly 400ms. Running 20 concurrent pipelines spiked latency to over 1.2 seconds, proving how background async tasks can accidentally take down the synchronous web application when they share the same Redis instance.
+
+## Phase: Fix Event Loop Block via Celery Chunking (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: To prevent the Redis single-threaded execution engine from blocking on massive pipelines, we must enforce a hard cap on the pipeline size. By orchestrating the fan-out task into smaller chunks, we allow the Redis Event Loop to process a chunk, yield to process normal HTTP requests, and then process the next chunk.
+*   **Actions**:
+    *   Refactored `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to act as an Orchestrator. It now slices the follower list into chunks and dispatches them.
+    *   Created `fanout_photo_uploaded_chunk_task` as the new sub-task to handle a single bounded chunk of users.
+    *   Utilized Celery Canvas (`group`) to efficiently dispatch all chunk sub-tasks concurrently across the worker fleet.
+    *   Extracted the chunk size limit into `photoz/bses/settings.py` as `FANOUT_PIPELINE_CHUNK_SIZE = 1000` to make it easily configurable and self-documenting.
