@@ -93,7 +93,7 @@ def main():
         sys.exit(1)
         
     # Warm up the cache by hitting the newsfeed once
-    newsfeed_url = f"{base_url}/photos/"
+    newsfeed_url = f"{base_url}/"
     session.get(newsfeed_url)
     
     print(f"3. Starting background thread to constantly load the Newsfeed (simulating Web Traffic)...")

@@ -353,16 +353,17 @@ We created an End-to-End benchmark that simulates Celery workers firing massive 
 python chapter06/benchmarks/benchmark_e2e_pipeline_limits.py --concurrency 5
 ```
 
-**Running on AWS:**
+**Running on AWS (via Load Balancer):**
+To test this flawlessly over the public internet without exceeding your local TCP upload limits, scale down the pipeline size:
 ```bash
-python chapter06/benchmarks/benchmark_e2e_pipeline_limits.py --host http://<lb-ip> --redis-host <redis-ec2-ip> --concurrency 25
+python chapter06/benchmarks/benchmark_e2e_pipeline_limits.py --host http://<lb-ip> --redis-host <redis-ec2-ip> --pipeline-size 50000 --concurrency 2
 ```
 
-**Results (25 Concurrent Pipelines):**
+**Results (AWS Load Balancer - 100k Operations):**
 ```
-Normal HTTP Latency (Baseline): 17.65 ms
-Spike HTTP Latency (Blocked): 1919.49 ms
-Total HTTP Errors/Timeouts: 414
+Normal HTTP Latency (Baseline): 132.47 ms
+Spike HTTP Latency (Blocked): 346.28 ms
+Total HTTP Errors/Timeouts: 0
 ```
 
 **Conclusion:** 
