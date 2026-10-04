@@ -371,5 +371,36 @@ When the background Celery Workers flood Redis with massive pipelines, standard 
 
 ---
 
+## Step 3: Fixing the Bottleneck with Celery Chunking (Canvas)
 
+implemented **Celery Chunking** in `newsfeed/tasks.py`. 
 
+`fanout_photo_uploaded_task` acts as an **Orchestrator**. It slices the followers into lists of 1,000 (`settings.FANOUT_PIPELINE_CHUNK_SIZE`), and uses Celery Canvas (`group`) to dispatch those 50 smaller sub-tasks to the worker fleet.
+
+This guarantees Redis only ever processes a 1,000-command pipeline (~0.1ms), allowing it to easily yield the Event Loop back to the App Server for normal HTTP requests.
+
+### Validating the Fix (End-to-End)
+
+benchmark that triggers real Photo Uploads via the HTTP API, naturally triggering the real Celery Canvas orchestration, while simultaneously monitoring the HTTP latency:
+
+**Running Locally:**
+```bash
+python chapter06/benchmarks/benchmark_chunking_e2e.py --concurrency 1
+```
+
+**Running on AWS (via Load Balancer):**
+```bash
+python chapter06/benchmarks/benchmark_chunking_e2e.py --host http://<lb-ip> --redis-host <redis-ec2-ip> --db-host <db-ec2-ip> --db-password <password> --concurrency 2
+```
+
+**Stress Test Results (Local execution):**
+- **Concurrency 1:** Spike 194.71 ms (Success)
+- **Concurrency 5:** Spike 60.98 ms (Success)
+- **Concurrency 20 (200k operations):** Spike 758.85 ms (Warning)
+- **Concurrency 50 (500k operations):** Spike 1313.28 ms (Warning)
+- **Concurrency 100 (1M operations):** Spike 2929.64 ms (Warning)
+
+### Visualizing Celery Workflow (Flower)
+We added `flower` to our development dependencies and updated `docker-compose.yml` to run a Flower server. You can visit `http://localhost:5555` to visually see the Orchestrator task spawning the chunks via Canvas!
+
+---

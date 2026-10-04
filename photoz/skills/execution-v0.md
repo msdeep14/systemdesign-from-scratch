@@ -650,10 +650,18 @@
     *   Created `chapter06/benchmarks/benchmark_redis_pipeline_limits.py` to mathematically isolate and simulate Celery workers sending massive pipelines concurrently.
     *   Verified that executing just 5 concurrent 500k-command pipelines causes unrelated Redis ping latency to spike from ~19ms to nearly 400ms. Running 20 concurrent pipelines spiked latency to over 1.2 seconds, proving how background async tasks can accidentally take down the synchronous web application when they share the same Redis instance.
 
-## Phase: Fix Event Loop Block via Celery Chunking (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Fix Event Loop Block via Celery Chunking (Date: 2026-10-03, Commit: bb1aa598910a389ca556a6078c2356b0b8854082, Model: Gemini 3.1 Pro High)
 *   **Analysis**: To prevent the Redis single-threaded execution engine from blocking on massive pipelines, we must enforce a hard cap on the pipeline size. By orchestrating the fan-out task into smaller chunks, we allow the Redis Event Loop to process a chunk, yield to process normal HTTP requests, and then process the next chunk.
 *   **Actions**:
     *   Refactored `fanout_photo_uploaded_task` in `photoz/newsfeed/tasks.py` to act as an Orchestrator. It now slices the follower list into chunks and dispatches them.
     *   Created `fanout_photo_uploaded_chunk_task` as the new sub-task to handle a single bounded chunk of users.
     *   Utilized Celery Canvas (`group`) to efficiently dispatch all chunk sub-tasks concurrently across the worker fleet.
     *   Extracted the chunk size limit into `photoz/bses/settings.py` as `FANOUT_PIPELINE_CHUNK_SIZE = 1000` to make it easily configurable and self-documenting.
+
+## Phase: Validate Chunking & Expose Final Push Limit (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Analysis**: While chunking successfully yields the event loop during moderate bursts, we needed to stress test it at extreme scale. We discovered that at high concurrency (e.g., 100 concurrent power users uploading), the sheer volume of 1,000-command chunks floods the worker queue. While individual pipelines are small, the aggregate load (1,000,000 commands) maxes out the single thread's CPU capacity, causing latency to spike back up to ~3 seconds. This mathematically proves the final limit of a Push-Based Fanout on a single-threaded datastore.
+*   **Actions**:
+    *   Added `flower` to dev dependencies to visually debug the Canvas chunking orchestration.
+    *   Created `chapter06/benchmarks/benchmark_chunking_e2e.py` to trigger real chunked uploads via the HTTP API while monitoring latency.
+    *   Executed scaling tests (1 to 100 concurrent power users) and documented the breaking point in `chapter06/README.md`.
+    *   Concluded that surviving extreme scale requires transitioning to Pull Models (Hybrid Feeds), Kafka Choreography for throttling, or masterless datastores (Cassandra).
