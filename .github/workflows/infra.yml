@@ -2,18 +2,18 @@ name: Infrastructure CI/CD
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
-    paths:
-      - 'iaac/aws/terraform/**'
-  pull_request:
-    branches:
-      - main
-      - staging
-    paths:
-      - 'iaac/aws/terraform/**'
+  # push:
+  #   branches:
+  #     - main
+  #     - staging
+  #   paths:
+  #     - 'iaac/aws/terraform/**'
+  # pull_request:
+  #   branches:
+  #     - main
+  #     - staging
+  #   paths:
+  #     - 'iaac/aws/terraform/**'
 
 permissions:
   id-token: write

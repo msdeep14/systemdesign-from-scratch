@@ -1,11 +1,11 @@
 name: Deploy
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-      - staging
+  workflow_dispatch: # Kept manual trigger available
+  # push:
+  #   branches:
+  #     - main
+  #     - staging
 
 permissions:
   id-token: write

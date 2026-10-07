@@ -1,5 +1,5 @@
 # System Design From Scratch
-This repository is complementary material for O'Reilly book [System Design From Scratch](https://msdeepsingh.com/books/). It contains chapter-wise design & architectural decisions, trade-offs analysis, implementation plan, code and execution details.
+This repository is complementary material for O'Reilly book [System Design From Scratch](https://msdeepsingh.com/books/system-design-from-scratch/). It contains chapter-wise design & architectural decisions, trade-offs analysis, implementation plan, code and execution details.
 
 <img src="book-media/raw-cover-page-sdfs.jpg" alt="Book Cover Page" width="50%">
 
@@ -15,7 +15,7 @@ Software engineer Mandeep Singh takes an iterative approach to system design, sh
 * Design systems that are practical to run and maintain over time
 * Use AI as an assistant in system design or as a component of the system
 
-> **NOTE:** The book is work-in-progress and is being updated frequently. For latest updates, see [O'Reilly](https://www.oreilly.com/library/view/system-design-from/9781098193634/) platform. 
+> **NOTE:** The book is work-in-progress and is being updated frequently. For latest updates, see [O'Reilly](https://learning.oreilly.com/library/view/system-design-from/0642572384012/) platform. 
 For questions, errata or suggestions, see [Questions/Errata/Feedback](#questionserratafeedback) section.
 
 ## Using GitHub Repository
@@ -52,5 +52,5 @@ Every chapter and photoz/ directory has execution logs with commit history. You 
 * Feel free to drop questions on [Builders Lounge Discord Server](https://discord.gg/98zTnzvGz2).
 
 # Questions/Errata/Feedback
-You can report Errata on official [O'Reilly](https://learning.oreilly.com/library/view/system-design-on/9781098146887/) website. For anything specific to code or documentation in GitHub repository, please open a GitHub issue.
+You can report Errata on official [O'Reilly](https://www.oreilly.com/catalog/errata.csp?isbn=0642572384005) website. For anything specific to code or documentation in GitHub repository, please open a GitHub issue.
 
