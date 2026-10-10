@@ -665,3 +665,9 @@
     *   Created `chapter06/benchmarks/benchmark_chunking_e2e.py` to trigger real chunked uploads via the HTTP API while monitoring latency.
     *   Executed scaling tests (1 to 100 concurrent power users) and documented the breaking point in `chapter06/README.md`.
     *   Concluded that surviving extreme scale requires transitioning to Pull Models (Hybrid Feeds), Kafka Choreography for throttling, or masterless datastores (Cassandra).
+
+## Phase: Local Kafka Setup (Date: 2026-10-10, Commit: pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Adding Kafka to the local development environment using Bitnami Kafka KRaft to begin testing local Kafka Producer/Consumer logic before AWS deployment.
+*   **Actions**:
+    *   Updated `photoz/docker-compose.yml` to include a new `kafka` service using `apache/kafka:4.3.1` in KRaft mode.
+    *   Added `kafka_data` docker volume.
