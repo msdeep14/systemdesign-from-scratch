@@ -39,3 +39,14 @@ Use HashiCorp Consul to automate Service Discovery.
 *   Run a central Consul Server on the LB node.
 *   Run Consul Agents on the App Nodes to constantly perform HTTP health checks against the Django container.
 *   Run Consul Template on the LB node to automatically rewrite the `nginx.conf` upstream block and execute `nginx -s reload` in milliseconds whenever a node joins or dies.
+
+## Phase: Kafka Dead Letter Queue (DLQ) & Retry Policy (Phase 5)
+### The Problem
+Poison pill records (e.g., malformed JSON bytes or foreign key integrity constraint violations) or transient database connection blips can cause consumers to either crash, get stuck in an infinite retry loop, or silently discard unprocessable messages without diagnostic traceability.
+
+### The Solution
+Implement an exponential backoff retry policy for transient operational errors and route poison pills / deserialization failures to dedicated Dead Letter Queue topics (`{topic}.dlq`).
+*   Add `publish_to_dlq` in `bses.kafka` wrapping failed payloads in a diagnostic envelope.
+*   Add exponential backoff retries in `BaseKafkaConsumerCommand` for transient errors.
+*   Route deserialization failures, schema errors, and poison pills to DLQ and commit offset so consumer partitions never deadlock.
+

@@ -32,7 +32,7 @@
     *   Configured Kafka dual listeners in `photoz/docker-compose.yml` (`kafka:29092` for Docker internal services, `localhost:9092` for host) and passed `KAFKA_BOOTSTRAP_SERVERS=kafka:29092` to `web` and `celery` containers to resolve connection refused errors from web UI.
     *   Verified all 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
 
-## Phase: Phase 4: Newsfeed Fan-out Consumer & Celery Decommissioning (Date: 2026-10-11, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 4: Newsfeed Fan-out Consumer & Celery Decommissioning (Date: 2026-10-11, Commit: c9359f6, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Transition newsfeed fanout from legacy Celery worker tasks to a dedicated Kafka upload consumer (`run_uploads_consumer`), decoupling photo uploads from Celery message queues and providing bounded backpressure.
 *   **Actions**:
     *   Created `photoz/newsfeed/management/commands/run_uploads_consumer.py` subclassing `BaseKafkaConsumerCommand` to consume `photo.events.uploads` in batches of 100.
@@ -45,5 +45,21 @@
 *   **Notes/Edge Cases**:
     *   Resolving error handling pattern fragmentation in `bses/kafka.py` ensured the drift-check gate passed without needing to modify `.drift-baseline.json`.
     *   All 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
+
+## Phase: Phase 5: Dead Letter Queue (DLQ) & Retry Policy (Date: 2026-10-11, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Prevent consumer crashes, infinite retry loops, and unobserved data loss from poison pills (e.g. database foreign key violations) or transient database errors by adding exponential backoff retries and routing unprocessable messages to Dead Letter Queue topics.
+*   **Actions**:
+    *   Implemented `publish_to_dlq` in `photoz/bses/kafka.py` wrapping failed messages with a diagnostic envelope (`original_topic`, `original_payload`, `error_type`, `error_message`, `timestamp`, `retry_count`) and producing to `{topic}.dlq`.
+    *   Added exponential backoff retries to `BaseKafkaConsumerCommand` for transient database errors (`max_retries = 3`, `retry_backoff_base = 0.5s`).
+    *   Updated `_extract_payloads` to catch corrupted JSON bytes and publish them directly to DLQ.
+    *   Updated `handle_payloads` to validate required schema keys and route malformed payloads to DLQ.
+    *   Enhanced `_fallback_persist` and `_persist_single` to catch `IntegrityError` (foreign key violations) and unrecoverable `DatabaseError`, routing the poisoned record to DLQ and committing partition offsets so consumers do not deadlock.
+    *   Standardized error handling blocks to adhere to canonical `[call, return]` AST pattern.
+    *   Verified all 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
+    *   Updated `chapter06/kafka/README.md` with DLQ inspection and testing instructions.
+*   **Notes/Edge Cases**:
+    *   Lines in docstrings and string formatters exceeding 100 characters caused Ruff line-length failures; refactored to multiline formatting.
+    *   Confirmed end-to-end routing in Kafka cluster: malformed payloads, non-JSON bytes, and non-existent foreign keys were isolated in `photo.events.likes.dlq` without interrupting valid message processing.
+
 
 

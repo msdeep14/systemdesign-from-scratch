@@ -1,8 +1,9 @@
-"""Kafka infrastructure utilities for Photoz (Producers and Consumers)."""
+"""Kafka infrastructure utilities for Photoz (Producers, Consumers, and DLQ)."""
 
 import json
 import logging
 import os
+import time
 from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Any
@@ -76,6 +77,58 @@ def publish_kafka_event(topic_key: str, payload: dict[str, Any], key: str | None
         return False
 
 
+def publish_to_dlq(
+    topic_key: str,
+    payload: Any,
+    error: Exception | str,
+    key: str | None = None,
+    retry_count: int = 0,
+) -> bool:
+    """Publish a failed or poison-pill message to the corresponding DLQ topic.
+
+    Args:
+        topic_key: Key in settings.KAFKA_TOPICS (e.g., 'likes', 'follows', 'uploads').
+        payload: Original message payload or raw string.
+        error: Exception or string describing the failure.
+        key: Optional partition key.
+        retry_count: Number of retries attempted before DLQ routing.
+    """
+    topic_info = getattr(settings, "KAFKA_TOPICS", {}).get(topic_key)
+    if not topic_info:
+        logger.warning("Kafka topic key '%s' not found for DLQ routing", topic_key)
+        return False
+
+    dlq_topic_name = f"{topic_info.get('name', '')}.dlq"
+    error_type = (
+        error.__class__.__name__ if isinstance(error, Exception) else "DeserializationError"
+    )
+    envelope = {
+        "original_topic": topic_info.get("name", ""),
+        "original_payload": payload,
+        "error_type": error_type,
+        "error_message": str(error),
+        "timestamp": time.time(),
+        "retry_count": retry_count,
+    }
+
+    try:
+        producer = get_kafka_producer()
+        value_bytes = json.dumps(envelope).encode("utf-8")
+        key_bytes = key.encode("utf-8") if key is not None else None
+
+        producer.produce(
+            topic=dlq_topic_name,
+            value=value_bytes,
+            key=key_bytes,
+            on_delivery=_delivery_report,
+        )
+        producer.poll(0)
+        return True
+    except (KafkaException, BufferError, TypeError) as err:
+        _log_publish_failure(dlq_topic_name, err)
+        return False
+
+
 def _safe_deserialize(raw_bytes: bytes) -> dict[str, Any] | None:
     """Deserialize UTF-8 JSON bytes into a dictionary, returning None on failure."""
     try:
@@ -94,6 +147,8 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
     poll_timeout: float = 1.0
     payload_key_1: str = ""
     payload_key_2: str = ""
+    max_retries: int = 3
+    retry_backoff_base: float = 0.5
 
     def _shutdown(self, consumer: Consumer) -> None:
         """Close Kafka consumer during shutdown."""
@@ -134,7 +189,7 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
     def _extract_payloads(self, msgs: list) -> list[dict]:
         """Extract valid JSON dict payloads from Kafka messages.
 
-        Skips partition EOF and invalid records.
+        Skips partition EOF and routes corrupted records to DLQ.
         """
         payloads: list[dict] = []
         for msg in msgs:
@@ -144,8 +199,13 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
                 continue
 
             payload = _safe_deserialize(msg.value())
-            if payload is not None:
-                payloads.append(payload)
+            if payload is None:
+                raw_str = msg.value().decode("utf-8", errors="replace") if msg.value() else ""
+                publish_to_dlq(self.topic_key, raw_str, "JSON deserialization error")
+                self.stderr.write(f"Routed corrupted message to DLQ: {raw_str[:50]}")
+                continue
+
+            payloads.append(payload)
 
         return payloads
 
@@ -164,12 +224,22 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
             self.handle_payloads(payloads)
             consumer.commit()
 
+    def _handle_record_failure(self, pair: tuple[int, int], err: Exception) -> None:
+        """Route failed record to DLQ and log to stderr."""
+        publish_to_dlq(
+            self.topic_key,
+            {self.payload_key_1: pair[0], self.payload_key_2: pair[1]},
+            err,
+            key=str(pair[0]),
+        )
+        self.stderr.write(f"Skipping invalid record {pair} (routed to DLQ): {err}")
+
     def _persist_single(self, pair: tuple[int, int]) -> int:
-        """Persist a single record, logging and returning 0 on integrity error."""
+        """Persist a single record, logging and routing to DLQ on failure."""
         try:
             return self.persist_records([pair])
         except (IntegrityError, DatabaseError) as err:
-            self.stderr.write(f"Skipping invalid record {pair}: {err}")
+            self._handle_record_failure(pair, err)
             return 0
 
     def _fallback_persist(self, pairs: list[tuple[int, int]]) -> int:
@@ -178,23 +248,58 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
         self.stdout.write(self.style.SUCCESS(f"Successfully processed {successful} valid records."))
         return successful
 
+    def _handle_batch_retry(
+        self, pairs: list[tuple[int, int]], err: Exception, attempt: int
+    ) -> int | None:
+        """Handle batch error, falling back if unrecoverable or sleeping for retry."""
+        if isinstance(err, IntegrityError) or attempt >= self.max_retries - 1:
+            self.stderr.write(f"Batch persistence failed: {err}")
+            return self._fallback_persist(pairs)
+
+        backoff = self.retry_backoff_base * (2**attempt)
+        self.stderr.write(
+            f"Transient database error (attempt {attempt + 1}/{self.max_retries}): {err}. "
+            f"Retrying in {backoff:.1f}s..."
+        )
+        time.sleep(backoff)
+        return None
+
+    def _persist_batch_attempt(self, pairs: list[tuple[int, int]], attempt: int) -> int | None:
+        """Execute single batch attempt, returning count or None if retrying."""
+        try:
+            return self.persist_records(pairs)
+        except (IntegrityError, DatabaseError) as err:
+            self.stderr.write(f"Database error on batch attempt {attempt + 1}: {err}")
+            return self._handle_batch_retry(pairs, err, attempt)
+
+    def _persist_batch_with_retry(self, pairs: list[tuple[int, int]]) -> int:
+        """Attempt batch insertion with retries for transient errors."""
+        for attempt in range(self.max_retries):
+            result = self._persist_batch_attempt(pairs, attempt)
+            if result is not None:
+                return result
+        return self._fallback_persist(pairs)
+
     def handle_payloads(self, payloads: list[dict]) -> int:
         """Extract configured key pairs and invoke persistence handler."""
-        pairs = [
-            (p[self.payload_key_1], p[self.payload_key_2])
-            for p in payloads
-            if self.payload_key_1 in p and self.payload_key_2 in p
-        ]
+        pairs: list[tuple[int, int]] = []
+        for p in payloads:
+            if self.payload_key_1 in p and self.payload_key_2 in p:
+                pairs.append((p[self.payload_key_1], p[self.payload_key_2]))
+            else:
+                publish_to_dlq(
+                    self.topic_key,
+                    p,
+                    f"Missing required keys '{self.payload_key_1}' or '{self.payload_key_2}'",
+                )
+                self.stderr.write(f"Routed malformed payload to DLQ: {p}")
+
         if not pairs:
             return 0
 
-        try:
-            count = self.persist_records(pairs)
-            self.stdout.write(self.style.SUCCESS(f"Successfully processed {count} records."))
-            return count
-        except (IntegrityError, DatabaseError) as err:
-            self.stderr.write(f"Database error during batch persistence: {err}")
-            return self._fallback_persist(pairs)
+        count = self._persist_batch_with_retry(pairs)
+        self.stdout.write(self.style.SUCCESS(f"Successfully processed {count} records."))
+        return count
 
     @abstractmethod
     def persist_records(self, records: list[tuple[int, int]]) -> int:

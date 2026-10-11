@@ -152,8 +152,37 @@ In Phase 4, the legacy Celery asynchronous fanout mechanism (`fanout_photo_uploa
      ```
    - The consumer listens on topic `photo.events.uploads` using consumer group `photoz-uploads-group`.
 
-2. **Publish and Test Photo Upload Fanout:**
-   - Via Django Shell:
+2. **Photo Upload Message Format:**
+   - **Topic**: `photo.events.uploads`
+   - **Partition Key**: String representation of `user_id` (e.g. `"1"`), ensuring per-user upload events preserve ordering.
+   - **Payload JSON Schema**:
+     ```json
+     {
+       "photo_id": 1,
+       "user_id": 1
+     }
+     ```
+   - **Field Specifications**:
+     - `photo_id` (integer, required): ID of the uploaded photo.
+     - `user_id` (integer, required): ID of the user who uploaded the photo.
+   - *Note*: If either `photo_id` or `user_id` is missing or invalid, the consumer routes the payload to `photo.events.uploads.dlq`.
+
+3. **Publish and Test Photo Upload Event Manually:**
+   - **Via Kafka Console Producer (with Partition Key):**
+     ```bash
+     docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh \
+       --bootstrap-server localhost:9092 \
+       --topic photo.events.uploads \
+       --property "parse.key=true" \
+       --property "key.separator=:" <<< '1:{"user_id": 1, "photo_id": 1}'
+     ```
+   - **Via Kafka Console Producer (without Key):**
+     ```bash
+     docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh \
+       --bootstrap-server localhost:9092 \
+       --topic photo.events.uploads <<< '{"user_id": 1, "photo_id": 1}'
+     ```
+   - **Via Django Shell:**
      ```bash
      cd photoz
      python manage.py shell -c "
@@ -163,12 +192,8 @@ In Phase 4, the legacy Celery asynchronous fanout mechanism (`fanout_photo_uploa
      print('Upload event emitted.')
      "
      ```
-   - Via Kafka Console Producer:
-     ```bash
-     docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic photo.events.uploads <<< '{"user_id": 1, "photo_id": 1}'
-     ```
 
-3. **Verify Fanout Behavior:**
+4. **Verify Fanout Behavior:**
    - The consumer pulls upload events and delegates to `bulk_fanout_photo_uploads`.
    - The photo is pushed to the uploader's Redis newsfeed cache.
    - If the uploader is not a celebrity (`follower_count <= 25,000`), the photo is pushed in pipelined batches of 1,000 to all active followers' feed caches.
@@ -176,5 +201,74 @@ In Phase 4, the legacy Celery asynchronous fanout mechanism (`fanout_photo_uploa
      ```text
      Successfully processed 1 records.
      ```
+
+## Phase 5: Dead Letter Queue (DLQ) & Retry Policy
+
+Phase 5 introduces exponential backoff retries for transient database errors and automatic Dead Letter Queue (DLQ) routing for corrupted messages and poison pills across all Kafka consumers.
+
+### Architectural Mechanism
+
+1. **Exponential Backoff for Transient Failures**:
+   - Consumers retry database write failures up to 3 times (`max_retries = 3`).
+   - Backoff starts at 0.5s and doubles on each retry attempt (`0.5s`, `1.0s`, `2.0s`).
+
+2. **Poison Pill Isolation**:
+   - If a batch insertion fails due to an `IntegrityError` (e.g., foreign key violations), the consumer falls back to single-record persistence.
+   - Valid records in the batch are saved to the database.
+   - The invalid record is packaged into a diagnostic envelope and routed to `{topic}.dlq`.
+   - Primary partition offsets are committed, preventing consumer stalls and deadlocks.
+
+3. **Malformed & Deserialization Errors**:
+   - Non-JSON bytes or payloads with missing schema keys are automatically routed to the corresponding `.dlq` topic.
+
+### Testing and Inspecting Dead Letter Queues
+
+1. **Inject a Corrupted Record (Non-JSON String):**
+   ```bash
+   docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic photo.events.likes <<< 'corrupted-payload'
+   ```
+
+2. **Inject a Foreign Key Poison Pill:**
+   ```bash
+   docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic photo.events.likes <<< '{"photo_id": 999999999, "user_id": 999999999}'
+   ```
+
+3. **Inspect Dead Letter Queue Topics:**
+   ```bash
+   # Inspect likes DLQ
+   docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic photo.events.likes.dlq --from-beginning --max-messages 5
+
+   # Inspect follows DLQ
+   docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic photo.events.follows.dlq --from-beginning --max-messages 5
+
+   # Inspect uploads DLQ
+   docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic photo.events.uploads.dlq --from-beginning --max-messages 5
+   ```
+
+4. **DLQ Message Structure:**
+   Each message in a DLQ topic contains a diagnostic envelope:
+   ```json
+   {
+     "original_topic": "photo.events.likes",
+     "original_payload": {"photo_id": 999999999, "user_id": 999999999},
+     "error_type": "IntegrityError",
+     "error_message": "insert or update on table \"photos_like\" violates foreign key constraint...",
+     "timestamp": 1791730425.24,
+     "retry_count": 0
+   }
+   ```
+   For failed photo uploads routed to `photo.events.uploads.dlq` (e.g. malformed schema):
+   ```json
+   {
+     "original_topic": "photo.events.uploads",
+     "original_payload": {"photo_id": 10},
+     "error_type": "DeserializationError",
+     "error_message": "Missing required keys 'user_id' or 'photo_id'",
+     "timestamp": 1791730450.12,
+     "retry_count": 0
+   }
+   ```
+
+
 
 
