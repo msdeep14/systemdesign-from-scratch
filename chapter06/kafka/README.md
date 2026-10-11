@@ -140,3 +140,41 @@ In Phase 3, Kafka event producers are integrated into the Django web request flo
    ```
    *Note: If an event contains an invalid foreign key (e.g. from manual test injection), the consumer logs the integrity error, skips the poison pill, and commits the offset so legitimate messages continue processing.*
 
+## Phase 4: Newsfeed Fan-out Consumer & Celery Decommissioning
+
+In Phase 4, the legacy Celery asynchronous fanout mechanism (`fanout_photo_uploaded_task`) is decommissioned and replaced by a dedicated Kafka uploads consumer (`run_uploads_consumer`).
+
+1. **Run the Uploads Consumer Daemon:**
+   - In a new terminal, run the uploads consumer:
+     ```bash
+     cd photoz
+     python manage.py run_uploads_consumer
+     ```
+   - The consumer listens on topic `photo.events.uploads` using consumer group `photoz-uploads-group`.
+
+2. **Publish and Test Photo Upload Fanout:**
+   - Via Django Shell:
+     ```bash
+     cd photoz
+     python manage.py shell -c "
+     from bses.kafka import publish_kafka_event, get_kafka_producer
+     publish_kafka_event('uploads', {'user_id': 1, 'photo_id': 1}, key='1')
+     get_kafka_producer().flush()
+     print('Upload event emitted.')
+     "
+     ```
+   - Via Kafka Console Producer:
+     ```bash
+     docker exec -i photoz-kafka-1 /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic photo.events.uploads <<< '{"user_id": 1, "photo_id": 1}'
+     ```
+
+3. **Verify Fanout Behavior:**
+   - The consumer pulls upload events and delegates to `bulk_fanout_photo_uploads`.
+   - The photo is pushed to the uploader's Redis newsfeed cache.
+   - If the uploader is not a celebrity (`follower_count <= 25,000`), the photo is pushed in pipelined batches of 1,000 to all active followers' feed caches.
+   - Expected consumer output:
+     ```text
+     Successfully processed 1 records.
+     ```
+
+

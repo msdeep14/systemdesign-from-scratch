@@ -24,7 +24,7 @@ from photos.services import (
     get_photo_likes_count,
     update_like_count_redis,
 )
-from photos.signals import photo_commented, photo_deleted, photo_liked, photo_uploaded, user_tagged
+from photos.signals import photo_commented, photo_deleted, photo_liked, user_tagged
 from photos.templatetags.hashtag_tags import linkify_hashtags
 from users.services import get_user_profile_by_username, search_users
 
@@ -50,8 +50,6 @@ def upload_photo(request):
                 photo.community = community
             photo.save()
 
-            # Emit signal for decoupling components
-            photo_uploaded.send(sender=Photo, photo=photo)
             publish_kafka_event(
                 "uploads",
                 {"photo_id": photo.id, "user_id": request.user.id},

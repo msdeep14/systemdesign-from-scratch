@@ -94,3 +94,14 @@ def bulk_record_follows(follow_pairs: list[tuple[int, int]]) -> int:
             )
 
     return len(follows_to_create)
+
+
+def get_user_follower_count(user_id: int) -> int:
+    """Returns the follower count for the given user ID."""
+    profile = UserProfile.objects.filter(user_id=user_id).first()
+    return profile.follower_count if profile else 0
+
+
+def get_follower_ids_by_user_id(user_id: int) -> list[int]:
+    """Returns a list of follower IDs for the given user ID."""
+    return list(Follow.objects.filter(following_id=user_id).values_list("follower_id", flat=True))

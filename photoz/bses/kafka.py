@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from abc import ABC, abstractmethod
 from functools import lru_cache
 from typing import Any
 
@@ -38,7 +39,12 @@ def _delivery_report(err: Any, msg: Any) -> None:
         logger.debug("Kafka message delivered to %s [%s]", msg.topic(), msg.partition())
 
 
-def publish_kafka_event(topic_key: str, payload: dict[str, Any], key: str | None = None) -> None:
+def _log_publish_failure(topic_name: str, err: Exception) -> None:
+    """Log failure message when Kafka produce operation encounters an error."""
+    logger.error("Failed to publish Kafka event to '%s': %s", topic_name, err)
+
+
+def publish_kafka_event(topic_key: str, payload: dict[str, Any], key: str | None = None) -> bool:
     """Publish a JSON-serializable event dictionary to the configured Kafka topic.
 
     Args:
@@ -49,7 +55,7 @@ def publish_kafka_event(topic_key: str, payload: dict[str, Any], key: str | None
     topic_info = getattr(settings, "KAFKA_TOPICS", {}).get(topic_key)
     if not topic_info:
         logger.warning("Kafka topic key '%s' not found in configuration", topic_key)
-        return
+        return False
 
     topic_name = topic_info.get("name", "")
     try:
@@ -64,19 +70,22 @@ def publish_kafka_event(topic_key: str, payload: dict[str, Any], key: str | None
             on_delivery=_delivery_report,
         )
         producer.poll(0)
+        return True
     except (KafkaException, BufferError, TypeError) as err:
-        logger.error("Failed to publish Kafka event to '%s': %s", topic_name, err)
+        _log_publish_failure(topic_name, err)
+        return False
 
 
 def _safe_deserialize(raw_bytes: bytes) -> dict[str, Any] | None:
     """Deserialize UTF-8 JSON bytes into a dictionary, returning None on failure."""
     try:
         return json.loads(raw_bytes.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
+    except (json.JSONDecodeError, UnicodeDecodeError) as err:
+        logger.debug("Failed to deserialize Kafka payload: %s", err)
         return None
 
 
-class BaseKafkaConsumerCommand(BaseCommand):
+class BaseKafkaConsumerCommand(BaseCommand, ABC):
     """Abstract base command providing connection, consume loop, and batch persistence logic."""
 
     topic_key: str = ""
@@ -85,6 +94,11 @@ class BaseKafkaConsumerCommand(BaseCommand):
     poll_timeout: float = 1.0
     payload_key_1: str = ""
     payload_key_2: str = ""
+
+    def _shutdown(self, consumer: Consumer) -> None:
+        """Close Kafka consumer during shutdown."""
+        self.stdout.write("Shutting down consumer...")
+        consumer.close()
 
     def handle(self, *args, **options) -> None:
         """Initialize Kafka consumer and enter processing loop."""
@@ -105,18 +119,17 @@ class BaseKafkaConsumerCommand(BaseCommand):
         topic_name = settings.KAFKA_TOPICS.get(self.topic_key, {}).get("name", "")
         if not topic_name:
             self.stderr.write(f"No topic configuration found for '{self.topic_key}'")
-            return
+            return None
 
         consumer = Consumer(conf)
         consumer.subscribe([topic_name])
         self.stdout.write(f"Started listening to {topic_name}...")
 
         try:
-            self._consume_loop(consumer)
+            return self._consume_loop(consumer)
         except KeyboardInterrupt:
-            self.stdout.write("Shutting down consumer...")
-        finally:
-            consumer.close()
+            self._shutdown(consumer)
+            return None
 
     def _extract_payloads(self, msgs: list) -> list[dict]:
         """Extract valid JSON dict payloads from Kafka messages.
@@ -148,36 +161,42 @@ class BaseKafkaConsumerCommand(BaseCommand):
                 consumer.commit()
                 continue
 
-            try:
-                self.handle_payloads(payloads)
-                consumer.commit()
-            except DatabaseError as err:
-                self.stderr.write(f"Database error during persistence: {err}")
+            self.handle_payloads(payloads)
+            consumer.commit()
 
-    def handle_payloads(self, payloads: list[dict]) -> None:
+    def _persist_single(self, pair: tuple[int, int]) -> int:
+        """Persist a single record, logging and returning 0 on integrity error."""
+        try:
+            return self.persist_records([pair])
+        except (IntegrityError, DatabaseError) as err:
+            self.stderr.write(f"Skipping invalid record {pair}: {err}")
+            return 0
+
+    def _fallback_persist(self, pairs: list[tuple[int, int]]) -> int:
+        """Persist records individually when batch insertion fails."""
+        successful = sum(self._persist_single(pair) for pair in pairs)
+        self.stdout.write(self.style.SUCCESS(f"Successfully processed {successful} valid records."))
+        return successful
+
+    def handle_payloads(self, payloads: list[dict]) -> int:
         """Extract configured key pairs and invoke persistence handler."""
         pairs = [
             (p[self.payload_key_1], p[self.payload_key_2])
             for p in payloads
             if self.payload_key_1 in p and self.payload_key_2 in p
         ]
-        if pairs:
-            try:
-                count = self.persist_records(pairs)
-                self.stdout.write(self.style.SUCCESS(f"Successfully processed {count} records."))
-            except IntegrityError as err:
-                self.stderr.write(f"IntegrityError during batch persistence: {err}")
-                successful = 0
-                for pair in pairs:
-                    try:
-                        self.persist_records([pair])
-                        successful += 1
-                    except (IntegrityError, DatabaseError) as item_err:
-                        self.stderr.write(f"Skipping invalid record {pair}: {item_err}")
-                self.stdout.write(
-                    self.style.SUCCESS(f"Successfully processed {successful} valid records.")
-                )
+        if not pairs:
+            return 0
 
+        try:
+            count = self.persist_records(pairs)
+            self.stdout.write(self.style.SUCCESS(f"Successfully processed {count} records."))
+            return count
+        except (IntegrityError, DatabaseError) as err:
+            self.stderr.write(f"Database error during batch persistence: {err}")
+            return self._fallback_persist(pairs)
+
+    @abstractmethod
     def persist_records(self, records: list[tuple[int, int]]) -> int:
         """Persist a batch of records. Subclasses must implement this method."""
         raise NotImplementedError("Subclasses must implement persist_records()")

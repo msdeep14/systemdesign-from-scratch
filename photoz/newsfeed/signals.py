@@ -5,26 +5,9 @@ from communities.signals import invitation_accepted
 from newsfeed.services import (
     CELEBRITY_FOLLOWER_THRESHOLD,
     invalidate_feed_cache,
-    push_to_feed_cache,
 )
-from newsfeed.tasks import fanout_photo_deleted_task, fanout_photo_uploaded_task
-from photos.signals import photo_deleted, photo_uploaded
-
-
-@receiver(photo_uploaded)
-def _handle_photo_uploaded(sender, photo, **kwargs):
-    follower_count = getattr(photo.user, "profile", None)
-    follower_count = follower_count.follower_count if follower_count else 0
-
-    # Always push to uploader's own feed
-    push_to_feed_cache(photo.user.id, photo.id)
-
-    if follower_count > CELEBRITY_FOLLOWER_THRESHOLD:
-        # Celebrity: skip fan-out. Followers will pull this photo at read time.
-        return
-
-    # Regular user: push to all followers' feeds asynchronously
-    fanout_photo_uploaded_task.delay(photo.user.id, photo.id)
+from newsfeed.tasks import fanout_photo_deleted_task
+from photos.signals import photo_deleted
 
 
 @receiver(photo_deleted)

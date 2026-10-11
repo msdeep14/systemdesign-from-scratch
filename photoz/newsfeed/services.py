@@ -2,13 +2,19 @@ import contextlib
 import logging
 import time
 
+from django.conf import settings
 from django.core.cache import cache
 from redis import exceptions as redis_exceptions
 
 from communities.services import get_accepted_community_ids
 from photos.services import get_celebrity_photo_ids, get_feed_photo_ids
 from stories.services import get_active_stories_for_users
-from users.services import get_celebrity_followed_ids, get_followed_user_ids
+from users.services import (
+    get_celebrity_followed_ids,
+    get_followed_user_ids,
+    get_follower_ids_by_user_id,
+    get_user_follower_count,
+)
 
 logger = logging.getLogger("bses")
 
@@ -191,3 +197,24 @@ def get_feed_stories_grouped(user_id):
     followed_user_ids = get_followed_user_ids(user_id)
     story_user_ids = list(followed_user_ids) + [user_id]
     return get_active_stories_for_users(story_user_ids)
+
+
+def bulk_fanout_photo_uploads(upload_pairs: list[tuple[int, int]]) -> int:
+    """Fan out uploaded photos to uploader feeds and regular follower feeds in Redis."""
+    if not upload_pairs:
+        return 0
+
+    chunk_size = getattr(settings, "FANOUT_PIPELINE_CHUNK_SIZE", 1000)
+    for user_id, photo_id in upload_pairs:
+        push_to_feed_cache(user_id, photo_id)
+
+        follower_count = get_user_follower_count(user_id)
+        if follower_count > CELEBRITY_FOLLOWER_THRESHOLD:
+            continue
+
+        follower_ids = get_follower_ids_by_user_id(user_id)
+        for i in range(0, len(follower_ids), chunk_size):
+            chunk = follower_ids[i : i + chunk_size]
+            push_to_feed_cache_bulk(chunk, photo_id)
+
+    return len(upload_pairs)
