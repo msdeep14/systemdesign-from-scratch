@@ -5,7 +5,7 @@ import redis
 from django.conf import settings
 from django.db.models import Q
 
-from photos.models import Photo
+from photos.models import Like, Photo
 
 
 def get_feed_photo_ids(user_id, followed_user_ids, community_ids):
@@ -153,3 +153,12 @@ def get_cached_photo(photo_id: int):
         # Fallback if something went wrong
         photo = Photo.objects.select_related("user__profile").filter(id=photo_id).first()
         return json.loads(_serialize_photo(photo)) if photo else None
+
+
+def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
+    """Bulk create Like records in PostgreSQL in a single database roundtrip."""
+    if not like_pairs:
+        return 0
+    likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in like_pairs]
+    Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)
+    return len(likes_to_create)

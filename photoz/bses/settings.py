@@ -317,3 +317,27 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 10.0,
     },
 }
+
+# Kafka Configuration
+KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
+KAFKA_TOPICS = {
+    "likes": {
+        "name": "photo.events.likes",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+    "uploads": {
+        "name": "photo.events.uploads",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+    "follows": {
+        "name": "photo.events.follows",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+}

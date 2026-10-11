@@ -658,7 +658,7 @@
     *   Utilized Celery Canvas (`group`) to efficiently dispatch all chunk sub-tasks concurrently across the worker fleet.
     *   Extracted the chunk size limit into `photoz/bses/settings.py` as `FANOUT_PIPELINE_CHUNK_SIZE = 1000` to make it easily configurable and self-documenting.
 
-## Phase: Validate Chunking & Expose Final Push Limit (Date: 2026-10-03, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Validate Chunking & Expose Final Push Limit (Date: 2026-10-03, Commit: ca4414f1d99c830256492355e0116541870aa25f, Model: Gemini 3.1 Pro High)
 *   **Analysis**: While chunking successfully yields the event loop during moderate bursts, we needed to stress test it at extreme scale. We discovered that at high concurrency (e.g., 100 concurrent power users uploading), the sheer volume of 1,000-command chunks floods the worker queue. While individual pipelines are small, the aggregate load (1,000,000 commands) maxes out the single thread's CPU capacity, causing latency to spike back up to ~3 seconds. This mathematically proves the final limit of a Push-Based Fanout on a single-threaded datastore.
 *   **Actions**:
     *   Added `flower` to dev dependencies to visually debug the Canvas chunking orchestration.
@@ -666,8 +666,23 @@
     *   Executed scaling tests (1 to 100 concurrent power users) and documented the breaking point in `chapter06/README.md`.
     *   Concluded that surviving extreme scale requires transitioning to Pull Models (Hybrid Feeds), Kafka Choreography for throttling, or masterless datastores (Cassandra).
 
-## Phase: Local Kafka Setup (Date: 2026-10-10, Commit: pending, Model: Gemini 3.1 Pro High)
+## Phase: Local Kafka Setup (Date: 2026-10-10, Commit: 02a185909e1b07c9830c2c692e07645b2e6d6b0d, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Adding Kafka to the local development environment using Bitnami Kafka KRaft to begin testing local Kafka Producer/Consumer logic before AWS deployment.
 *   **Actions**:
     *   Updated `photoz/docker-compose.yml` to include a new `kafka` service using `apache/kafka:4.3.1` in KRaft mode.
     *   Added `kafka_data` docker volume.
+
+## Phase: Phase 2: Kafka Consumers and Topic Setup (Date: 2026-10-11, Commit: 02a1859, Model: Gemini 3.1 Pro)
+*   **Rationale**: Implementing Python consumers and initializing KRaft topics to transition off RabbitMQ/Celery.
+*   **Actions**:
+    *   Added confluent-kafka to photoz/requirements.txt.
+    *   Added KAFKA_BOOTSTRAP_SERVERS and KAFKA_TOPICS registry to photoz/bses/settings.py.
+    *   Updated photoz/kafka_setup.py to be config-driven and idempotent by comparing cluster metadata against settings.
+    *   Created photoz/photos/management/commands/run_kafka_consumers.py to batch consume likes and bulk insert into PostgreSQL.
+    *   Created photoz/users/management/commands/run_followers_consumer.py to pull Follow events, bulk insert relationships, and atomically update UserProfile.follower_count using F() expressions in a single transaction.
+    *   Updated both consumers to read topic configurations dynamically from Django settings.
+    *   Created `photoz/bses/kafka_consumer.py` with `BaseKafkaConsumerCommand` to encapsulate connection, polling, batching, deserialization, and offset commit lifecycle, eliminating code duplication across consumer commands.
+    *   Added `bulk_record_follows` to `photoz/users/services.py` and `bulk_record_likes` to `photoz/photos/services.py`.
+    *   Refactored consumer commands into minimal handlers (<10 lines each) inheriting from `BaseKafkaConsumerCommand` and delegating DB writes to domain services, eliminating drift's mutant duplicate and coupling findings.
+    *   Refactored `kafka_setup.py` to reduce local variables, catch `KafkaException`, and add type annotations/docstrings.
+    *   Updated chapter06/kafka/README.md with execution and verification commands.

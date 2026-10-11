@@ -1,6 +1,9 @@
+from collections import defaultdict
+
 import redis
 from django.conf import settings
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import F, Q
 
 from users.models import Follow, UserProfile
 
@@ -67,3 +70,27 @@ def search_users(query):
 def get_user_profile_by_username(username):
     """Fetches a UserProfile by username display."""
     return UserProfile.objects.filter(username_display=username).first()
+
+
+def bulk_record_follows(follow_pairs: list[tuple[int, int]]) -> int:
+    """Bulk create Follow records and atomically update follower counts."""
+    if not follow_pairs:
+        return 0
+
+    follows_to_create = [
+        Follow(follower_id=follower_id, following_id=following_id)
+        for follower_id, following_id in follow_pairs
+    ]
+
+    following_counts: dict[int, int] = defaultdict(int)
+    for _, following_id in follow_pairs:
+        following_counts[following_id] += 1
+
+    with transaction.atomic():
+        Follow.objects.bulk_create(follows_to_create, ignore_conflicts=True)
+        for u_id, count in following_counts.items():
+            UserProfile.objects.filter(user_id=u_id).update(
+                follower_count=F("follower_count") + count
+            )
+
+    return len(follows_to_create)
