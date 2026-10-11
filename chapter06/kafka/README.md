@@ -109,3 +109,34 @@ print(f'Test User 1 ID: {u1.id}, Test User 2 ID: {u2.id}, Test Photo ID: {p1.id}
      ```text
      Bulk inserted 1 follows with updated follower counts.
      ```
+
+## Phase 3: Producer Integration & Web Flow Verification
+
+In Phase 3, Kafka event producers are integrated into the Django web request flows via `bses.kafka.publish_kafka_event`. This replaces synchronous database writes and Celery tasks for write-heavy interactions.
+
+1. **Integrated Web Endpoints:**
+   - **Like a Photo (`photos/views.py:toggle_like`)**: Emits to `photo.events.likes` partitioned by `photo_id`.
+   - **Follow a User (`users/views.py:toggle_follow_view`)**: Emits to `photo.events.follows` partitioned by `target_user.id`.
+   - **Upload a Photo (`photos/views.py:upload_photo`)**: Emits to `photo.events.uploads` partitioned by `user.id`.
+
+2. **Verify End-to-End Producer Flow via Django Shell:**
+   ```bash
+   cd photoz
+   python manage.py shell -c "
+   from bses.kafka import publish_kafka_event, get_kafka_producer
+   # Publish like event using valid user and photo IDs
+   publish_kafka_event('likes', {'photo_id': 395305, 'user_id': 70004}, key='395305')
+   # Publish follow event
+   publish_kafka_event('follows', {'follower_id': 70004, 'following_id': 70008}, key='70008')
+   get_kafka_producer().flush()
+   print('Events published successfully.')
+   "
+   ```
+
+3. **Verify Consumer Output:**
+   In the active consumer terminal (`python manage.py run_kafka_consumers` or `python manage.py run_followers_consumer`), you will see:
+   ```text
+   Successfully processed 1 records.
+   ```
+   *Note: If an event contains an invalid foreign key (e.g. from manual test injection), the consumer logs the integrity error, skips the poison pill, and commits the offset so legitimate messages continue processing.*
+

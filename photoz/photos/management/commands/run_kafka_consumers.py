@@ -1,6 +1,6 @@
 """Kafka Consumer daemon for Like events."""
 
-from bses.kafka_consumer import BaseKafkaConsumerCommand
+from bses.kafka import BaseKafkaConsumerCommand
 from photos.services import bulk_record_likes
 
 

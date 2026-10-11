@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from bses.kafka import publish_kafka_event
 from communities.services import (
     get_accepted_community_ids,
     get_community_by_id,
@@ -51,6 +52,11 @@ def upload_photo(request):
 
             # Emit signal for decoupling components
             photo_uploaded.send(sender=Photo, photo=photo)
+            publish_kafka_event(
+                "uploads",
+                {"photo_id": photo.id, "user_id": request.user.id},
+                key=str(request.user.id),
+            )
 
             # Extract tags from caption and emit signals
             _process_photo_tags(photo, request.user)
@@ -148,7 +154,11 @@ def toggle_like(request, id):
         has_liked = False
         logger.info("User %s unliked photo %s", request.user.username, id)
     else:
-        Like.objects.create(user=request.user, photo=photo)
+        publish_kafka_event(
+            "likes",
+            {"photo_id": photo.id, "user_id": request.user.id},
+            key=str(photo.id),
+        )
         update_like_count_redis(photo.id, photo.likes_count, increment=True)
         has_liked = True
         logger.info("User %s liked photo %s", request.user.username, id)

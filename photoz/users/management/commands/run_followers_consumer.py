@@ -1,6 +1,6 @@
 """Kafka Consumer daemon for Follow events."""
 
-from bses.kafka_consumer import BaseKafkaConsumerCommand
+from bses.kafka import BaseKafkaConsumerCommand
 from users.services import bulk_record_follows
 
 

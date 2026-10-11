@@ -67,13 +67,24 @@ TrueCourse relies on explicit HTTP documentation to generate tests. Here are the
 To run the full decoupled system locally (mimicking the production environment without AWS-specific networking), use the provided local `docker-compose.yml`. This boots the PostgreSQL database, multiple Django Gunicorn workers, and the Nginx Load Balancer:
 
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 You can then visit `http://localhost` in your browser. Nginx will route your requests to the application workers.
 
 To stop the cluster:
 ```bash
-docker-compose down
+docker compose down
+```
+
+### Adding or Updating Dependencies
+When you add or update dependencies in `requirements.txt`, running `docker-compose restart` will not install them because existing container images are not rebuilt. You must rebuild the images and recreate the containers:
+```bash
+docker compose build web celery
+docker compose up -d web celery
+```
+Or rebuild the entire cluster:
+```bash
+docker compose up -d --build
 ```
 
 ### Applying Database Migrations in Docker

@@ -9,9 +9,15 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from bses.kafka import publish_kafka_event
 from users.forms import UserProfileEditForm, UserRegistrationForm
 from users.models import Follow, UserProfile
-from users.services import get_follower_count, search_users
+from users.services import (
+    decrement_follower_count_redis,
+    get_follower_count,
+    increment_follower_count_redis,
+    search_users,
+)
 
 logger = logging.getLogger("bses")
 
@@ -179,10 +185,16 @@ def toggle_follow_view(request, username):
 
     if follow_obj:
         follow_obj.delete()
+        decrement_follower_count_redis(target_user.id)
         is_following = False
         logger.info("User %s unfollowed %s", request.user.username, target_user.username)
     else:
-        Follow.objects.create(follower=request.user, following=target_user)
+        publish_kafka_event(
+            "follows",
+            {"follower_id": request.user.id, "following_id": target_user.id},
+            key=str(target_user.id),
+        )
+        increment_follower_count_redis(target_user.id)
         is_following = True
         logger.info("User %s followed %s", request.user.username, target_user.username)
 
