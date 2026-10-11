@@ -1,9 +1,11 @@
 import json
 import time
+from collections import defaultdict
 
 import redis
 from django.conf import settings
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import F, Q
 
 from photos.models import Like, Photo
 
@@ -156,9 +158,18 @@ def get_cached_photo(photo_id: int):
 
 
 def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
-    """Bulk create Like records in PostgreSQL in a single database roundtrip."""
+    """Bulk create Like records and atomically increment likes_count in PostgreSQL."""
     if not like_pairs:
         return 0
     likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in like_pairs]
-    Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)
+
+    photo_counts: dict[int, int] = defaultdict(int)
+    for photo_id, _ in like_pairs:
+        photo_counts[photo_id] += 1
+
+    with transaction.atomic():
+        Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)
+        for p_id, count in photo_counts.items():
+            Photo.objects.filter(id=p_id).update(likes_count=F("likes_count") + count)
+
     return len(likes_to_create)

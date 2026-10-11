@@ -218,3 +218,15 @@ def bulk_fanout_photo_uploads(upload_pairs: list[tuple[int, int]]) -> int:
             push_to_feed_cache_bulk(chunk, photo_id)
 
     return len(upload_pairs)
+
+
+def bulk_invalidate_follower_feed_caches(records: list[tuple[int, int]]) -> int:
+    """Invalidate feed caches of all followers when photos are deleted."""
+    if not records:
+        return 0
+    unique_user_ids = {u_id for u_id, _ in records}
+    for user_id in unique_user_ids:
+        follower_ids = get_follower_ids_by_user_id(user_id)
+        for f_id in follower_ids:
+            invalidate_feed_cache(f_id)
+    return len(records)

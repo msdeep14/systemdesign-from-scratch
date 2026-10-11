@@ -713,7 +713,7 @@
     *   Resolving error handling pattern fragmentation in `bses/kafka.py` ensured the drift-check gate passed without needing to modify `.drift-baseline.json`.
     *   All 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
 
-## Phase: Phase 5: Dead Letter Queue (DLQ) & Retry Policy (Date: 2026-10-11, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 5: Dead Letter Queue (DLQ) & Retry Policy (Date: 2026-10-11, Commit: b789d1a22b532ecaccac1ce317799cf3d159f55e, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Prevent consumer crashes, infinite retry loops, and unobserved data loss from poison pills (e.g. database foreign key violations) or transient database errors by adding exponential backoff retries and routing unprocessable messages to Dead Letter Queue topics.
 *   **Actions**:
     *   Implemented `publish_to_dlq` in `photoz/bses/kafka.py` wrapping failed messages with a diagnostic envelope (`original_topic`, `original_payload`, `error_type`, `error_message`, `timestamp`, `retry_count`) and producing to `{topic}.dlq`.
@@ -727,6 +727,21 @@
 *   **Notes/Edge Cases**:
     *   Lines in docstrings and string formatters exceeding 100 characters caused Ruff line-length failures; refactored to multiline formatting.
     *   Confirmed end-to-end routing in Kafka cluster: malformed payloads, non-JSON bytes, and non-existent foreign keys were isolated in `photo.events.likes.dlq` without interrupting valid message processing.
+
+## Phase: Phase 6: Celery Decommissioning - Part 1: Workflow Migration (Date: 2026-10-11, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Eliminate Celery operational overhead, Redis queue resource consumption, and duplicate worker architectures by migrating all asynchronous tasks (notifications, photo deletions, counter synchronizations) to Kafka topics and consumers.
+*   **Actions**:
+    *   Configured and provisioned `photo.events.notifications` and `photo.events.deletions` topics and their `.dlq` counterparts in `photoz/bses/settings.py` and `photoz/kafka_setup.py`.
+    *   Migrated notification creation logic from Celery tasks into `photoz/notifications/services.py`, updated `notifications/signals.py` to publish to Kafka, and created `run_notifications_consumer` daemon.
+    *   Migrated follower newsfeed cache invalidation on photo deletions into `photoz/newsfeed/services.py`, updated `newsfeed/signals.py` to publish to Kafka, and created `run_deletions_consumer` daemon.
+    *   Updated `photos/services.py:bulk_record_likes` to atomically increment `Photo.likes_count` in PostgreSQL on batch consumption, matching `bulk_record_follows` and rendering periodic Celery Beat flushes obsolete.
+    *   Decommissioned Celery task files (`notifications/tasks.py`, `newsfeed/tasks.py`, `photos/tasks.py`, `users/tasks.py`).
+    *   Removed `CELERY_BEAT_SCHEDULE` and all `CELERY_*` settings from `photoz/bses/settings.py`, removed `photoz/bses/celery.py`, and cleaned `photoz/bses/__init__.py`.
+    *   Updated `photoz/.importlinter` rules to maintain clean domain app boundaries.
+    *   Updated `chapter06/kafka/README.md` and verified all 6 pre-commit hooks pass cleanly with code 0.
+*   **Notes/Edge Cases**:
+    *   `run_notifications_consumer` overrides `handle_payloads` to process dictionary payloads with varied event schemas (`photo_activity`, `member_invited`, `tagged`), providing modular extensible event handling while maintaining the standard consumer lifecycle.
+
 
 
 

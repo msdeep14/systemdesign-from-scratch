@@ -236,7 +236,7 @@ LOGOUT_REDIRECT_URL = "login"
 BSES_PAGE_SIZE = 20
 CELEBRITY_FOLLOWER_THRESHOLD = 10000
 CACHE_TTL_CELEBRITY_PHOTO = 86400  # 24 hours
-FANOUT_PIPELINE_CHUNK_SIZE = 1000  # Number of followers to process per Celery task chunk
+FANOUT_PIPELINE_CHUNK_SIZE = 1000  # Number of followers to process per consumer batch chunk
 CACHE_TTL_NORMAL_PHOTO = 3600  # 1 hour
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -295,28 +295,6 @@ LOGGING = {
     },
 }
 
-# Celery Configuration
-CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
-CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_ACKS_LATE = True
-CELERY_BEAT_SCHEDULER = "redbeat.RedBeatScheduler"
-REDBEAT_REDIS_URL = CELERY_BROKER_URL
-
-
-CELERY_BEAT_SCHEDULE = {
-    "flush_follower_counts_every_10_seconds": {
-        "task": "users.tasks.flush_follower_counts_task",
-        "schedule": 10.0,
-    },
-    "flush_like_counts_every_10_seconds": {
-        "task": "photos.tasks.flush_like_counts_task",
-        "schedule": 10.0,
-    },
-}
 
 # Kafka Configuration
 KAFKA_BOOTSTRAP_SERVERS = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
@@ -336,6 +314,18 @@ KAFKA_TOPICS = {
     },
     "follows": {
         "name": "photo.events.follows",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+    "notifications": {
+        "name": "photo.events.notifications",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+    "deletions": {
+        "name": "photo.events.deletions",
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,

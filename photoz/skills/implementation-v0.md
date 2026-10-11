@@ -50,3 +50,13 @@ Implement an exponential backoff retry policy for transient operational errors a
 *   Add exponential backoff retries in `BaseKafkaConsumerCommand` for transient errors.
 *   Route deserialization failures, schema errors, and poison pills to DLQ and commit offset so consumer partitions never deadlock.
 
+## Phase: Celery Decommissioning & Asynchronous Workflow Migration (Phase 6)
+### The Problem
+Celery workers and Celery Beat introduce unnecessary operational overhead, Redis queue bottlenecks, and dual message broker complexity alongside Kafka.
+### The Solution
+Migrate all remaining asynchronous workflows to Kafka:
+*   Route notifications (`photo.events.notifications`) and photo deletions (`photo.events.deletions`) through Kafka consumers.
+*   Update `bulk_record_likes` to atomically increment `Photo.likes_count` in PostgreSQL on batch consumption, eliminating periodic Celery Beat flushes for both likes and follower counts.
+*   Decommission Celery task files and configuration across the Django project.
+
+

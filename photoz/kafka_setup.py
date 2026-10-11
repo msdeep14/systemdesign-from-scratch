@@ -36,6 +36,18 @@ DEFAULT_TOPICS: dict[str, dict[str, Any]] = {
         "replication_factor": 1,
         "dlq": True,
     },
+    "notifications": {
+        "name": "photo.events.notifications",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
+    "deletions": {
+        "name": "photo.events.deletions",
+        "partitions": 50,
+        "replication_factor": 1,
+        "dlq": True,
+    },
 }
 
 

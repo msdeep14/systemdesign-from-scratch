@@ -269,6 +269,56 @@ Phase 5 introduces exponential backoff retries for transient database errors and
    }
    ```
 
+## Phase 6: Celery Decommissioning (Part 1: Workflow Migration)
+
+In Phase 6, all remaining Celery-dependent background tasks are migrated to Kafka topics and consumers, removing all Celery tasks and beat schedules from the application codebase.
+
+### 1. Migrated Workflows Overview
+
+| Workflow | Old Celery Task / Beat | New Kafka Topic | New Consumer Daemon |
+| :--- | :--- | :--- | :--- |
+| **Notifications** | `send_*_notification_task` | `photo.events.notifications` | `python manage.py run_notifications_consumer` |
+| **Photo Deletions** | `fanout_photo_deleted_task` | `photo.events.deletions` | `python manage.py run_deletions_consumer` |
+| **Like Count Sync** | `flush_like_counts_task` (Beat) | `photo.events.likes` | Handled atomically in `run_kafka_consumers` |
+| **Follow Count Sync** | `flush_follower_counts_task` (Beat) | `photo.events.follows` | Handled atomically in `run_followers_consumer` |
+
+### 2. Notifications Consumer Daemon
+
+1. **Run the Consumer:**
+   ```bash
+   cd photoz
+   python manage.py run_notifications_consumer
+   ```
+2. **Topic**: `photo.events.notifications` (Consumer Group: `photoz-notifications-group`)
+3. **Payload Examples:**
+   - Photo activity:
+     ```json
+     {"event_type": "photo_activity", "photo_id": 1, "actor_id": 2, "notif_type": "photo_like", "verb": "liked"}
+     ```
+   - Community invitation:
+     ```json
+     {"event_type": "member_invited", "community_id": 5, "target_user_id": 3, "inviter_id": 2, "membership_id": 10}
+     ```
+   - User tagged:
+     ```json
+     {"event_type": "tagged", "object_id": 1, "tagged_user_id": 3, "tagger_id": 2, "object_type": "photo"}
+     ```
+
+### 3. Deletions Consumer Daemon
+
+1. **Run the Consumer:**
+   ```bash
+   cd photoz
+   python manage.py run_deletions_consumer
+   ```
+2. **Topic**: `photo.events.deletions` (Consumer Group: `photoz-deletions-group`)
+3. **Payload Example:**
+   ```json
+   {"user_id": 1, "photo_id": 10}
+   ```
+4. **Behavior**: The consumer pulls deletion events and invalidates the cached newsfeeds of all active followers in Redis.
+
+
 
 
 

@@ -1,89 +1,131 @@
-# Phase 5: Dead Letter Queue (DLQ) & Retry Policy Implementation Plan
+# Phase 6: Celery Decommissioning (Part 1: Workflow Migration) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement fault-tolerant error handling across all Photoz Kafka consumers by adding transient error retries with exponential backoff and routing permanent poison pills / deserialization errors to dedicated Dead Letter Queue (DLQ) topics.
+**Goal:** Migrate all remaining Celery-dependent workflows (notifications, newsfeed photo deletions, and like/follower count flushes) to Kafka topics and consumers, completely removing Celery tasks and dependencies from the application codebase.
 
-**Architecture:** Extend `BaseKafkaConsumerCommand` and `bses.kafka` with a structured `publish_to_dlq` utility. When consumers encounter unparseable JSON, malformed schemas, or database integrity failures (e.g., missing foreign keys), wrap the failed payload with diagnostic error metadata, publish to `{topic}.dlq`, and commit the primary partition offset so the consumer group never deadlocks.
+**Architecture:** 
+1. Provision Kafka topics `photo.events.notifications` and `photo.events.deletions` with associated DLQs.
+2. Replace Celery notification tasks with Kafka event emission in `notifications/signals.py` and consume via a dedicated `run_notifications_consumer` daemon.
+3. Replace Celery photo deletion fanout with Kafka event emission in `newsfeed/signals.py` and consume via `run_deletions_consumer`.
+4. Update `bulk_record_likes` in `photos/services.py` to atomically maintain `Photo.likes_count` in PostgreSQL on batch consumption, eliminating periodic Celery Beat flushes for both likes and follower counts.
+5. Decommission all Celery task files (`notifications/tasks.py`, `newsfeed/tasks.py`, `photos/tasks.py`, `users/tasks.py`), remove `bses/celery.py`, clear `bses/__init__.py`, and remove Celery settings.
 
-**Tech Stack:** Python 3.12, confluent-kafka, Django 5.0, PostgreSQL, Apache Kafka 4.3.1 (KRaft).
+**Tech Stack:** Python 3.12, confluent-kafka, Django 5.0, PostgreSQL, Apache Kafka 4.3.1 (KRaft), Redis.
 
-**Spec:** Chapter 6 Asynchronous Processing Architecture - Phase 5 DLQ & Retry Policy.
+**Spec:** Chapter 6 - Celery Decommissioning & Asynchronous Workflow Migration.
 
 ## Global Constraints
 - Code changes must adhere to the modular monolith boundaries enforced by `import-linter`.
 - Pylint rating must remain at 10.00/10.
-- All `try/except` blocks in `bses/kafka.py` must conform to the canonical `[call, return]` pattern to avoid `pattern_fragmentation` drift findings.
+- All `try/except` blocks in `bses/kafka.py` and consumers must conform to the canonical `[call, return]` pattern to satisfy `drift-analyzer`.
 - No auto-commit. The user will review and commit manually.
 - Plain English documentation and logs only; no emojis.
 
 ---
 
-### Task 1: DLQ Publishing Utility
+### Task 1: Kafka Topics Configuration & Provisioning
 **Files:**
-- Modify: `photoz/bses/kafka.py`
+- Modify: `photoz/bses/settings.py`
+- Modify: `photoz/kafka_setup.py`
 
 **Interfaces:**
-- Produces: `publish_to_dlq(topic_key: str, payload: Any, error: Exception | str, key: str | None = None, retry_count: int = 0) -> bool`
+- Adds topic configurations:
+  - `"notifications"`: `photo.events.notifications` (50 partitions, dlq=True)
+  - `"deletions"`: `photo.events.deletions` (50 partitions, dlq=True)
 
-- [x] **Step 1: Implement `publish_to_dlq`**
-  Add `publish_to_dlq` to `photoz/bses/kafka.py` wrapping failed payloads in a diagnostic envelope containing `original_topic`, `original_payload`, `error_type`, `error_message`, `timestamp`, and `retry_count`.
-- [x] **Step 2: Ensure standardized error handling**
-  Use `_log_publish_failure(dlq_topic_name, err)` in the except handler to match canonical `[call, return]` pattern.
+- [x] **Step 1: Add new topics to `settings.py` and `kafka_setup.py`**
+  Update `KAFKA_TOPICS` in `photoz/bses/settings.py` and `DEFAULT_TOPICS` in `photoz/kafka_setup.py`.
+- [x] **Step 2: Run `kafka_setup.py` to provision topics in Kafka**
+  Execute `kafka_setup.py` to create `photo.events.notifications`, `photo.events.deletions`, and their corresponding `.dlq` topics.
 
 ---
 
-### Task 2: Consumer Retry Policy with Exponential Backoff
+### Task 2: Migrate Notifications Workflow to Kafka
 **Files:**
-- Modify: `photoz/bses/kafka.py`
+- Modify: `photoz/notifications/signals.py`
+- Modify: `photoz/notifications/services.py`
+- Create: `photoz/notifications/management/commands/run_notifications_consumer.py`
+- Delete: `photoz/notifications/tasks.py`
+- Modify: `photoz/.importlinter`
 
 **Interfaces:**
-- Consumes: `settings.KAFKA_TOPICS`, `publish_to_dlq`
-- Modifies: `BaseKafkaConsumerCommand`
+- Produces: Kafka event payloads on `photo.events.notifications`
+- Consumes: `bulk_create_notifications(events: list[dict]) -> int` in `notifications/services.py`
 
-- [x] **Step 1: Add retry configuration attributes**
-  Add `max_retries: int = 3` and `retry_backoff_base: float = 0.5` to `BaseKafkaConsumerCommand`.
-- [x] **Step 2: Implement transient retry handling**
-  In `BaseKafkaConsumerCommand`, add exponential backoff retry for transient database errors prior to falling back to individual persistence.
+- [x] **Step 1: Implement notification creation service**
+  Implement `bulk_create_notifications(events: list[dict]) -> int` in `photoz/notifications/services.py`, creating `Notification` objects for photo activities, community invites, and tagging events.
+- [x] **Step 2: Update `notifications/signals.py` to publish to Kafka**
+  Replace `.delay()` task invocations with `publish_kafka_event("notifications", payload, key=str(recipient_id))`.
+- [x] **Step 3: Create `run_notifications_consumer` management command**
+  Create `photoz/notifications/management/commands/run_notifications_consumer.py` inheriting from `BaseKafkaConsumerCommand` to consume and process notification events.
+- [x] **Step 4: Remove `notifications/tasks.py` and update `.importlinter`**
+  Delete `photoz/notifications/tasks.py` and update `.importlinter` ignore rules to reference `notifications.services` instead of `notifications.tasks`.
 
 ---
 
-### Task 3: DLQ Routing for Deserialization Errors & Poison Pills
+### Task 3: Migrate Newsfeed Photo Deletions Workflow to Kafka
 **Files:**
-- Modify: `photoz/bses/kafka.py`
+- Modify: `photoz/newsfeed/signals.py`
+- Modify: `photoz/newsfeed/services.py`
+- Create: `photoz/newsfeed/management/commands/run_deletions_consumer.py`
+- Delete: `photoz/newsfeed/tasks.py`
 
 **Interfaces:**
-- Modifies: `BaseKafkaConsumerCommand._extract_payloads`, `BaseKafkaConsumerCommand._persist_single`, `BaseKafkaConsumerCommand.handle_payloads`
+- Produces: Kafka event payloads on `photo.events.deletions`
+- Consumes: `bulk_invalidate_follower_feed_caches(records: list[tuple[int, int]]) -> int` in `newsfeed/services.py`
 
-- [x] **Step 1: Route deserialization errors to DLQ**
-  Update `_extract_payloads` so messages failing `_safe_deserialize` are published to the topic's DLQ instead of being silently dropped.
-- [x] **Step 2: Route poison pills to DLQ in `_persist_single`**
-  When a record fails with `IntegrityError` (foreign key violations) or unrecoverable `DatabaseError`, publish to DLQ with error diagnostics and commit offset.
-- [x] **Step 3: Route schema violations to DLQ in `handle_payloads`**
-  When a payload is missing required keys, route to DLQ with schema violation error.
+- [x] **Step 1: Implement bulk feed cache invalidation service**
+  Add `bulk_invalidate_follower_feed_caches(records: list[tuple[int, int]]) -> int` in `photoz/newsfeed/services.py`.
+- [x] **Step 2: Update `newsfeed/signals.py` to publish to Kafka**
+  Replace `fanout_photo_deleted_task.delay(user.id)` with `publish_kafka_event("deletions", {"user_id": user.id, "photo_id": photo_id or 0}, key=str(user.id))`.
+- [x] **Step 3: Create `run_deletions_consumer` management command**
+  Create `photoz/newsfeed/management/commands/run_deletions_consumer.py` inheriting from `BaseKafkaConsumerCommand`.
+- [x] **Step 4: Remove `newsfeed/tasks.py`**
+  Delete `photoz/newsfeed/tasks.py`.
 
 ---
 
-### Task 4: End-to-End Verification & Pre-Commit Validation
+### Task 4: Atomic Counters in Database & Celery Beat Elimination
 **Files:**
-- Test against running Kafka cluster: `photo.events.likes.dlq`, `photo.events.uploads.dlq`, `photo.events.follows.dlq`.
+- Modify: `photoz/photos/services.py`
+- Delete: `photoz/photos/tasks.py`
+- Delete: `photoz/users/tasks.py`
+- Modify: `photoz/bses/settings.py`
+- Delete: `photoz/bses/celery.py`
+- Modify: `photoz/bses/__init__.py`
 
-- [x] **Step 1: Test corrupted JSON routing to DLQ**
-  Publish an invalid non-JSON string to `photo.events.likes` and verify it routes to `photo.events.likes.dlq`.
-- [x] **Step 2: Test foreign key poison pill routing to DLQ**
-  Publish an event with non-existent user/photo IDs and verify it is captured in `photo.events.likes.dlq`.
-- [x] **Step 3: Run all 6 pre-commit hooks**
+**Interfaces:**
+- Modifies: `bulk_record_likes` in `photos/services.py` to atomically update `Photo.likes_count` in PostgreSQL.
+
+- [x] **Step 1: Update `bulk_record_likes` to maintain atomic counts**
+  Update `bulk_record_likes` in `photos/services.py` to increment `Photo.likes_count` via `F("likes_count") + count` inside the atomic transaction, matching `bulk_record_follows`.
+- [x] **Step 2: Delete `photos/tasks.py` and `users/tasks.py`**
+  Remove periodic flush task files.
+- [x] **Step 3: Remove Celery configuration and files**
+  Remove `CELERY_BEAT_SCHEDULE` and all `CELERY_*` settings from `photoz/bses/settings.py`. Delete `photoz/bses/celery.py` and clear Celery exports from `photoz/bses/__init__.py`.
+
+---
+
+### Task 5: Verification & Pre-Commit Validation
+**Files:**
+- Run verification across the codebase.
+
+- [x] **Step 1: Test notification and deletion events end-to-end**
+  Publish test events to `photo.events.notifications` and `photo.events.deletions` and verify consumer execution.
+- [x] **Step 2: Run all 6 pre-commit hooks**
   Run `ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, and `calm-validate`.
 
 ---
 
-### Task 5: Documentation & Execution Logging
+### Task 6: Documentation & Execution Logging
 **Files:**
 - Modify: `chapter06/kafka/README.md`
 - Modify: `chapter06/kafka/execution-v0.md`
 - Modify: `photoz/skills/execution-v0.md`
+- Modify: `photoz/skills/implementation-v0.md`
 
 - [x] **Step 1: Update README.md**
-  Add instructions for inspecting DLQ topics using `kafka-console-consumer.sh` and configuring retry settings.
-- [x] **Step 2: Update execution logs**
-  Log technical analysis, actions taken, and verification results in both execution log files.
+  Document the newly migrated notifications and deletions consumers, topics, and message formats.
+- [x] **Step 2: Append execution log entries**
+  Log actions and decisions in `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.

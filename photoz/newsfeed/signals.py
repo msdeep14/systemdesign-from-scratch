@@ -1,12 +1,14 @@
+"""Signal handlers for newsfeed invalidation and events."""
+
 from django.core.cache import cache
 from django.dispatch import receiver
 
+from bses.kafka import publish_kafka_event
 from communities.signals import invitation_accepted
 from newsfeed.services import (
     CELEBRITY_FOLLOWER_THRESHOLD,
     invalidate_feed_cache,
 )
-from newsfeed.tasks import fanout_photo_deleted_task
 from photos.signals import photo_deleted
 
 
@@ -20,7 +22,12 @@ def _handle_photo_deleted(sender, user, **kwargs):
     if follower_count > CELEBRITY_FOLLOWER_THRESHOLD:
         return
 
-    fanout_photo_deleted_task.delay(user.id)
+    photo_id = kwargs.get("photo_id", 0)
+    publish_kafka_event(
+        "deletions",
+        {"user_id": user.id, "photo_id": photo_id},
+        key=str(user.id),
+    )
 
 
 @receiver(invitation_accepted)
