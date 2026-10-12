@@ -318,7 +318,10 @@ In Phase 6, all remaining Celery-dependent background tasks are migrated to Kafk
    ```
 4. **Behavior**: The consumer pulls deletion events and invalidates the cached newsfeeds of all active followers in Redis.
 
+### 4. Infrastructure & Dependency Cleanup (Part 2)
 
-
-
-
+Following workflow migration to Kafka, Celery infrastructure and dependencies have been decommissioned:
+- **Local Compose (`photoz/docker-compose.yml`)**: Removed `celery`, `celery-beat`, and `flower` services.
+- **Production Compose (`photoz/docker-compose-app.yml`)**: Removed `celery` and `celery-beat` services.
+- **Python Dependencies (`photoz/requirements.txt`)**: Removed `celery`, `celery-redbeat`, and `flower`. Retained `redis>=5.0.1` for newsfeed caching and distributed locks.
+- **Terraform Security Groups (`iaac/aws/terraform/security.tf`)**: Removed ingress rules permitting the Redis node to connect to PostgreSQL (5432) and PgBouncer (6432) for Celery Beat.

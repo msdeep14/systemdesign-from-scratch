@@ -728,7 +728,7 @@
     *   Lines in docstrings and string formatters exceeding 100 characters caused Ruff line-length failures; refactored to multiline formatting.
     *   Confirmed end-to-end routing in Kafka cluster: malformed payloads, non-JSON bytes, and non-existent foreign keys were isolated in `photo.events.likes.dlq` without interrupting valid message processing.
 
-## Phase: Phase 6: Celery Decommissioning - Part 1: Workflow Migration (Date: 2026-10-11, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 6: Celery Decommissioning - Part 1: Workflow Migration (Date: 2026-10-11, Commit: 2b8f4ef, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Eliminate Celery operational overhead, Redis queue resource consumption, and duplicate worker architectures by migrating all asynchronous tasks (notifications, photo deletions, counter synchronizations) to Kafka topics and consumers.
 *   **Actions**:
     *   Configured and provisioned `photo.events.notifications` and `photo.events.deletions` topics and their `.dlq` counterparts in `photoz/bses/settings.py` and `photoz/kafka_setup.py`.
@@ -741,6 +741,18 @@
     *   Updated `chapter06/kafka/README.md` and verified all 6 pre-commit hooks pass cleanly with code 0.
 *   **Notes/Edge Cases**:
     *   `run_notifications_consumer` overrides `handle_payloads` to process dictionary payloads with varied event schemas (`photo_activity`, `member_invited`, `tagged`), providing modular extensible event handling while maintaining the standard consumer lifecycle.
+
+## Phase: Phase 6: Celery Decommissioning - Part 2: Infrastructure & Dependency Removal (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Complete Celery retirement by purging obsolete Celery/Flower container services, removing Celery packages from dependencies, and removing Celery Beat security group ingress rules in Terraform.
+*   **Actions**:
+    *   Removed `celery`, `celery-beat`, and `flower` services from `photoz/docker-compose.yml`.
+    *   Removed `celery` and `celery-beat` services from `photoz/docker-compose-app.yml`.
+    *   Removed `celery>=5.3.6`, `celery-redbeat>=2.2.0`, and `flower` from `photoz/requirements.txt`, retaining `redis>=5.0.1` for newsfeed caching and session handling.
+    *   Removed obsolete Celery Beat security group ingress rules from the Redis node to PostgreSQL (5432) and PgBouncer (6432) in `iaac/aws/terraform/security.tf`.
+    *   Updated `chapter06/kafka/README.md` to document infrastructure and dependency removal.
+    *   Verified all 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
+*   **Notes/Edge Cases**:
+    *   `redis` service in `docker-compose.yml` and `redis>=5.0.1` in `requirements.txt` are maintained because Redis remains actively used for caching newsfeeds and distributed locks.
 
 
 

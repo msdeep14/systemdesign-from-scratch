@@ -58,5 +58,6 @@ Migrate all remaining asynchronous workflows to Kafka:
 *   Route notifications (`photo.events.notifications`) and photo deletions (`photo.events.deletions`) through Kafka consumers.
 *   Update `bulk_record_likes` to atomically increment `Photo.likes_count` in PostgreSQL on batch consumption, eliminating periodic Celery Beat flushes for both likes and follower counts.
 *   Decommission Celery task files and configuration across the Django project.
+*   Remove Celery services from `docker-compose.yml` and `docker-compose-app.yml`, purge Celery dependencies from `requirements.txt`, and clean up obsolete Celery Beat security group ingress rules in `iaac/aws/terraform/security.tf`.
 
 

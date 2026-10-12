@@ -129,3 +129,22 @@
   Document the newly migrated notifications and deletions consumers, topics, and message formats.
 - [x] **Step 2: Append execution log entries**
   Log actions and decisions in `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.
+
+---
+
+### Task 7: Celery Infrastructure & Dependency Removal (Part 2)
+**Files:**
+- Modify: `photoz/requirements.txt`
+- Modify: `photoz/docker-compose.yml`
+- Modify: `photoz/docker-compose-app.yml`
+- Modify: `iaac/aws/terraform/security.tf`
+- Modify: `chapter06/kafka/README.md`
+
+- [x] **Step 1: Remove Celery packages from requirements.txt**
+  Purge `celery`, `celery-redbeat`, and `flower` from `photoz/requirements.txt` while retaining `redis>=5.0.1`.
+- [x] **Step 2: Clean docker compose definitions**
+  Remove `celery`, `celery-beat`, and `flower` services from `photoz/docker-compose.yml` and `photoz/docker-compose-app.yml`.
+- [x] **Step 3: Remove Celery Beat ingress rules from Terraform**
+  Remove Postgres and PgBouncer ingress blocks for the Redis node in `iaac/aws/terraform/security.tf`.
+- [x] **Step 4: Verification & Logging**
+  Run all 6 pre-commit checks and append execution logs.
