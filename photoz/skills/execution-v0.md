@@ -778,7 +778,7 @@
     *   Using static private IP mapping (`10.0.${i}.20` for controllers, `10.0.${i}.30` for brokers) eliminated circular dependencies during quorum voter configuration and bootstrap discovery.
     *   EBS attachment script in broker user_data dynamically accommodates both standard xen (`/dev/xvdf`) and Nitro NVMe (`/dev/nvme*n1`) device paths.
 
-## Phase: Phase 7: Kafka Broker Log Directory Isolation & PgBouncer Post-Restart Pool Reset (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 7: Kafka Broker Log Directory Isolation & PgBouncer Post-Restart Pool Reset (Date: 2026-10-12, Commit: c7799f5, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Fix runtime failures on AWS deployment where Kafka brokers crash on startup due to ext4 filesystem artifacts and Django fails to query the database due to cached DNS/login errors in PgBouncer.
 *   **Actions**:
     *   Updated `iaac/aws/terraform/kafka.tf` user_data to isolate Kafka log storage into `/var/lib/kafka/data/kafka` and set `KAFKA_LOG_DIRS=/var/lib/kafka/data/kafka`, preventing `lost+found` at the EBS mount root from crashing Kafka LogManager.
@@ -786,6 +786,19 @@
     *   Updated `iaac/aws/terraform/main.tf` to restart PgBouncer (`docker compose -f docker-compose-db.yml restart pgbouncer`) after the PostgreSQL restart check passes, resetting stale DNS and cached connection errors.
 *   **Notes/Edge Cases**:
     *   Kafka requires log directories to contain only topic-partition folders; mounting an ext4 volume at the root of `KAFKA_LOG_DIRS` causes `KafkaException: Found directory lost+found`. Isolate Kafka data to a child directory to insulate against filesystem artifacts.
+
+## Phase: Phase 7: Kafka Consumer Auto-Orchestration & Idempotent Like Counter Fix (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Fix UI bug where like count increments infinitely on repetitive clicks due to absence of running Kafka consumers and lack of idempotent state tracking, and resolve query_wait_timeout caused by Postgres connection pool starvation.
+*   **Actions**:
+    *   Added `consumers` service to `photoz/docker-compose-app.yml` executing all 5 Kafka consumer daemons (`run_kafka_consumers`, `run_followers_consumer`, `run_uploads_consumer`, `run_notifications_consumer`, `run_deletions_consumer`) under Docker process supervision.
+    *   Implemented `is_photo_liked_by_user` and `toggle_photo_like_redis` in `photoz/photos/services.py` using Redis sets (`photo:{photo_id}:likers`) to track per-user like state in memory and guarantee strictly idempotent toggling.
+    *   Updated `toggle_like` and `photo_detail` in `photoz/photos/views.py` to use Redis-backed state, preventing duplicate clicks from inflating the counter or bypassing unliking.
+    *   Updated `bulk_record_likes` in `photos/services.py` to deduplicate batches and only increment `Photo.likes_count` by genuinely new insertions.
+    *   Increased PostgreSQL `max_connections` from 20 to 100 in `photoz/docker-compose-db.yml`, `docker-compose.yml`, and `docker-compose-replica.yml`.
+    *   Added `admin_users` and `stats_users` to `pgbouncer.ini` and `pgbouncer-replica.ini` and scaled `default_pool_size` to 25.
+*   **Notes/Edge Cases**:
+    *   Redis sets provide instantaneous sub-millisecond like state resolution while Kafka consumes and writes in the background, preventing race conditions during rapid clicking.
+
 
 
 

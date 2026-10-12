@@ -22,7 +22,8 @@ from photos.forms import PhotoUploadForm
 from photos.models import Comment, Like, Photo, PhotoTag
 from photos.services import (
     get_photo_likes_count,
-    update_like_count_redis,
+    is_photo_liked_by_user,
+    toggle_photo_like_redis,
 )
 from photos.signals import photo_commented, photo_deleted, photo_liked, user_tagged
 from photos.templatetags.hashtag_tags import linkify_hashtags
@@ -98,7 +99,7 @@ def _process_photo_tags(photo, tagger):
 @login_required
 def photo_detail(request, id):
     photo = get_object_or_404(Photo.objects.select_related("user__profile", "community"), id=id)
-    has_liked = photo.likes.filter(user=request.user).exists()
+    has_liked = is_photo_liked_by_user(photo.id, request.user.id)
     comments = photo.comments.select_related("user__profile").order_by("created_at")
     tagged_users = [tag.user for tag in photo.tags.select_related("user__profile")]
 
@@ -144,28 +145,24 @@ def delete_photo(request, id):
 @require_POST
 def toggle_like(request, id):
     photo = get_object_or_404(Photo, id=id)
-    like_obj = Like.objects.filter(user=request.user, photo=photo).first()
+    has_liked, likes_count = toggle_photo_like_redis(photo.id, request.user.id, photo.likes_count)
 
-    if like_obj:
-        like_obj.delete()
-        update_like_count_redis(photo.id, photo.likes_count, increment=False)
-        has_liked = False
-        logger.info("User %s unliked photo %s", request.user.username, id)
-    else:
+    if has_liked:
         publish_kafka_event(
             "likes",
             {"photo_id": photo.id, "user_id": request.user.id},
             key=str(photo.id),
         )
-        update_like_count_redis(photo.id, photo.likes_count, increment=True)
-        has_liked = True
         logger.info("User %s liked photo %s", request.user.username, id)
-
-        # Emit signal for decoupling components
         if photo.user != request.user:
             photo_liked.send(sender=Like, photo=photo, liker=request.user)
+    else:
+        Like.objects.filter(user=request.user, photo=photo).delete()
+        Photo.objects.filter(id=photo.id, likes_count__gt=0).update(
+            likes_count=F("likes_count") - 1
+        )
+        logger.info("User %s unliked photo %s", request.user.username, id)
 
-    likes_count = get_photo_likes_count(photo.id, photo.likes_count)
     return JsonResponse({"has_liked": has_liked, "likes_count": likes_count})
 
 

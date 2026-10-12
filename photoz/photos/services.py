@@ -79,6 +79,48 @@ def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool 
     redis_client.sadd("photos_with_pending_like_counts", photo_id)
 
 
+def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
+    """Checks whether a user has liked a photo, checking Redis set with fallback to DB."""
+    key = f"photo:{photo_id}:likers"
+    if redis_client.exists(key):
+        return bool(redis_client.sismember(key, str(user_id)))
+
+    # Cache miss: populate from PostgreSQL
+    liker_ids = list(Like.objects.filter(photo_id=photo_id).values_list("user_id", flat=True))
+    if liker_ids:
+        redis_client.sadd(key, *[str(uid) for uid in liker_ids])
+    else:
+        redis_client.sadd(key, "__empty__")
+    redis_client.expire(key, 86400)
+
+    return str(user_id) in [str(uid) for uid in liker_ids]
+
+
+def toggle_photo_like_redis(photo_id: int, user_id: int, db_likes_count: int) -> tuple[bool, int]:
+    """Atomically toggle like state for user in Redis and return (has_liked, likes_count)."""
+    count_key = f"photo:{photo_id}:likes_count"
+    likers_key = f"photo:{photo_id}:likers"
+
+    if not redis_client.exists(count_key):
+        redis_client.set(count_key, db_likes_count)
+
+    if not redis_client.exists(likers_key):
+        is_photo_liked_by_user(photo_id, user_id)
+
+    is_liked = bool(redis_client.sismember(likers_key, str(user_id)))
+    if is_liked:
+        redis_client.srem(likers_key, str(user_id))
+        new_count = redis_client.decr(count_key)
+        has_liked = False
+    else:
+        redis_client.sadd(likers_key, str(user_id))
+        new_count = redis_client.incr(count_key)
+        has_liked = True
+
+    redis_client.sadd("photos_with_pending_like_counts", photo_id)
+    return has_liked, max(0, new_count)
+
+
 def _serialize_photo(photo: Photo) -> str:
     """Serializes a Photo object for caching."""
     return json.dumps(
@@ -161,15 +203,27 @@ def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
     """Bulk create Like records and atomically increment likes_count in PostgreSQL."""
     if not like_pairs:
         return 0
-    likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in like_pairs]
 
+    unique_pairs = list(set(like_pairs))
+    existing_pairs = set(
+        Like.objects.filter(
+            photo_id__in=[p[0] for p in unique_pairs],
+            user_id__in=[p[1] for p in unique_pairs],
+        ).values_list("photo_id", "user_id")
+    )
+    new_pairs = [pair for pair in unique_pairs if pair not in existing_pairs]
+    if not new_pairs:
+        return 0
+
+    likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in new_pairs]
     photo_counts: dict[int, int] = defaultdict(int)
-    for photo_id, _ in like_pairs:
+    for photo_id, user_id in new_pairs:
         photo_counts[photo_id] += 1
+        redis_client.sadd(f"photo:{photo_id}:likers", str(user_id))
 
     with transaction.atomic():
         Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)
         for p_id, count in photo_counts.items():
             Photo.objects.filter(id=p_id).update(likes_count=F("likes_count") + count)
 
-    return len(likes_to_create)
+    return len(new_pairs)
