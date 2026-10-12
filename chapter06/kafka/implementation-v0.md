@@ -148,3 +148,104 @@
   Remove Postgres and PgBouncer ingress blocks for the Redis node in `iaac/aws/terraform/security.tf`.
 - [x] **Step 4: Verification & Logging**
   Run all 6 pre-commit checks and append execution logs.
+
+---
+
+# Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Provision a fault-tolerant, self-managed Apache Kafka cluster in KRaft mode on AWS EC2 using Terraform, isolating the Control Plane (3 KRaft Controllers) from the Data Plane (3 Brokers) across 3 Availability Zones with dedicated gp3 EBS volumes.
+
+**Architecture:** 
+1. Subnets in `network.tf` expanded to 3 public subnets across 3 Availability Zones (`ap-south-1a`, `ap-south-1b`, `ap-south-1c`).
+2. Security groups: `photoz-kafka-controller-sg` (port 9093 internal quorum between controllers and brokers) and `photoz-kafka-broker-sg` (port 9092 PLAINTEXT accessible to App nodes and brokers).
+3. 3 dedicated EC2 instances for KRaft Controllers (`process.roles=controller`, IDs 1, 2, 3) running across the 3 subnets.
+4. 3 dedicated EC2 instances for KRaft Brokers (`process.roles=broker`, IDs 101, 102, 103) running across the 3 subnets with dedicated gp3 EBS volumes for persistent commit logs.
+5. Launch template for App nodes updated to dynamically receive `KAFKA_BOOTSTRAP_SERVERS` pointing to all 3 broker private IPs.
+6. Terraform outputs and variables defined for cluster toggles, instance types, and bootstrap addresses.
+
+**Tech Stack:** Terraform, AWS EC2, AWS EBS (gp3), AWS VPC, Apache Kafka 4.3.1 (KRaft mode via Docker Engine), Ubuntu 24.04.
+
+**Spec:** Chapter 6 - Phase 7 AWS Infrastructure Deployment (`kafka_implementation_details.md`).
+
+## Global Constraints
+- Preserve existing Terraform resources and variables without breaking backwards compatibility.
+- Never hardcode credentials or secrets; use IAM instance profile and AWS SSM.
+- Pylint rating must remain at 10.00/10.
+- All 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) must pass.
+- No auto-commit. The user reviews and commits manually.
+- Plain English only; no emojis.
+
+---
+
+### Task 1: Expand Subnets across 3 Availability Zones
+**Files:**
+- Modify: `iaac/aws/terraform/network.tf`
+
+**Interfaces:**
+- Consumes: `data.aws_availability_zones.available.names`
+- Produces: `local.subnet_ids` with 3 subnets across 3 distinct AZs
+
+- [ ] **Step 1: Update subnet count and route table associations**
+  Update `aws_subnet.public` count from 2 to 3, and `aws_route_table_association.public` count from 2 to 3 in `network.tf`.
+
+---
+
+### Task 2: Configure Terraform Variables & Security Groups
+**Files:**
+- Modify: `iaac/aws/terraform/variables.tf`
+- Modify: `iaac/aws/terraform/security.tf`
+
+**Interfaces:**
+- Produces: `local.kafka_controller_sg_id`, `local.kafka_broker_sg_id`
+
+- [ ] **Step 1: Define Kafka variables in variables.tf**
+  Add `create_kafka_cluster`, `kafka_key_name`, `kafka_controller_instance_type`, `kafka_broker_instance_type`, `kafka_ebs_volume_size`.
+- [ ] **Step 2: Define Controller and Broker Security Groups in security.tf**
+  Create `aws_security_group.kafka_controller` (port 9093 from controllers and brokers, port 22 from admin IP) and `aws_security_group.kafka_broker` (port 9092 from App SG and broker SG, port 22 from admin IP).
+
+---
+
+### Task 3: Provision KRaft Controllers & Brokers in Terraform
+**Files:**
+- Create: `iaac/aws/terraform/kafka.tf`
+
+**Interfaces:**
+- Produces: `aws_instance.kafka_controller[3]`, `aws_instance.kafka_broker[3]`, `aws_ebs_volume.kafka_broker_data[3]`
+
+- [ ] **Step 1: Write Controller provisioning with KRaft quorum user_data**
+  Provision 3 controller EC2 instances across the 3 subnets with predictable IPs (`10.0.0.20`, `10.0.1.20`, `10.0.2.20`) and user_data launching `apache/kafka:4.3.1` in controller mode.
+- [ ] **Step 2: Write Broker provisioning with gp3 EBS volumes and user_data**
+  Provision 3 broker EC2 instances across the 3 subnets (`10.0.0.30`, `10.0.1.30`, `10.0.2.30`) with dedicated attached 50GB gp3 EBS volumes mounted at `/var/lib/kafka/data`, running `apache/kafka:4.3.1` in broker mode with replication factor 3.
+
+---
+
+### Task 4: Connect App Nodes & Define Terraform Outputs
+**Files:**
+- Modify: `iaac/aws/terraform/main.tf`
+- Modify: `iaac/aws/terraform/outputs.tf`
+
+**Interfaces:**
+- Produces: `KAFKA_BOOTSTRAP_SERVERS` injected into `app_node` `.env`, and outputs `kafka_bootstrap_servers`, `kafka_controller_private_ips`, `kafka_broker_private_ips`.
+
+- [ ] **Step 1: Update App Node launch template user_data**
+  Inject `KAFKA_BOOTSTRAP_SERVERS` into App Node `.env` referencing broker private IPs.
+- [ ] **Step 2: Add outputs in outputs.tf**
+  Add outputs for broker IPs, controller IPs, and bootstrap connection string.
+
+---
+
+### Task 5: Verification, Execution Logging & Documentation
+**Files:**
+- Modify: `chapter06/kafka/README.md`
+- Modify: `chapter06/kafka/execution-v0.md`
+- Modify: `photoz/skills/execution-v0.md`
+- Run: `pre-commit run --all-files`
+
+- [ ] **Step 1: Run pre-commit checks**
+  Verify all 6 hooks pass cleanly.
+- [ ] **Step 2: Document Phase 7 deployment in README.md**
+  Add AWS deployment instructions, architecture description, and validation commands to `chapter06/kafka/README.md`.
+- [ ] **Step 3: Update execution logs**
+  Log actions and decisions in `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.

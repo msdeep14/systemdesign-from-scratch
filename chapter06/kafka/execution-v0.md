@@ -75,7 +75,7 @@
 *   **Notes/Edge Cases**:
     *   `run_notifications_consumer` overrides `handle_payloads` to process dictionary payloads with varied event schemas (`photo_activity`, `member_invited`, `tagged`), providing modular extensible event handling while maintaining the standard consumer lifecycle.
 
-## Phase: Phase 6: Celery Decommissioning - Part 2: Infrastructure & Dependency Removal (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 6: Celery Decommissioning - Part 2: Infrastructure & Dependency Removal (Date: 2026-10-12, Commit: 456e684, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Complete Celery retirement by purging obsolete Celery/Flower container services, removing Celery packages from dependencies, and removing Celery Beat security group ingress rules in Terraform.
 *   **Actions**:
     *   Removed `celery`, `celery-beat`, and `flower` services from `photoz/docker-compose.yml`.
@@ -86,6 +86,15 @@
     *   Verified all 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
 *   **Notes/Edge Cases**:
     *   `redis` service in `docker-compose.yml` and `redis>=5.0.1` in `requirements.txt` are maintained because Redis remains actively used for caching newsfeeds and distributed locks.
+
+## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) - Plan Generation (Date: 2026-10-12, Commit: 456e684, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Deploying Kafka for production workloads requires resilient consensus, isolation between control operations and high-throughput data operations, fault tolerance across data centers, and persistent high-speed disk storage.
+*   **Actions**:
+    *   Designed Terraform architecture for KRaft mode: 3 controllers forming a consensus quorum and 3 data brokers handling message log I/O.
+    *   Formulated 5-task implementation plan covering multi-AZ subnets, security groups, EC2 instances with gp3 EBS volumes, app node bootstrap injection, outputs, and validation.
+    *   Documented plan in `chapter06/kafka/implementation-v0.md` and `photoz/skills/implementation-v0.md`.
+*   **Notes/Edge Cases**:
+    *   Predictable private IP addressing for controllers eliminates circular dependency in the `KAFKA_CONTROLLER_QUORUM_VOTERS` configuration.
 
 
 

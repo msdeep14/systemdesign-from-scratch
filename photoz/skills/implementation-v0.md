@@ -60,4 +60,15 @@ Migrate all remaining asynchronous workflows to Kafka:
 *   Decommission Celery task files and configuration across the Django project.
 *   Remove Celery services from `docker-compose.yml` and `docker-compose-app.yml`, purge Celery dependencies from `requirements.txt`, and clean up obsolete Celery Beat security group ingress rules in `iaac/aws/terraform/security.tf`.
 
+## Phase: AWS Infrastructure Deployment (Terraform & KRaft EC2) (Phase 7)
+### The Problem
+Deploying Kafka for production workloads requires resilient consensus, isolation between control operations and high-throughput data operations, fault tolerance across data centers, and persistent high-speed disk storage.
+### The Solution
+Provision a self-managed KRaft Kafka cluster on AWS EC2 using Terraform:
+*   Multi-AZ VPC subnets across 3 Availability Zones.
+*   Control Plane: 3 dedicated KRaft Controllers forming a consensus quorum.
+*   Data Plane: 3 dedicated Brokers handling topic partition storage and throughput with dedicated gp3 EBS volumes.
+*   Strict security groups isolating controller quorum (9093) and broker client/replication traffic (9092).
+*   Automatic injection of `KAFKA_BOOTSTRAP_SERVERS` into App node environments.
+
 
