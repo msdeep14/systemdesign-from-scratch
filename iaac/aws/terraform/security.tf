@@ -215,3 +215,68 @@ resource "aws_security_group" "redis" {
 locals {
   redis_sg_id = var.create_security_groups && var.create_redis_node ? aws_security_group.redis[0].id : ""
 }
+
+resource "aws_security_group" "kafka_controller" {
+  count       = var.create_security_groups && var.create_kafka_cluster ? 1 : 0
+  name        = "photoz-kafka-controller-sg${local.env_suffix}"
+  description = "Allow KRaft Controller Quorum traffic"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "KRaft Controller Quorum"
+    from_port   = 9093
+    to_port     = 9093
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "kafka_broker" {
+  count       = var.create_security_groups && var.create_kafka_cluster ? 1 : 0
+  name        = "photoz-kafka-broker-sg${local.env_suffix}"
+  description = "Allow Kafka Broker traffic from VPC"
+  vpc_id      = local.vpc_id
+
+  ingress {
+    description = "Kafka Broker PLAINTEXT from VPC"
+    from_port   = 9092
+    to_port     = 9092
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description = "SSH from my IP"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.my_ip_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+locals {
+  kafka_controller_sg_id = var.create_security_groups && var.create_kafka_cluster ? aws_security_group.kafka_controller[0].id : ""
+  kafka_broker_sg_id     = var.create_security_groups && var.create_kafka_cluster ? aws_security_group.kafka_broker[0].id : ""
+}

@@ -162,3 +162,33 @@ variable "enable_auto_schedule" {
   default     = false
   description = "Enable automated sleep/wake cron jobs via SSM parameter flag"
 }
+
+variable "create_kafka_cluster" {
+  type        = bool
+  default     = true
+  description = "Set to true to provision a self-managed Kafka KRaft cluster (3 controllers + 3 brokers)"
+}
+
+variable "kafka_key_name" {
+  type        = string
+  default     = "photoz-kafka-key"
+  description = "Name of the AWS Key Pair for Kafka Controller and Broker nodes"
+}
+
+variable "kafka_controller_instance_type" {
+  type        = string
+  default     = "t3.medium"
+  description = "EC2 instance type for Kafka KRaft Controller nodes"
+}
+
+variable "kafka_broker_instance_type" {
+  type        = string
+  default     = "t3.medium"
+  description = "EC2 instance type for Kafka Broker nodes"
+}
+
+variable "kafka_ebs_volume_size" {
+  type        = number
+  default     = 10
+  description = "Size in GB of the dedicated gp3 EBS volume attached to each Kafka Broker"
+}

@@ -754,7 +754,7 @@
 *   **Notes/Edge Cases**:
     *   `redis` service in `docker-compose.yml` and `redis>=5.0.1` in `requirements.txt` are maintained because Redis remains actively used for caching newsfeeds and distributed locks.
 
-## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) - Plan Generation (Date: 2026-10-12, Commit: 456e684, Model: Gemini 3.1 Pro High)
+## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) - Plan Generation (Date: 2026-10-12, Commit: 05e0bb6, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Deploying Kafka for production workloads requires resilient consensus, isolation between control operations and high-throughput data operations, fault tolerance across data centers, and persistent high-speed disk storage.
 *   **Actions**:
     *   Designed Terraform architecture for KRaft mode: 3 controllers forming a consensus quorum and 3 data brokers handling message log I/O.
@@ -762,6 +762,21 @@
     *   Documented plan in `chapter06/kafka/implementation-v0.md` and `photoz/skills/implementation-v0.md`.
 *   **Notes/Edge Cases**:
     *   Predictable private IP addressing for controllers eliminates circular dependency in the `KAFKA_CONTROLLER_QUORUM_VOTERS` configuration.
+
+## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Provision a production-ready, self-managed Apache Kafka cluster in KRaft mode on AWS EC2, strictly decoupling the metadata consensus control plane from the high-throughput data brokers across 3 Availability Zones.
+*   **Actions**:
+    *   Expanded `aws_subnet.public` and route table associations in `iaac/aws/terraform/network.tf` from 2 to 3 to span 3 distinct Availability Zones.
+    *   Added Kafka cluster configuration variables in `iaac/aws/terraform/variables.tf` (`create_kafka_cluster`, `kafka_key_name`, instance types, EBS size).
+    *   Configured dedicated security groups in `iaac/aws/terraform/security.tf`: `photoz-kafka-controller-sg` (port 9093 internal quorum) and `photoz-kafka-broker-sg` (port 9092 PLAINTEXT accessible to App nodes and brokers).
+    *   Created `iaac/aws/terraform/kafka.tf` provisioning 3 dedicated KRaft Controllers (`t3.medium`) and 3 dedicated Brokers (`t3.medium`) with 50GB gp3 EBS volumes (`/var/lib/kafka/data`), deterministic private IPs, and Docker KRaft automated user_data.
+    *   Updated App Node launch template in `iaac/aws/terraform/main.tf` to inject `KAFKA_BOOTSTRAP_SERVERS` into `.env`.
+    *   Added outputs in `iaac/aws/terraform/outputs.tf` for controller IPs, broker IPs, and bootstrap servers.
+    *   Documented deployment and verification commands in `chapter06/kafka/README.md`.
+    *   Validated Terraform configuration (`terraform validate`) and verified all 6 pre-commit hooks pass cleanly with exit code 0.
+*   **Notes/Edge Cases**:
+    *   Using static private IP mapping (`10.0.${i}.20` for controllers, `10.0.${i}.30` for brokers) eliminated circular dependencies during quorum voter configuration and bootstrap discovery.
+    *   EBS attachment script in broker user_data dynamically accommodates both standard xen (`/dev/xvdf`) and Nitro NVMe (`/dev/nvme*n1`) device paths.
 
 
 

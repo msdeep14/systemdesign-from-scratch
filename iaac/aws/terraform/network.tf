@@ -13,7 +13,7 @@ resource "aws_internet_gateway" "main" {
 }
 
 resource "aws_subnet" "public" {
-  count                   = var.create_vpc ? 2 : 0
+  count                   = var.create_vpc ? 3 : 0
   vpc_id                  = aws_vpc.main[0].id
   cidr_block              = cidrsubnet(aws_vpc.main[0].cidr_block, 8, count.index)
   map_public_ip_on_launch = true
@@ -33,7 +33,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  count          = var.create_vpc ? 2 : 0
+  count          = var.create_vpc ? 3 : 0
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public[0].id
 }

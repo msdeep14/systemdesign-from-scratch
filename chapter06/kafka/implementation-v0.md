@@ -187,7 +187,7 @@
 - Consumes: `data.aws_availability_zones.available.names`
 - Produces: `local.subnet_ids` with 3 subnets across 3 distinct AZs
 
-- [ ] **Step 1: Update subnet count and route table associations**
+- [x] **Step 1: Update subnet count and route table associations**
   Update `aws_subnet.public` count from 2 to 3, and `aws_route_table_association.public` count from 2 to 3 in `network.tf`.
 
 ---
@@ -200,9 +200,9 @@
 **Interfaces:**
 - Produces: `local.kafka_controller_sg_id`, `local.kafka_broker_sg_id`
 
-- [ ] **Step 1: Define Kafka variables in variables.tf**
+- [x] **Step 1: Define Kafka variables in variables.tf**
   Add `create_kafka_cluster`, `kafka_key_name`, `kafka_controller_instance_type`, `kafka_broker_instance_type`, `kafka_ebs_volume_size`.
-- [ ] **Step 2: Define Controller and Broker Security Groups in security.tf**
+- [x] **Step 2: Define Controller and Broker Security Groups in security.tf**
   Create `aws_security_group.kafka_controller` (port 9093 from controllers and brokers, port 22 from admin IP) and `aws_security_group.kafka_broker` (port 9092 from App SG and broker SG, port 22 from admin IP).
 
 ---
@@ -214,9 +214,9 @@
 **Interfaces:**
 - Produces: `aws_instance.kafka_controller[3]`, `aws_instance.kafka_broker[3]`, `aws_ebs_volume.kafka_broker_data[3]`
 
-- [ ] **Step 1: Write Controller provisioning with KRaft quorum user_data**
+- [x] **Step 1: Write Controller provisioning with KRaft quorum user_data**
   Provision 3 controller EC2 instances across the 3 subnets with predictable IPs (`10.0.0.20`, `10.0.1.20`, `10.0.2.20`) and user_data launching `apache/kafka:4.3.1` in controller mode.
-- [ ] **Step 2: Write Broker provisioning with gp3 EBS volumes and user_data**
+- [x] **Step 2: Write Broker provisioning with gp3 EBS volumes and user_data**
   Provision 3 broker EC2 instances across the 3 subnets (`10.0.0.30`, `10.0.1.30`, `10.0.2.30`) with dedicated attached 50GB gp3 EBS volumes mounted at `/var/lib/kafka/data`, running `apache/kafka:4.3.1` in broker mode with replication factor 3.
 
 ---
@@ -229,9 +229,9 @@
 **Interfaces:**
 - Produces: `KAFKA_BOOTSTRAP_SERVERS` injected into `app_node` `.env`, and outputs `kafka_bootstrap_servers`, `kafka_controller_private_ips`, `kafka_broker_private_ips`.
 
-- [ ] **Step 1: Update App Node launch template user_data**
+- [x] **Step 1: Update App Node launch template user_data**
   Inject `KAFKA_BOOTSTRAP_SERVERS` into App Node `.env` referencing broker private IPs.
-- [ ] **Step 2: Add outputs in outputs.tf**
+- [x] **Step 2: Add outputs in outputs.tf**
   Add outputs for broker IPs, controller IPs, and bootstrap connection string.
 
 ---
@@ -243,9 +243,9 @@
 - Modify: `photoz/skills/execution-v0.md`
 - Run: `pre-commit run --all-files`
 
-- [ ] **Step 1: Run pre-commit checks**
+- [x] **Step 1: Run pre-commit checks**
   Verify all 6 hooks pass cleanly.
-- [ ] **Step 2: Document Phase 7 deployment in README.md**
+- [x] **Step 2: Document Phase 7 deployment in README.md**
   Add AWS deployment instructions, architecture description, and validation commands to `chapter06/kafka/README.md`.
-- [ ] **Step 3: Update execution logs**
+- [x] **Step 3: Update execution logs**
   Log actions and decisions in `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.

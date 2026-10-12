@@ -53,3 +53,18 @@ output "cloudfront_distribution_id" {
   description = "The CloudFront distribution ID. Needed for cache invalidation on photo delete."
 }
 
+output "kafka_controller_private_ips" {
+  value       = var.create_kafka_cluster ? aws_instance.kafka_controller[*].private_ip : []
+  description = "The private IP addresses of the 3 Kafka KRaft Controllers."
+}
+
+output "kafka_broker_private_ips" {
+  value       = var.create_kafka_cluster ? aws_instance.kafka_broker[*].private_ip : []
+  description = "The private IP addresses of the 3 Kafka Brokers."
+}
+
+output "kafka_bootstrap_servers" {
+  value       = var.create_kafka_cluster ? local.kafka_bootstrap_servers : "N/A"
+  description = "Kafka Bootstrap Servers connection string for producers and consumers."
+}
+

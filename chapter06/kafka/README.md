@@ -325,3 +325,56 @@ Following workflow migration to Kafka, Celery infrastructure and dependencies ha
 - **Production Compose (`photoz/docker-compose-app.yml`)**: Removed `celery` and `celery-beat` services.
 - **Python Dependencies (`photoz/requirements.txt`)**: Removed `celery`, `celery-redbeat`, and `flower`. Retained `redis>=5.0.1` for newsfeed caching and distributed locks.
 - **Terraform Security Groups (`iaac/aws/terraform/security.tf`)**: Removed ingress rules permitting the Redis node to connect to PostgreSQL (5432) and PgBouncer (6432) for Celery Beat.
+
+---
+
+## Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2)
+
+In Phase 7, the Apache Kafka cluster is provisioned on AWS EC2 using Terraform in KRaft mode, isolating the Control Plane from the Data Plane across 3 Availability Zones.
+
+### 1. Cluster Architecture
+
+| Tier | Role | Count | Instance Type | Storage | Network / AZ | Ports |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Control Plane** | `controller` | 3 | `t3.medium` | Root EBS (gp3) | 3 Subnets across 3 AZs | `9093` (Quorum) |
+| **Data Plane** | `broker` | 3 | `t3.medium` | 50GB gp3 EBS per broker | 3 Subnets across 3 AZs | `9092` (PLAINTEXT) |
+
+- **No Zookeeper**: Uses modern KRaft consensus metadata quorum (`KAFKA_PROCESS_ROLES=controller`).
+- **Data Isolation**: Commit logs are written to dedicated attached gp3 EBS volumes (`/dev/xvdf` mounted at `/var/lib/kafka/data`).
+- **Fault Tolerance**: Distributed across 3 Availability Zones with `--replication-factor 3` and `min.insync.replicas 2`.
+- **Security**: Port `9093` is restricted to internal controller quorum. Port `9092` is accessible only to App nodes and brokers within the VPC. No Kafka ports are publicly exposed.
+
+### 2. Terraform Resources
+
+- **`network.tf`**: Provisions 3 public subnets across 3 distinct Availability Zones (`ap-south-1a`, `ap-south-1b`, `ap-south-1c`).
+- **`security.tf`**: Defines `photoz-kafka-controller-sg` and `photoz-kafka-broker-sg`.
+- **`kafka.tf`**:
+  - `aws_instance.kafka_controller[3]`: Controllers with IDs `1, 2, 3` and predictable private IPs `10.0.0.20`, `10.0.1.20`, `10.0.2.20`.
+  - `aws_instance.kafka_broker[3]`: Brokers with IDs `101, 102, 103` and predictable private IPs `10.0.0.30`, `10.0.1.30`, `10.0.2.30`.
+  - `aws_ebs_volume.kafka_broker_data[3]` & `aws_volume_attachment.kafka_broker_data[3]`: 50GB gp3 EBS volumes.
+- **`main.tf`**: Injects `KAFKA_BOOTSTRAP_SERVERS` into App node `.env` templates.
+- **`outputs.tf`**: Exports `kafka_controller_private_ips`, `kafka_broker_private_ips`, and `kafka_bootstrap_servers`.
+
+### 3. Deploying and Verifying on AWS
+
+1. **Plan & Apply Infrastructure:**
+   ```bash
+   cd iaac/aws/terraform
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+
+2. **Verify Broker Connectivity from App Nodes:**
+   ```bash
+   # SSH into any App node
+   nc -zv 10.0.0.30 9092
+   nc -zv 10.0.1.30 9092
+   nc -zv 10.0.2.30 9092
+   ```
+
+3. **Verify Topics and Cluster Metadata:**
+   ```bash
+   # Run topic setup against the cluster
+   docker exec -it photoz-web-1 python kafka_setup.py
+   ```
