@@ -87,6 +87,9 @@ until pg_isready -h 127.0.0.1 -U postgres; do
   sleep 2
 done
 
+# Restart PgBouncer to clear cached server login errors
+docker compose -f docker-compose-db.yml restart pgbouncer
+
 # Create one physical replication slot per replica.
 # See postgres-init/03-create-replication-slots.sh for manual usage.
 REPLICA_COUNT=${var.db_replica_count} bash ./postgres-init/03-create-replication-slots.sh

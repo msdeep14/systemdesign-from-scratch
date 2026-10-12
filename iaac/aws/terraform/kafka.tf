@@ -36,7 +36,7 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
-mkdir -p /var/lib/kafka/data
+mkdir -p /var/lib/kafka/data/kafka
 chmod -R 777 /var/lib/kafka/data
 
 # Run Kafka in KRaft Controller Mode
@@ -49,8 +49,9 @@ docker run -d --name kafka-controller \
   -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
   -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT \
   -e KAFKA_CONTROLLER_QUORUM_VOTERS=${local.kafka_quorum_voters} \
+  -e CLUSTER_ID=${local.kafka_cluster_id} \
   -e KAFKA_CLUSTER_ID=${local.kafka_cluster_id} \
-  -e KAFKA_LOG_DIRS=/var/lib/kafka/data \
+  -e KAFKA_LOG_DIRS=/var/lib/kafka/data/kafka \
   -v /var/lib/kafka/data:/var/lib/kafka/data \
   apache/kafka:4.3.1
 EOF
@@ -114,6 +115,8 @@ if [ -b "$DEVICE" ]; then
   mount "$DEVICE" /var/lib/kafka/data
   echo "$DEVICE /var/lib/kafka/data ext4 defaults,nofail 0 2" >> /etc/fstab
 fi
+rm -rf /var/lib/kafka/data/lost+found
+mkdir -p /var/lib/kafka/data/kafka
 chmod -R 777 /var/lib/kafka/data
 
 # Install Docker
@@ -135,12 +138,13 @@ docker run -d --name kafka-broker \
   -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
   -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
   -e KAFKA_CONTROLLER_QUORUM_VOTERS=${local.kafka_quorum_voters} \
+  -e CLUSTER_ID=${local.kafka_cluster_id} \
   -e KAFKA_CLUSTER_ID=${local.kafka_cluster_id} \
   -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3 \
   -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3 \
   -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=2 \
   -e KAFKA_DEFAULT_REPLICATION_FACTOR=3 \
-  -e KAFKA_LOG_DIRS=/var/lib/kafka/data \
+  -e KAFKA_LOG_DIRS=/var/lib/kafka/data/kafka \
   -v /var/lib/kafka/data:/var/lib/kafka/data \
   apache/kafka:4.3.1
 EOF

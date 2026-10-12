@@ -763,13 +763,13 @@
 *   **Notes/Edge Cases**:
     *   Predictable private IP addressing for controllers eliminates circular dependency in the `KAFKA_CONTROLLER_QUORUM_VOTERS` configuration.
 
-## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 7: AWS Infrastructure Deployment (Terraform & KRaft EC2) (Date: 2026-10-12, Commit: c2c940e, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Provision a production-ready, self-managed Apache Kafka cluster in KRaft mode on AWS EC2, strictly decoupling the metadata consensus control plane from the high-throughput data brokers across 3 Availability Zones.
 *   **Actions**:
     *   Expanded `aws_subnet.public` and route table associations in `iaac/aws/terraform/network.tf` from 2 to 3 to span 3 distinct Availability Zones.
     *   Added Kafka cluster configuration variables in `iaac/aws/terraform/variables.tf` (`create_kafka_cluster`, `kafka_key_name`, instance types, EBS size).
     *   Configured dedicated security groups in `iaac/aws/terraform/security.tf`: `photoz-kafka-controller-sg` (port 9093 internal quorum) and `photoz-kafka-broker-sg` (port 9092 PLAINTEXT accessible to App nodes and brokers).
-    *   Created `iaac/aws/terraform/kafka.tf` provisioning 3 dedicated KRaft Controllers (`t3.medium`) and 3 dedicated Brokers (`t3.medium`) with 50GB gp3 EBS volumes (`/var/lib/kafka/data`), deterministic private IPs, and Docker KRaft automated user_data.
+    *   Created `iaac/aws/terraform/kafka.tf` provisioning 3 dedicated KRaft Controllers (`t3.medium`) and 3 dedicated Brokers (`t3.medium`) with gp3 EBS volumes (`/var/lib/kafka/data`), deterministic private IPs, and Docker KRaft automated user_data.
     *   Updated App Node launch template in `iaac/aws/terraform/main.tf` to inject `KAFKA_BOOTSTRAP_SERVERS` into `.env`.
     *   Added outputs in `iaac/aws/terraform/outputs.tf` for controller IPs, broker IPs, and bootstrap servers.
     *   Documented deployment and verification commands in `chapter06/kafka/README.md`.
@@ -777,6 +777,16 @@
 *   **Notes/Edge Cases**:
     *   Using static private IP mapping (`10.0.${i}.20` for controllers, `10.0.${i}.30` for brokers) eliminated circular dependencies during quorum voter configuration and bootstrap discovery.
     *   EBS attachment script in broker user_data dynamically accommodates both standard xen (`/dev/xvdf`) and Nitro NVMe (`/dev/nvme*n1`) device paths.
+
+## Phase: Phase 7: Kafka Broker Log Directory Isolation & PgBouncer Post-Restart Pool Reset (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+*   **Rationale**: Fix runtime failures on AWS deployment where Kafka brokers crash on startup due to ext4 filesystem artifacts and Django fails to query the database due to cached DNS/login errors in PgBouncer.
+*   **Actions**:
+    *   Updated `iaac/aws/terraform/kafka.tf` user_data to isolate Kafka log storage into `/var/lib/kafka/data/kafka` and set `KAFKA_LOG_DIRS=/var/lib/kafka/data/kafka`, preventing `lost+found` at the EBS mount root from crashing Kafka LogManager.
+    *   Added `CLUSTER_ID` alongside `KAFKA_CLUSTER_ID` in `kafka.tf` docker environments for strict container script compatibility.
+    *   Updated `iaac/aws/terraform/main.tf` to restart PgBouncer (`docker compose -f docker-compose-db.yml restart pgbouncer`) after the PostgreSQL restart check passes, resetting stale DNS and cached connection errors.
+*   **Notes/Edge Cases**:
+    *   Kafka requires log directories to contain only topic-partition folders; mounting an ext4 volume at the root of `KAFKA_LOG_DIRS` causes `KafkaException: Found directory lost+found`. Isolate Kafka data to a child directory to insulate against filesystem artifacts.
+
 
 
 
