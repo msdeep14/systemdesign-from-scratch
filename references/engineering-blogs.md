@@ -11,3 +11,6 @@ I've read many-many engineering blogs for research on this project. I'll try to 
 * [Messaging at Scale at Instagram, Pycon 2013](https://www.youtube.com/watch?v=E708csv4XgY)
 * [Cassandra at Instagram, Cassandra Summit 2016](https://www.slideshare.net/slideshow/cassandra-at-instagram-2016/65959717#1)
 * [Scaling Instagram Infrastructure, InfoQ London 2017](https://www.youtube.com/watch?v=hnpzNAPiC0E)
+* [DoorDash RabbitMQ Celery migration to Apache Kafka](https://careersatdoordash.com/blog/eliminating-task-processing-outages-with-kafka/)
+* [Migrating Critical Traffic, Netflix Part 1](https://netflixtechblog.com/migrating-critical-traffic-at-scale-with-no-downtime-part-1-ba1c7a1c7835)
+* * [Migrating Critical Traffic, Netflix Part 2](https://netflixtechblog.com/migrating-critical-traffic-at-scale-with-no-downtime-part-2-4b1c8c7155c1)

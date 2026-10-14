@@ -53,16 +53,16 @@
       "description": "Object storage for uploaded photos."
     },
     {
-      "unique-id": "celery-worker",
+      "unique-id": "kafka-cluster",
       "node-type": "service",
-      "name": "Celery Worker",
-      "description": "Executes background async tasks and batch database writes."
+      "name": "Kafka Cluster (KRaft)",
+      "description": "Distributed event streaming platform and commit log for asynchronous decoupling."
     },
     {
-      "unique-id": "celery-beat",
+      "unique-id": "kafka-consumers",
       "node-type": "service",
-      "name": "Celery Beat",
-      "description": "Distributed scheduler (via RedBeat) pushing periodic tasks to the queue."
+      "name": "Kafka Consumer Daemons",
+      "description": "Background consumer processes that pull events from Kafka and persist batch writes."
     }
   ],
   "relationships": [
@@ -196,41 +196,41 @@
       "description": "Downloads and views photos"
     },
     {
-      "unique-id": "celerybeat-to-cache",
+      "unique-id": "webapp-to-kafka",
       "relationship-type": {
         "connects": {
           "source": {
-            "node": "celery-beat"
+            "node": "web-app"
           },
           "destination": {
-            "node": "cache"
+            "node": "kafka-cluster"
           }
         }
       },
       "protocol": "TCP",
-      "description": "Pushes scheduled tasks to queue"
+      "description": "Publishes asynchronous events to"
     },
     {
-      "unique-id": "celeryworker-to-cache",
+      "unique-id": "consumers-to-kafka",
       "relationship-type": {
         "connects": {
           "source": {
-            "node": "celery-worker"
+            "node": "kafka-consumers"
           },
           "destination": {
-            "node": "cache"
+            "node": "kafka-cluster"
           }
         }
       },
       "protocol": "TCP",
-      "description": "Pulls tasks from queue"
+      "description": "Consumes event batches from"
     },
     {
-      "unique-id": "celeryworker-to-primarydb",
+      "unique-id": "consumers-to-primarydb",
       "relationship-type": {
         "connects": {
           "source": {
-            "node": "celery-worker"
+            "node": "kafka-consumers"
           },
           "destination": {
             "node": "primary-db"
@@ -238,7 +238,22 @@
         }
       },
       "protocol": "TCP",
-      "description": "Bulk writes to database"
+      "description": "Bulk writes and updates"
+    },
+    {
+      "unique-id": "consumers-to-cache",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "kafka-consumers"
+          },
+          "destination": {
+            "node": "cache"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Updates and invalidates cache keys in"
     }
   ]
 }

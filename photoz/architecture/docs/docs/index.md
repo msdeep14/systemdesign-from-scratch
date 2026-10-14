@@ -24,15 +24,15 @@ config:
 ---
 %%{init: {"layout": "elk", "flowchart": {"htmlLabels": false}}}%%
 flowchart TB
-classDef boundary fill:#e1e4f0,stroke:#204485,stroke-dasharray: 5 4,stroke-width:1px,color:#000000;
-classDef node fill:#eef1ff,stroke:#007dff,stroke-width:1px,color:#000000;
-classDef iface fill:#f0f0f0,stroke:#b6b6b6,stroke-width:1px,font-size:10px,color:#000000;
-classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
+classDef boundary fill:#ffffff,stroke:#000000,stroke-dasharray: 5 4,stroke-width:1px,color:#000000;
+classDef node fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
+classDef iface fill:#ffffff,stroke:#000000,stroke-width:1px,font-size:10px,color:#000000;
+classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
 
 
     s3["Amazon S3"]:::node
-    celery-beat["Celery Beat"]:::node
-    celery-worker["Celery Worker"]:::node
+    kafka-cluster["Kafka Cluster (KRaft)"]:::node
+    kafka-consumers["Kafka Consumer Daemons"]:::node
     cdn["CloudFront CDN"]:::node
     web-app["Django App Servers"]:::node
     load-balancer["Nginx Load Balancer"]:::node
@@ -50,9 +50,10 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
     cdn -->|Fetches images from origin| s3
     node_end-user -->|Browses the site, manages profile, and uploads photos| load-balancer
     node_end-user -->|Downloads and views photos| cdn
-    celery-beat -->|Pushes scheduled tasks to queue| cache
-    celery-worker -->|Pulls tasks from queue| cache
-    celery-worker -->|Bulk writes to database| primary-db
+    web-app -->|Publishes asynchronous events to| kafka-cluster
+    kafka-consumers -->|Consumes event batches from| kafka-cluster
+    kafka-consumers -->|Bulk writes and updates| primary-db
+    kafka-consumers -->|Updates and invalidates cache keys in| cache
 
 
 
@@ -67,8 +68,8 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
 - [Redis Cache](nodes/cache)
 - [CloudFront CDN](nodes/cdn)
 - [Amazon S3](nodes/s3)
-- [Celery Worker](nodes/celery-worker)
-- [Celery Beat](nodes/celery-beat)
+- [Kafka Cluster (KRaft)](nodes/kafka-cluster)
+- [Kafka Consumer Daemons](nodes/kafka-consumers)
 
 ## Relationships
 - [Lb To Webapp](relationships/lb-to-webapp)
@@ -80,9 +81,10 @@ classDef highlight fill:#fdf7ec,stroke:#f0c060,stroke-width:1px,color:#000000;
 - [Cdn To S3](relationships/cdn-to-s3)
 - [User To Lb](relationships/user-to-lb)
 - [User To Cdn](relationships/user-to-cdn)
-- [Celerybeat To Cache](relationships/celerybeat-to-cache)
-- [Celeryworker To Cache](relationships/celeryworker-to-cache)
-- [Celeryworker To Primarydb](relationships/celeryworker-to-primarydb)
+- [Webapp To Kafka](relationships/webapp-to-kafka)
+- [Consumers To Kafka](relationships/consumers-to-kafka)
+- [Consumers To Primarydb](relationships/consumers-to-primarydb)
+- [Consumers To Cache](relationships/consumers-to-cache)
 
 ## Flows
 _No flows defined._

@@ -18,8 +18,11 @@ workspace "Photoz" "A photo-sharing social network" {
                     newsfeedApp = component "Newsfeed App" "Feed Logic" "Django App"
                     notificationsApp = component "Notifications App" "Notifications" "Django App"
                 }
-                celeryWorker = container "Celery Worker" "Background tasks" "Celery" "Worker"
-                celeryBeat = container "Celery Beat" "Distributed Task Scheduler" "Celery and RedBeat" "Worker"
+                kafkaConsumers = container "Kafka Consumers" "Event consumers" "Python Daemons" "Worker"
+            }
+            
+            group "Kafka Cluster (KRaft)" {
+                kafkaCluster = container "Kafka Cluster" "(KRaft)" "Apache Kafka" "Queue"
             }
             
             group "Database Node" {
@@ -31,7 +34,7 @@ workspace "Photoz" "A photo-sharing social network" {
             }
             
             group "Redis Node" {
-                cache = container "Cache and Message Broker" "Cache and Queue" "Redis" "Cache"
+                cache = container "Redis Cache" "In-memory cache for newsfeeds, rate limits, and like sets" "Redis" "Cache"
             }
         }
 
@@ -53,10 +56,10 @@ workspace "Photoz" "A photo-sharing social network" {
         webApp -> cache "Caches/Reads"
         webApp -> s3 "Uploads"
         
-        celeryBeat -> cache "Pushes tasks"
-        celeryWorker -> cache "Pulls tasks"
-        celeryWorker -> databasePrimary "Bulk writes"
-        webApp -> cache "Pushes tasks"
+        webApp -> kafkaCluster "Publishes events (likes, follows, uploads, notifications, deletions)"
+        kafkaConsumers -> kafkaCluster "Consumes event batches"
+        kafkaConsumers -> databasePrimary "Bulk writes & updates"
+        kafkaConsumers -> cache "Invalidates & updates caches"
 
         # Component Relationships (High-Level Intent)
         usersApp -> databasePrimary "User Data"
@@ -71,6 +74,10 @@ workspace "Photoz" "A photo-sharing social network" {
         loadBalancer -> newsfeedApp "Routes"
         
         photosApp -> s3 "Uploads"
+        photosApp -> kafkaCluster "Publishes like and upload events"
+        usersApp -> kafkaCluster "Publishes follow events"
+        notificationsApp -> kafkaCluster "Publishes notification events"
+        newsfeedApp -> kafkaCluster "Publishes deletion events"
     }
 
     views {
@@ -94,37 +101,53 @@ workspace "Photoz" "A photo-sharing social network" {
         styles {
             element "Element" {
                 fontSize 32
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Software System" {
-                background #1168bd
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Container" {
-                background #438dd5
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "WebApp" {
-                background #205c40
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Worker" {
-                background #4a9c6d
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
+            }
+            element "Queue" {
+                shape Pipe
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Database" {
                 shape Cylinder
-                background #b03a2e
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Cache" {
                 shape Cylinder
-                background #d35400
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             element "Person" {
                 shape Person
-                background #08427b
-                color #ffffff
+                background #ffffff
+                color #000000
+                stroke #000000
             }
             relationship "Relationship" {
                 fontSize 40

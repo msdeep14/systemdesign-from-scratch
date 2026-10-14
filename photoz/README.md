@@ -79,8 +79,8 @@ docker compose down
 ### Adding or Updating Dependencies
 When you add or update dependencies in `requirements.txt`, running `docker-compose restart` will not install them because existing container images are not rebuilt. You must rebuild the images and recreate the containers:
 ```bash
-docker compose build web celery
-docker compose up -d web celery
+docker compose build web consumers
+docker compose up -d web consumers
 ```
 Or rebuild the entire cluster:
 ```bash
@@ -165,6 +165,61 @@ pylint \
 ### CI enforcement
 
 The GitHub Actions `deploy.yml` runs a `lint` job on every push to `main` and `staging`. The `test` job only runs if `lint` passes, so a failing lint check blocks the full deploy pipeline.
+
+## Architecture as Code (C4 Model & CALM)
+
+Photoz maintains its software architecture as code using the C4 model (Structurizr) and FINOS CALM.
+
+### 1. Structurizr (C4 Model)
+
+The architecture is defined in `photoz/structurizr/workspace.dsl`.
+
+#### Run and View Locally
+Run the Structurizr Docker container to view the diagrams in your browser:
+```bash
+cd photoz
+docker run -it --rm -p 8080:8080 -v $(pwd)/structurizr:/usr/local/structurizr structurizr/structurizr local
+```
+Open `http://localhost:8080` in your browser. Any updates made to `workspace.dsl` reflect automatically.
+
+#### Generate Level 4 (Code / ER) Diagrams
+Structurizr models Levels 1 to 3 (Context, Containers, Components). To generate an Entity-Relationship (ER) diagram directly from Django models:
+```bash
+cd photoz
+source venv/bin/activate
+python manage.py graph_models -a -o models_code_view.png
+```
+
+### 2. FINOS Architecture as Code (CALM)
+
+The CALM architecture model is defined in `photoz/architecture/photoz.calm.json` and validated against architectural guardrails in `photoz/architecture/guardrails.pattern.json`.
+
+#### Install CALM CLI
+Install the CLI globally:
+```bash
+npm install -g @finos/calm-cli@latest
+```
+
+#### Validate the Architecture
+To validate the architecture against the FINOS schema and guardrails:
+```bash
+cd photoz
+calm validate -a architecture/photoz.calm.json -p architecture/guardrails.pattern.json
+```
+This validation also runs automatically on `git commit` via `pre-commit`.
+
+#### Generate Architecture Documentation Site
+To generate the Docusaurus documentation site with Mermaid flowchart diagrams:
+```bash
+cd photoz
+calm docify -a architecture/photoz.calm.json -o architecture/docs
+
+# Serve the site locally
+cd architecture/docs
+npm install
+npm run start
+```
+Open `http://localhost:3000` to view the documentation site.
 
 ## Production Deployment (AWS EC2 / Docker)
 

@@ -787,7 +787,7 @@
 *   **Notes/Edge Cases**:
     *   Kafka requires log directories to contain only topic-partition folders; mounting an ext4 volume at the root of `KAFKA_LOG_DIRS` causes `KafkaException: Found directory lost+found`. Isolate Kafka data to a child directory to insulate against filesystem artifacts.
 
-## Phase: Phase 7: Kafka Consumer Auto-Orchestration & Idempotent Like Counter Fix (Date: 2026-10-12, Commit: Pending, Model: Gemini 3.1 Pro High)
+## Phase: Phase 7: Kafka Consumer Auto-Orchestration & Idempotent Like Counter Fix (Date: 2026-10-12, Commit: 8415f06d4125acd207b5756db56e235f19651b77, Model: Gemini 3.1 Pro High)
 *   **Rationale**: Fix UI bug where like count increments infinitely on repetitive clicks due to absence of running Kafka consumers and lack of idempotent state tracking, and resolve query_wait_timeout caused by Postgres connection pool starvation.
 *   **Actions**:
     *   Added `consumers` service to `photoz/docker-compose-app.yml` executing all 5 Kafka consumer daemons (`run_kafka_consumers`, `run_followers_consumer`, `run_uploads_consumer`, `run_notifications_consumer`, `run_deletions_consumer`) under Docker process supervision.
@@ -798,6 +798,17 @@
     *   Added `admin_users` and `stats_users` to `pgbouncer.ini` and `pgbouncer-replica.ini` and scaled `default_pool_size` to 25.
 *   **Notes/Edge Cases**:
     *   Redis sets provide instantaneous sub-millisecond like state resolution while Kafka consumes and writes in the background, preventing race conditions during rapid clicking.
+
+## Phase: C4 Model & CALM Architecture Update with Kafka Integration (Date: 2026-10-13, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Bring architecture models into full alignment with the Celery decommission and Kafka KRaft cluster integration, and provide clear operational documentation for generating C4 diagrams and validating CALM schemas.
+*   **Actions**:
+    *   Updated Structurizr C4 model in `photoz/structurizr/workspace.dsl` removing obsolete Celery Worker and Celery Beat containers, adding Kafka Consumers on App nodes and Kafka Cluster (KRaft), updating event publish/consume relationships, and adding Queue element styling.
+    *   Updated FINOS CALM architecture model in `photoz/architecture/photoz.calm.json` replacing Celery service nodes with `kafka-cluster` and `kafka-consumers`, and updating relationship topologies for TCP event publishing, consumption, and cache invalidation.
+    *   Updated Mermaid diagrams and node links in `photoz/architecture/docs/docs/index.md` to reflect the Kafka architecture.
+    *   Updated `photoz/README.md` adding instructions for running the Structurizr C4 viewer locally via Docker, generating Level 4 ER code diagrams with `graph_models`, validating CALM models with `@finos/calm-cli`, and serving the documentation site.
+    *   Set Structurizr C4 element styles and Mermaid nodes to plain white backgrounds (`#ffffff`), black text (`#000000`), and black borders (`#000000`).
+*   **Notes/Edge Cases**:
+    *   CALM guardrail validation (`guardrails.pattern.json`) confirms zero direct writes to replicas and strict S3 access isolation through the CDN.
 
 
 
