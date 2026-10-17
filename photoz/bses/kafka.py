@@ -209,6 +209,42 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
 
         return payloads
 
+    def _compute_batch_timelag(self, msgs: list) -> float:
+        """Calculate processing delay in seconds from newest record timestamp in batch."""
+        newest_ts = 0
+        for msg in msgs:
+            _ts_type, ts_val = msg.timestamp()
+            newest_ts = max(newest_ts, ts_val)
+
+        if newest_ts > 0:
+            return round(max(0.0, time.time() - (newest_ts / 1000.0)), 2)
+        return 0.0
+
+    def _emit_consumer_metrics(self, batch_size: int, time_lag: float) -> None:
+        """Emit CloudWatch EMF metrics for consumer batch commit."""
+        topic_name = settings.KAFKA_TOPICS.get(self.topic_key, {}).get("name", self.topic_key)
+        emf_payload = {
+            "_aws": {
+                "Timestamp": int(time.time() * 1000),
+                "CloudWatchMetrics": [
+                    {
+                        "Namespace": "PhotoZ/Kafka",
+                        "Dimensions": [["Topic", "ConsumerGroup"]],
+                        "Metrics": [
+                            {"Name": "TimeLagSeconds", "Unit": "Seconds"},
+                            {"Name": "BatchRecordsProcessed", "Unit": "Count"},
+                        ],
+                    }
+                ],
+            },
+            "Topic": topic_name,
+            "ConsumerGroup": self.group_id,
+            "TimeLagSeconds": time_lag,
+            "BatchRecordsProcessed": batch_size,
+        }
+        metrics_logger = logging.getLogger("metrics")
+        metrics_logger.info(json.dumps(emf_payload))
+
     def _consume_loop(self, consumer: Consumer) -> None:
         """Poll batches and commit offsets upon successful persistence."""
         while True:
@@ -221,8 +257,10 @@ class BaseKafkaConsumerCommand(BaseCommand, ABC):
                 consumer.commit()
                 continue
 
+            time_lag = self._compute_batch_timelag(msgs)
             self.handle_payloads(payloads)
             consumer.commit()
+            self._emit_consumer_metrics(len(payloads), time_lag)
 
     def _handle_record_failure(self, pair: tuple[int, int], err: Exception) -> None:
         """Route failed record to DLQ and log to stderr."""

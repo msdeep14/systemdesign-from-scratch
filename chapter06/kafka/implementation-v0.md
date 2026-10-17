@@ -249,3 +249,123 @@
   Add AWS deployment instructions, architecture description, and validation commands to `chapter06/kafka/README.md`.
 - [x] **Step 3: Update execution logs**
   Log actions and decisions in `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.
+
+---
+
+# Phase 8: Kafka Queue & Lag Metrics via CloudWatch EMF Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Collect and export queue backlog, consumer lag, message time lag, and dead-letter queue metrics across all Kafka topics to AWS CloudWatch using Embedded Metric Format (EMF), with automated CloudWatch alarms and monitoring dashboards.
+
+**Architecture:** 
+1. Maintain cost efficiency by aggregating 250 partition streams into Topic + Consumer Group dimensions, keeping CloudWatch custom metric counts under 10 ($3/month).
+2. A standalone monitoring command (`run_kafka_metrics`) queries partition watermarks and committed consumer group offsets via Kafka client APIs, computes `ConsumerLag`, `MaxPartitionLag`, `LogEndOffset`, `TimeLagSeconds`, and `DLQDepth`, and emits EMF JSON logs to `stdout`.
+3. In-flight consumer loops in `BaseKafkaConsumerCommand` calculate real-time batch `TimeLagSeconds` based on record creation timestamps and emit EMF telemetry upon batch commit.
+4. Add the metrics daemon to `docker-compose-app.yml` to run under container process supervision and stream to CloudWatch Logs via Docker's `awslogs` driver.
+5. Provision Terraform CloudWatch Alarms for backlog spikes, stalled consumers, and poison pills, accompanied by a unified Kafka health dashboard.
+
+**Tech Stack:** Python 3.12, confluent-kafka 2.16.0, Django 5.0, AWS CloudWatch (EMF, Metrics, Alarms), Terraform.
+
+**Spec:** Chapter 6 - Phase 8: Kafka Queue & Observability System.
+
+## Global Constraints
+- Code changes must adhere to modular monolith boundaries enforced by `import-linter`.
+- Pylint score must remain at 10.00/10.
+- All `try/except` blocks must conform to the canonical `[call, return]` pattern to satisfy `drift-analyzer`.
+- No auto-commit. The user will review and commit manually.
+- Plain English documentation and logs only; no emojis in code or messages.
+- No inline imports. All imports must be declared at the top of the file.
+
+---
+
+### Task 1: Core Kafka Metrics Collector Service & App Configuration
+**Files:**
+- Create: `photoz/bses/apps.py`
+- Modify: `photoz/bses/settings.py`
+- Create: `photoz/bses/kafka_metrics.py`
+- Create: `photoz/tests/test_kafka_metrics.py`
+
+**Interfaces:**
+- Produces: `collect_all_kafka_metrics(bootstrap_servers: str | None = None) -> list[dict[str, Any]]`
+- Produces: `compute_topic_metrics(topic_name: str, consumer_group: str, num_partitions: int, consumer: Any) -> dict[str, Any]`
+- Produces: `compute_dlq_metrics(dlq_topic_name: str, num_partitions: int, consumer: Any) -> dict[str, Any]`
+
+- [x] **Step 1: Write unit tests for metric computation and EMF formatting**
+  Create `photoz/tests/test_kafka_metrics.py` testing partition lag calculation, handling of uncommitted offsets (`-1001`), `MaxPartitionLag`, `DLQDepth`, and EMF JSON structure validation.
+- [x] **Step 2: Run test to verify it fails**
+  Run: `source ./photoz/venv/bin/activate && cd photoz && pytest tests/test_kafka_metrics.py`
+  Expected: FAIL with ModuleNotFoundError or ImportError.
+- [x] **Step 3: Create `bses/apps.py` and register in `settings.py`**
+  Create `BsesConfig` in `photoz/bses/apps.py` and add `"bses.apps.BsesConfig"` to `INSTALLED_APPS` in `photoz/bses/settings.py`. Add `KAFKA_METRICS_INTERVAL_SECONDS = 60` to settings.
+- [x] **Step 4: Implement `photoz/bses/kafka_metrics.py`**
+  Implement watermark queries, offset comparisons, record age timestamp checks, and EMF payload formatting.
+- [x] **Step 5: Run tests to verify they pass**
+  Run: `source ./photoz/venv/bin/activate && cd photoz && pytest tests/test_kafka_metrics.py`
+  Expected: PASS.
+
+---
+
+### Task 2: Management Command `run_kafka_metrics` & Consumer Batch Telemetry
+**Files:**
+- Create: `photoz/bses/management/commands/run_kafka_metrics.py`
+- Modify: `photoz/bses/kafka.py`
+- Create: `photoz/tests/test_kafka_metrics_command.py`
+
+**Interfaces:**
+- Command: `python manage.py run_kafka_metrics [--once]`
+- Emits: EMF JSON objects to `metrics` logger (`PhotoZ/Kafka` namespace).
+- Consumer metric: `BaseKafkaConsumerCommand` emits batch `TimeLagSeconds` and `BatchSize`.
+
+- [x] **Step 1: Write test for `run_kafka_metrics` management command**
+  Create `photoz/tests/test_kafka_metrics_command.py` verifying `--once` execution and stdout EMF logging.
+- [x] **Step 2: Implement `run_kafka_metrics.py` command**
+  Add Django management command with `--once` flag and daemon loop polling every `KAFKA_METRICS_INTERVAL_SECONDS`.
+- [x] **Step 3: Update `BaseKafkaConsumerCommand` in `bses/kafka.py`**
+  Compute batch message age (`TimeLagSeconds`) from record timestamps and emit batch metrics on commit.
+- [x] **Step 4: Run command tests to verify they pass**
+  Run: `source ./photoz/venv/bin/activate && cd photoz && pytest tests/test_kafka_metrics_command.py`
+  Expected: PASS.
+
+---
+
+### Task 3: Container Orchestration & Docker Compose
+**Files:**
+- Modify: `photoz/docker-compose-app.yml`
+
+**Interfaces:**
+- Daemon execution: `python manage.py run_kafka_metrics &` supervised in `consumers` service container.
+
+- [x] **Step 1: Update `consumers` service command in `docker-compose-app.yml`**
+  Add `python manage.py run_kafka_metrics &` before `wait -n`.
+
+---
+
+### Task 4: Terraform CloudWatch Alarms & Monitoring Dashboard
+**Files:**
+- Create: `iaac/aws/terraform/kafka_monitoring.tf`
+
+**Interfaces:**
+- Produces: `aws_cloudwatch_metric_alarm.kafka_high_lag`, `aws_cloudwatch_metric_alarm.kafka_high_timelag`, `aws_cloudwatch_metric_alarm.kafka_dlq_alert`, `aws_cloudwatch_dashboard.kafka_metrics`.
+
+- [x] **Step 1: Create `kafka_monitoring.tf` in Terraform**
+  Configure CloudWatch Metric Alarms for high consumer lag (>5,000 for 2 periods), high time lag (>300s for 2 periods), and DLQ poison pills (>0 for 1 period). Add a CloudWatch dashboard showing lag by topic, max partition skew, and DLQ depth.
+- [x] **Step 2: Validate Terraform configuration**
+  Run: `cd iaac/aws/terraform && terraform validate`
+  Expected: Success.
+
+---
+
+### Task 5: End-to-End Verification, Execution Logging & Documentation
+**Files:**
+- Modify: `chapter06/kafka/execution-v0.md`
+- Modify: `photoz/skills/execution-v0.md`
+- Modify: `chapter06/kafka/README.md`
+- Run: `pre-commit run --all-files`
+
+- [x] **Step 1: Run all pre-commit checks**
+  Run: `source ./photoz/venv/bin/activate && pre-commit run --all-files`
+  Verify all 6 checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly.
+- [x] **Step 2: Update README and execution logs**
+  Document metrics usage in `chapter06/kafka/README.md` and append phase logs to `chapter06/kafka/execution-v0.md` and `photoz/skills/execution-v0.md`.
+

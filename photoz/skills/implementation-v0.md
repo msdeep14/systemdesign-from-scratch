@@ -71,4 +71,14 @@ Provision a self-managed KRaft Kafka cluster on AWS EC2 using Terraform:
 *   Strict security groups isolating controller quorum (9093) and broker client/replication traffic (9092).
 *   Automatic injection of `KAFKA_BOOTSTRAP_SERVERS` into App node environments.
 
+## Phase: Kafka Queue & Lag Metrics via CloudWatch EMF (Phase 8)
+### The Problem
+Kafka lacks native "queue length" visibility in application monitoring. Naive per-partition metric streaming to CloudWatch generates hundreds of custom metric streams incurring high costs. Unobserved consumer stalls, partition skew, and dead-letter queue accumulations can cause unnotified processing delays or silent message loss.
+### The Solution
+Implement aggregated topic-level queue and lag metrics using CloudWatch Embedded Metric Format (EMF):
+*   A standalone monitoring command `run_kafka_metrics` queries partition watermarks and consumer offsets every 60s, computing `ConsumerLag`, `MaxPartitionLag`, `LogEndOffset`, `TimeLagSeconds`, and `DLQDepth`.
+*   Emits EMF JSON to stdout without HTTP overhead or custom metric API costs, streamed to CloudWatch Logs via Docker's `awslogs` driver.
+*   `BaseKafkaConsumerCommand` calculates in-flight batch `TimeLagSeconds` based on Kafka message timestamps.
+*   Terraform CloudWatch Alarms trigger on high consumer lag, high time lag, and dead-letter queue records.
+
 

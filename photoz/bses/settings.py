@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "storages",
     "django.contrib.postgres",
     # Local apps
+    "bses.apps.BsesConfig",
     "users.apps.UsersConfig",
     "photos.apps.PhotosConfig",
     "newsfeed.apps.NewsfeedConfig",
@@ -305,29 +306,36 @@ KAFKA_TOPICS = {
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,
+        "consumer_group": "photoz-likes-group",
     },
     "uploads": {
         "name": "photo.events.uploads",
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,
+        "consumer_group": "photoz-uploads-group",
     },
     "follows": {
         "name": "photo.events.follows",
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,
+        "consumer_group": "photoz-followers-group",
     },
     "notifications": {
         "name": "photo.events.notifications",
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,
+        "consumer_group": "photoz-notifications-group",
     },
     "deletions": {
         "name": "photo.events.deletions",
         "partitions": 50,
         "replication_factor": 1,
         "dlq": True,
+        "consumer_group": "photoz-deletions-group",
     },
 }
+
+KAFKA_METRICS_INTERVAL_SECONDS = int(os.environ.get("KAFKA_METRICS_INTERVAL_SECONDS", "60"))

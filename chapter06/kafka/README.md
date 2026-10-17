@@ -378,3 +378,66 @@ In Phase 7, the Apache Kafka cluster is provisioned on AWS EC2 using Terraform i
    # Run topic setup against the cluster
    docker exec -it photoz-web-1 python kafka_setup.py
    ```
+
+## Phase 8: Kafka Queue & Lag Metrics via CloudWatch EMF
+
+Phase 8 introduces production-grade Kafka queue observability without incurring the cost of high-cardinality partition metrics.
+
+### 1. Architectural Strategy
+
+- **Embedded Metric Format (EMF)**: Instead of calling AWS `PutMetricData` HTTP APIs, metrics are emitted as structured JSON to `stdout` and ingested automatically via Docker's `awslogs` driver.
+- **Topic-Level Aggregation**: Metrics are aggregated across all 50 partitions per topic. This collapses 1,250 potential custom metric combinations down to 10 metric sets, keeping monthly CloudWatch costs under $3.
+- **Metrics Collected**:
+  - `ConsumerLag`: Sum of pending unconsumed messages across all partitions (`LogEndOffset - CommittedOffset`).
+  - `MaxPartitionLag`: Maximum backlog on any single partition, exposing partition skew or stuck consumer threads.
+  - `LogEndOffset`: Cumulative high watermark, representing total lifetime ingestion.
+  - `TimeLagSeconds`: Processing delay in seconds between real time and the oldest unconsumed message timestamp.
+  - `DLQDepth`: Cumulative records in `{topic}.dlq` topics, alerting to poison pills.
+
+### 2. Running and Testing Locally
+
+1. **Run a Single Metrics Collection Cycle:**
+   ```bash
+   python manage.py run_kafka_metrics --once
+   ```
+
+2. **Run Continuous Monitoring Daemon (60s default interval):**
+   ```bash
+   python manage.py run_kafka_metrics
+   ```
+
+3. **Inspect Output EMF Logs:**
+   ```json
+   {
+     "_aws": {
+       "Timestamp": 1729147500000,
+       "CloudWatchMetrics": [
+         {
+           "Namespace": "PhotoZ/Kafka",
+           "Dimensions": [["Topic", "ConsumerGroup"]],
+           "Metrics": [
+             {"Name": "ConsumerLag", "Unit": "Count"},
+             {"Name": "MaxPartitionLag", "Unit": "Count"},
+             {"Name": "LogEndOffset", "Unit": "Count"},
+             {"Name": "TimeLagSeconds", "Unit": "Seconds"}
+           ]
+         }
+       ]
+     },
+     "Topic": "photo.events.likes",
+     "ConsumerGroup": "photoz-likes-group",
+     "ConsumerLag": 10,
+     "MaxPartitionLag": 2,
+     "LogEndOffset": 10,
+     "TimeLagSeconds": 1.2
+   }
+   ```
+
+### 3. Terraform CloudWatch Alarms & Dashboard
+
+Provisioned via `iaac/aws/terraform/kafka_monitoring.tf`:
+- `aws_cloudwatch_metric_alarm.kafka_high_lag`: Triggers if `ConsumerLag > 5000` for 2 consecutive minutes.
+- `aws_cloudwatch_metric_alarm.kafka_high_timelag`: Triggers if `TimeLagSeconds > 300` (5 minutes delay) for 2 consecutive minutes.
+- `aws_cloudwatch_metric_alarm.kafka_dlq_records`: Triggers immediately if `DLQDepth > 0`.
+- `aws_cloudwatch_dashboard.kafka_health`: Visualizes lag, partition skew, delay, and DLQs in a single console.
+

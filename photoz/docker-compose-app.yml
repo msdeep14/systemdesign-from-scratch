@@ -49,6 +49,7 @@ services:
       python manage.py run_uploads_consumer &
       python manage.py run_notifications_consumer &
       python manage.py run_deletions_consumer &
+      python manage.py run_kafka_metrics &
       wait -n"
     volumes:
       - .:/app

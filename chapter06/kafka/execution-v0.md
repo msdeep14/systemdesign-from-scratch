@@ -132,7 +132,7 @@
 *   **Notes/Edge Cases**:
     *   Redis sets provide instantaneous sub-millisecond like state resolution while Kafka consumes and writes in the background, preventing race conditions during rapid clicking.
 
-## Phase: C4 Model & CALM Architecture Update with Kafka Integration (Date: 2026-10-13, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: C4 Model & CALM Architecture Update with Kafka Integration (Date: 2026-10-13, Commit: 7e5befea900cdbac5623defc3046cc405d022f91, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Bring architecture models into full alignment with the Celery decommission and Kafka KRaft cluster integration, and provide clear operational documentation for generating C4 diagrams and validating CALM schemas.
 *   **Actions**:
     *   Updated Structurizr C4 model in `photoz/structurizr/workspace.dsl` removing obsolete Celery Worker and Celery Beat containers, adding Kafka Consumers on App nodes and Kafka Cluster (KRaft), updating event publish/consume relationships, and adding Queue element styling.
@@ -142,6 +142,26 @@
     *   Set Structurizr C4 element styles and Mermaid nodes to plain white backgrounds (`#ffffff`), black text (`#000000`), and black borders (`#000000`).
 *   **Notes/Edge Cases**:
     *   CALM guardrail validation (`guardrails.pattern.json`) confirms zero direct writes to replicas and strict S3 access isolation through the CDN.
+
+## Phase: Phase 8: Kafka Queue & Lag Metrics via CloudWatch EMF (Date: 2026-10-17, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Expose queue backlog, consumer lag, and processing delay metrics without incurring high custom metric storage costs or network latency by aggregating metrics at the topic level and emitting CloudWatch Embedded Metric Format (EMF) JSON to stdout.
+*   **Actions**:
+    *   Created `photoz/bses/apps.py` registering `BsesConfig` and added `bses.apps.BsesConfig` to `INSTALLED_APPS` in `photoz/bses/settings.py`.
+    *   Configured `consumer_group` mappings for all topics in `KAFKA_TOPICS` and set `KAFKA_METRICS_INTERVAL_SECONDS = 60` in `photoz/bses/settings.py`.
+    *   Implemented `photoz/bses/kafka_metrics.py` providing watermark queries, offset comparisons, record age timestamp extraction, DLQ depth calculation, and CloudWatch EMF payload formatting.
+    *   Implemented `photoz/bses/management/commands/run_kafka_metrics.py` supporting one-shot execution (`--once`) and continuous daemon monitoring polling every 60 seconds.
+    *   Updated `BaseKafkaConsumerCommand` in `photoz/bses/kafka.py` to calculate batch `TimeLagSeconds` based on Kafka message timestamps and emit EMF telemetry upon batch commit.
+    *   Updated `photoz/docker-compose-app.yml` adding `python manage.py run_kafka_metrics &` to the `consumers` service container command.
+    *   Created `iaac/aws/terraform/kafka_monitoring.tf` provisioning CloudWatch Metric Alarms for consumer lag (>5,000 messages), time lag (>300 seconds), and DLQ accumulation (>0 messages), plus a unified CloudWatch dashboard.
+    *   Created unit tests in `photoz/tests/test_kafka_metrics.py` and `photoz/tests/test_kafka_metrics_command.py` with negative assertions for polarity validation.
+    *   Refactored `photoz/bses/kafka_metrics.py` extracting helper functions (`_compute_partition_lags`, `_collect_single_topic_metrics`, `_query_watermarks`, `_query_committed`, `_poll_partition_timestamp`) to reduce local variable counts below Pylint limit and achieve 10.00/10 rating.
+    *   Standardized error handling blocks in `kafka_metrics.py` and `run_kafka_metrics.py` to adhere to canonical `[call, return]` AST pattern, resolving pattern fragmentation drift.
+    *   Verified all 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
+*   **Notes/Edge Cases**:
+    *   Uncommitted consumer groups report `-1001` (`OFFSET_INVALID`); handled by falling back to partition low watermark so lag defaults correctly without negative values.
+    *   Negative assertions added to tests resolved `test_polarity_deficit` drift finding without modifying `.drift-baseline.json`.
+    *   Decomposed metric gathering loops into dedicated helpers to eliminate `R0914 (too-many-locals)` and aligned exception handlers with canonical `call` and `return` actions.
+
 
 
 
