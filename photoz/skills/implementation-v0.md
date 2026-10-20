@@ -81,4 +81,11 @@ Implement aggregated topic-level queue and lag metrics using CloudWatch Embedded
 *   `BaseKafkaConsumerCommand` calculates in-flight batch `TimeLagSeconds` based on Kafka message timestamps.
 *   Terraform CloudWatch Alarms trigger on high consumer lag, high time lag, and dead-letter queue records.
 
-
+## Phase: Redis Likes Scalability & Sentinel HA Clustering (Phase 9)
+### The Problem
+A single standalone Redis instance represents a single point of failure (SPOF) and mixes multiple divergent workloads. Unbounded `photo:{photo_id}:likers` sets freeze the single-threaded Redis engine when populating celebrity photos with 100k+ likes, while 30k+ peak read QPS threatens to saturate the single core.
+### The Solution
+Implement a scalable likes architecture and deploy a high-availability Redis Sentinel cluster:
+*   Eliminate unbounded `photo:{photo_id}:likers` Redis sets in favor of bounded user-centric Redis Sets (`user:{user_id}:liked_photos`) to protect PostgreSQL connection pools while maintaining atomic counters (`photo:{photo_id}:likes_count`).
+*   Create `bses.redis_client` with `get_redis_master()` and `get_redis_replica()` providing read/write splitting with fallback to standalone `REDIS_URL`.
+*   Deploy 1 Primary, 3 Read Replicas, and 3 Sentinel nodes (quorum 2) with automated failover and dynamic replica scale-out.

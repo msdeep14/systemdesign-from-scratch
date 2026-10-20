@@ -829,9 +829,14 @@
     *   Negative assertions added to tests resolved `test_polarity_deficit` drift finding without modifying `.drift-baseline.json`.
     *   Decomposed metric gathering loops into dedicated helpers to eliminate `R0914 (too-many-locals)` and aligned exception handlers with canonical `call` and `return` actions.
 
-
-
-
-
-
-
+## Phase: Phase 9: Likes Scalability Implementation (Date: 2026-10-20, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Direct PostgreSQL queries for like checks across 500k DAU threaten PgBouncer with connection pool exhaustion, while per-photo Redis sets freeze the event loop for celebrity photos. A bounded user-centric cache (`user:{user_id}:liked_photos`) gives O(1) in-memory checks without N+1 SQL queries or unbounded memory growth.
+*   **Actions**:
+    *   Created `photoz/tests/test_likes_scalability.py` following TDD covering cache hit, cold cache hydration (up to 500 recent likes), toggling, and bulk ingest.
+    *   Refactored `is_photo_liked_by_user` in `photoz/photos/services.py` to check `user:{user_id}:liked_photos` (hydrating up to 500 recent likes from PostgreSQL on cache miss).
+    *   Refactored `toggle_photo_like_redis` in `photoz/photos/services.py` to mutate `user:{user_id}:liked_photos` (SADD/SREM) and atomic counter `photo:{photo_id}:likes_count` (INCR/DECR).
+    *   Updated `bulk_record_likes` in `photoz/photos/services.py` to update warm `user:{user_id}:liked_photos` sets and purged all references to `photo:{photo_id}:likers`.
+    *   Fixed ruff E501 line length in `services.py` docstring.
+    *   Verified all 9 unit tests and all 6 pre-commit checks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) pass cleanly with exit code 0.
+*   **Notes/Edge Cases**:
+    *   Per-user sets bound RAM consumption by human activity rather than celebrity follower counts, eliminating the 400ms event loop freeze while protecting PostgreSQL read replicas from 30k+ QPS.

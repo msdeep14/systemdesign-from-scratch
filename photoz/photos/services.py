@@ -80,40 +80,44 @@ def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool 
 
 
 def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
-    """Checks whether a user has liked a photo, checking Redis set with fallback to DB."""
-    key = f"photo:{photo_id}:likers"
-    if redis_client.exists(key):
-        return bool(redis_client.sismember(key, str(user_id)))
+    """Checks whether a user has liked a photo via user-centric Redis set with DB fallback."""
+    user_key = f"user:{user_id}:liked_photos"
+    if redis_client.exists(user_key):
+        return bool(redis_client.sismember(user_key, str(photo_id)))
 
-    # Cache miss: populate from PostgreSQL
-    liker_ids = list(Like.objects.filter(photo_id=photo_id).values_list("user_id", flat=True))
-    if liker_ids:
-        redis_client.sadd(key, *[str(uid) for uid in liker_ids])
+    # Cache miss: populate from PostgreSQL (user's recent 500 likes)
+    liked_photo_ids = list(
+        Like.objects.filter(user_id=user_id)
+        .order_by("-created_at")[:500]
+        .values_list("photo_id", flat=True)
+    )
+    if liked_photo_ids:
+        redis_client.sadd(user_key, *[str(pid) for pid in liked_photo_ids])
     else:
-        redis_client.sadd(key, "__empty__")
-    redis_client.expire(key, 86400)
+        redis_client.sadd(user_key, "__empty__")
+    redis_client.expire(user_key, 86400)
 
-    return str(user_id) in [str(uid) for uid in liker_ids]
+    return photo_id in liked_photo_ids
 
 
 def toggle_photo_like_redis(photo_id: int, user_id: int, db_likes_count: int) -> tuple[bool, int]:
     """Atomically toggle like state for user in Redis and return (has_liked, likes_count)."""
     count_key = f"photo:{photo_id}:likes_count"
-    likers_key = f"photo:{photo_id}:likers"
+    user_key = f"user:{user_id}:liked_photos"
 
     if not redis_client.exists(count_key):
         redis_client.set(count_key, db_likes_count)
 
-    if not redis_client.exists(likers_key):
+    if not redis_client.exists(user_key):
         is_photo_liked_by_user(photo_id, user_id)
 
-    is_liked = bool(redis_client.sismember(likers_key, str(user_id)))
+    is_liked = bool(redis_client.sismember(user_key, str(photo_id)))
     if is_liked:
-        redis_client.srem(likers_key, str(user_id))
+        redis_client.srem(user_key, str(photo_id))
         new_count = redis_client.decr(count_key)
         has_liked = False
     else:
-        redis_client.sadd(likers_key, str(user_id))
+        redis_client.sadd(user_key, str(photo_id))
         new_count = redis_client.incr(count_key)
         has_liked = True
 
@@ -219,7 +223,9 @@ def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
     photo_counts: dict[int, int] = defaultdict(int)
     for photo_id, user_id in new_pairs:
         photo_counts[photo_id] += 1
-        redis_client.sadd(f"photo:{photo_id}:likers", str(user_id))
+        user_key = f"user:{user_id}:liked_photos"
+        if redis_client.exists(user_key):
+            redis_client.sadd(user_key, str(photo_id))
 
     with transaction.atomic():
         Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)
