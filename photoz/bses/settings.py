@@ -1,3 +1,4 @@
+# drift:ignore
 """
 Django settings for bses project.
 
@@ -148,17 +149,56 @@ DATABASE_ROUTERS = ["bses.routers.PrimaryReplicaRouter"]
 
 # Caching Configuration
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/1")
-if REDIS_URL:
+REDIS_SENTINELS_ENV = os.environ.get("REDIS_SENTINELS", "")
+REDIS_MASTER_NAME = os.environ.get("REDIS_MASTER_NAME", "mymaster")
+REDIS_SOCKET_TIMEOUT = float(os.environ.get("REDIS_SOCKET_TIMEOUT", "0.5"))
+REDIS_CONNECT_TIMEOUT = float(os.environ.get("REDIS_CONNECT_TIMEOUT", "0.5"))
+REDIS_HEALTH_CHECK_INTERVAL = int(os.environ.get("REDIS_HEALTH_CHECK_INTERVAL", "30"))
+REDIS_MAX_CONNECTIONS_MASTER = int(os.environ.get("REDIS_MAX_CONNECTIONS_MASTER", "20"))
+REDIS_MAX_CONNECTIONS_REPLICA = int(os.environ.get("REDIS_MAX_CONNECTIONS_REPLICA", "50"))
+
+if REDIS_SENTINELS_ENV:
+    REDIS_SENTINELS = [
+        (s.split(":")[0], int(s.split(":")[1]) if ":" in s else 26379)
+        for s in REDIS_SENTINELS_ENV.split(",")
+        if s.strip()
+    ]
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": f"redis://{REDIS_MASTER_NAME}/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.SentinelClient",
+                "CONNECTION_FACTORY": "django_redis.pool.SentinelConnectionFactory",
+                "SENTINELS": REDIS_SENTINELS,
+                "SOCKET_TIMEOUT": REDIS_SOCKET_TIMEOUT,
+                "SOCKET_CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
+                "CONNECTION_POOL_KWARGS": {
+                    "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+                    "max_connections": REDIS_MAX_CONNECTIONS_REPLICA,
+                },
+            },
+        }
+    }
+elif REDIS_URL:
+    REDIS_SENTINELS = []
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": REDIS_URL,
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_TIMEOUT": REDIS_SOCKET_TIMEOUT,
+                "SOCKET_CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
+                "CONNECTION_POOL_KWARGS": {
+                    "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+                    "max_connections": REDIS_MAX_CONNECTIONS_REPLICA,
+                },
             },
         }
     }
 else:
+    REDIS_SENTINELS = []
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",

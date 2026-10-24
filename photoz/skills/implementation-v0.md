@@ -87,5 +87,6 @@ A single standalone Redis instance represents a single point of failure (SPOF) a
 ### The Solution
 Implement a scalable likes architecture and deploy a high-availability Redis Sentinel cluster:
 *   Eliminate unbounded `photo:{photo_id}:likers` Redis sets in favor of bounded user-centric Redis Sets (`user:{user_id}:liked_photos`) to protect PostgreSQL connection pools while maintaining atomic counters (`photo:{photo_id}:likes_count`).
-*   Create `bses.redis_client` with `get_redis_master()` and `get_redis_replica()` providing read/write splitting with fallback to standalone `REDIS_URL`.
+*   Create `bses.redis_client` with `get_redis_master()` and `get_redis_replica()` with singleton connection pooling, 500ms socket timeouts, 30s TCP health checks, and asymmetric pool limits (50 replica / 20 master) to eliminate connection exhaustion risks.
 *   Deploy 1 Primary, 3 Read Replicas, and 3 Sentinel nodes (quorum 2) with automated failover and dynamic replica scale-out.
+*   Implement Terraform IaC automation in `iaac/aws/terraform` with configurable replica counts (`redis_replica_count`) and instance types (`redis_replica_instance_type`) in `terraform.tfvars`, anchoring exactly 3 Sentinels across 3 distinct Availability Zones on the core nodes.

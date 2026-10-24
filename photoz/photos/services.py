@@ -2,12 +2,15 @@ import json
 import time
 from collections import defaultdict
 
-import redis
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q
 
+from bses.redis_client import get_redis_master, get_redis_replica
 from photos.models import Like, Photo
+
+# Optional fallback client for backwards compatibility in existing tests
+redis_client: object | None = None  # pylint: disable=invalid-name
 
 
 def get_feed_photo_ids(user_id, followed_user_ids, community_ids):
@@ -47,43 +50,42 @@ def get_celebrity_photo_ids(celebrity_user_ids: list[int], limit: int = 20) -> l
     )
 
 
-redis_client = redis.StrictRedis.from_url(settings.REDIS_URL, decode_responses=True)
-
-
 def get_photo_likes_count(photo_id: int, db_likes_count: int) -> int:
     """Gets the live like count for a photo using Full Count strategy."""
     key = f"photo:{photo_id}:likes_count"
-    count = redis_client.get(key)
+    read_client = redis_client or get_redis_replica()
+    count = read_client.get(key)
     if count is not None:
         return int(count)
 
-    # Cache Miss: We pass `db_likes_count` from the caller (which already fetched the
-    # Photo object from the DB) to avoid firing a redundant DB query inside this function.
-    redis_client.set(key, db_likes_count)
+    write_client = redis_client or get_redis_master()
+    write_client.set(key, db_likes_count)
     return db_likes_count
 
 
 def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool = True):
     """Updates the like count for a photo in Redis."""
     key = f"photo:{photo_id}:likes_count"
+    master = redis_client or get_redis_master()
 
     # Ensure baseline is set if it was evicted or not yet cached.
     # Uses caller's `db_likes_count` to avoid an extra DB lookup.
-    if not redis_client.exists(key):
-        redis_client.set(key, db_likes_count)
+    if not master.exists(key):
+        master.set(key, db_likes_count)
 
     if increment:
-        redis_client.incr(key)
+        master.incr(key)
     else:
-        redis_client.decr(key)
-    redis_client.sadd("photos_with_pending_like_counts", photo_id)
+        master.decr(key)
+    master.sadd("photos_with_pending_like_counts", photo_id)
 
 
 def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
     """Checks whether a user has liked a photo via user-centric Redis set with DB fallback."""
     user_key = f"user:{user_id}:liked_photos"
-    if redis_client.exists(user_key):
-        return bool(redis_client.sismember(user_key, str(photo_id)))
+    read_client = redis_client or get_redis_replica()
+    if read_client.exists(user_key):
+        return bool(read_client.sismember(user_key, str(photo_id)))
 
     # Cache miss: populate from PostgreSQL (user's recent 500 likes)
     liked_photo_ids = list(
@@ -91,11 +93,12 @@ def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
         .order_by("-created_at")[:500]
         .values_list("photo_id", flat=True)
     )
+    write_client = redis_client or get_redis_master()
     if liked_photo_ids:
-        redis_client.sadd(user_key, *[str(pid) for pid in liked_photo_ids])
+        write_client.sadd(user_key, *[str(pid) for pid in liked_photo_ids])
     else:
-        redis_client.sadd(user_key, "__empty__")
-    redis_client.expire(user_key, 86400)
+        write_client.sadd(user_key, "__empty__")
+    write_client.expire(user_key, 86400)
 
     return photo_id in liked_photo_ids
 
@@ -104,24 +107,25 @@ def toggle_photo_like_redis(photo_id: int, user_id: int, db_likes_count: int) ->
     """Atomically toggle like state for user in Redis and return (has_liked, likes_count)."""
     count_key = f"photo:{photo_id}:likes_count"
     user_key = f"user:{user_id}:liked_photos"
+    master = redis_client or get_redis_master()
 
-    if not redis_client.exists(count_key):
-        redis_client.set(count_key, db_likes_count)
+    if not master.exists(count_key):
+        master.set(count_key, db_likes_count)
 
-    if not redis_client.exists(user_key):
+    if not master.exists(user_key):
         is_photo_liked_by_user(photo_id, user_id)
 
-    is_liked = bool(redis_client.sismember(user_key, str(photo_id)))
+    is_liked = bool(master.sismember(user_key, str(photo_id)))
     if is_liked:
-        redis_client.srem(user_key, str(photo_id))
-        new_count = redis_client.decr(count_key)
+        master.srem(user_key, str(photo_id))
+        new_count = master.decr(count_key)
         has_liked = False
     else:
-        redis_client.sadd(user_key, str(photo_id))
-        new_count = redis_client.incr(count_key)
+        master.sadd(user_key, str(photo_id))
+        new_count = master.incr(count_key)
         has_liked = True
 
-    redis_client.sadd("photos_with_pending_like_counts", photo_id)
+    master.sadd("photos_with_pending_like_counts", photo_id)
     return has_liked, max(0, new_count)
 
 
@@ -146,22 +150,24 @@ def get_cached_photo(photo_id: int):
     using Redis Pub/Sub to prevent a Thundering Herd from hitting the database.
     """
     key = f"photo:{photo_id}:data"
-    cached = redis_client.get(key)
+    read_client = redis_client or get_redis_replica()
+    cached = read_client.get(key)
     if cached:
         return json.loads(cached)
 
     lock_key = f"lock:photo:{photo_id}"
     channel = f"channel:photo:{photo_id}:populated"
+    write_client = redis_client or get_redis_master()
 
     # Try to acquire lock
-    if redis_client.setnx(lock_key, "1"):
+    if write_client.setnx(lock_key, "1"):
         # We are the winner. We fetch from DB, populate cache, and publish.
-        redis_client.expire(lock_key, 10)  # 10s safety timeout
+        write_client.expire(lock_key, 10)  # 10s safety timeout
 
         # Query DB
         photo = Photo.objects.select_related("user__profile").filter(id=photo_id).first()
         if not photo:
-            redis_client.delete(lock_key)
+            write_client.delete(lock_key)
             return None
 
         photo_data = _serialize_photo(photo)
@@ -172,16 +178,16 @@ def get_cached_photo(photo_id: int):
             settings.CACHE_TTL_CELEBRITY_PHOTO if is_celebrity else settings.CACHE_TTL_NORMAL_PHOTO
         )
 
-        redis_client.setex(key, ttl, photo_data)
+        write_client.setex(key, ttl, photo_data)
 
         # Release lock and notify waiting clients via push
-        redis_client.delete(lock_key)
-        redis_client.publish(channel, "READY")
+        write_client.delete(lock_key)
+        write_client.publish(channel, "READY")
 
         return json.loads(photo_data)
     else:
         # We are part of the herd. Wait for the winner via Pub/Sub push notification
-        pubsub = redis_client.pubsub()
+        pubsub = write_client.pubsub()
         pubsub.subscribe(channel)
 
         start_time = time.time()
@@ -194,7 +200,7 @@ def get_cached_photo(photo_id: int):
         pubsub.unsubscribe(channel)
 
         # Now read from the newly populated cache
-        cached = redis_client.get(key)
+        cached = read_client.get(key)
         if cached:
             return json.loads(cached)
 
@@ -221,11 +227,12 @@ def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
 
     likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in new_pairs]
     photo_counts: dict[int, int] = defaultdict(int)
+    write_client = redis_client or get_redis_master()
     for photo_id, user_id in new_pairs:
         photo_counts[photo_id] += 1
         user_key = f"user:{user_id}:liked_photos"
-        if redis_client.exists(user_key):
-            redis_client.sadd(user_key, str(photo_id))
+        if write_client.exists(user_key):
+            write_client.sadd(user_key, str(photo_id))
 
     with transaction.atomic():
         Like.objects.bulk_create(likes_to_create, ignore_conflicts=True)

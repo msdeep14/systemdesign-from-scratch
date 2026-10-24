@@ -13,3 +13,4 @@
 * [Apache Zookeeper](https://zookeeper.apache.org/)
 * [Kafka with Zookeeper](https://hackernoon.com/apache-kafkas-distributed-system-firefighter-the-controller-broker-1afca1eae302)
 * [Debezium Architecture](https://debezium.io/documentation/reference/stable/architecture.html)
+* [Redis Sentinel](https://redis.io/tutorials/operate/redis-at-scale/high-availability/)

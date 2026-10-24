@@ -76,6 +76,47 @@ To stop the cluster:
 docker compose down
 ```
 
+## Redis Sentinel Deployment (Local)
+
+The local environment supports a high-availability Redis Sentinel cluster (1 Primary, 3 Replicas, 3 Sentinels).
+
+### Start Sentinel Cluster with Application
+```bash
+# Remove any legacy standalone container and start stack
+docker rm -f photoz-redis-1 2>/dev/null || true
+docker compose up -d --remove-orphans
+```
+
+### Start Sentinel Cluster Only
+```bash
+# Run only Redis Primary, Replicas, and Sentinels
+docker compose -f docker-compose-redis-sentinel.yml up -d
+```
+
+### Check Cluster Status
+```bash
+docker exec photoz-sentinel-1 redis-cli -p 26379 sentinel master mymaster
+```
+
+### Test Automated Failover
+```bash
+# Runs primary pause, failover promotion, and replica auto-discovery test
+./scripts/test_sentinel_failover.sh
+```
+
+### Switch to Standalone Redis
+```bash
+# 1. Stop Sentinel cluster
+docker compose down
+
+# 2. Start standalone Redis container
+docker run -d --name photoz-redis-1 -p 6379:6379 redis:7
+
+# 3. In .env, unset REDIS_SENTINELS and set REDIS_URL:
+# REDIS_SENTINELS=""
+# REDIS_URL=redis://localhost:6379/1
+```
+
 ### Adding or Updating Dependencies
 When you add or update dependencies in `requirements.txt`, running `docker-compose restart` will not install them because existing container images are not rebuilt. You must rebuild the images and recreate the containers:
 ```bash

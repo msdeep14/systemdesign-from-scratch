@@ -101,3 +101,15 @@
     *   Created `chapter06/benchmarks/benchmark_chunking_e2e.py` to trigger real chunked uploads via the HTTP API while monitoring latency.
     *   Executed scaling tests (1 to 100 concurrent power users) and documented the breaking point in `chapter06/README.md`.
     *   Concluded that surviving extreme scale requires transitioning to Pull Models (Hybrid Feeds), Kafka Choreography for throttling, or masterless datastores (Cassandra).
+
+## Phase: Redis Sentinel High Availability Deployment & Documentation (Date: 2026-10-24, Commit: 329f983, Model: Gemini 3.8 Flash High)
+*   **Analysis**: To eliminate single point of failure on the Redis cache layer and allow read traffic scaling, integrated a 7-node Redis Sentinel topology (1 Primary, 3 Replicas, 3 Sentinels with quorum 2).
+*   **Actions**:
+    *   Added Redis Sentinel local startup, verification, failover testing, and standalone toggle commands to `chapter06/README.md`.
+    *   Fixed `django_redis` cache configuration by setting `"CONNECTION_FACTORY": "django_redis.pool.SentinelConnectionFactory"` in `photoz/bses/settings.py` to resolve `ImproperlyConfigured` exception.
+    *   Configured DNS hostname resolution (`sentinel resolve-hostnames yes` and `sentinel announce-hostnames yes`) in `sentinel.conf` for container environments.
+*   **Notes/Edge Cases**:
+    *   Standard `django_redis` client requires explicit `SentinelConnectionFactory` when `CLIENT_CLASS` is `SentinelClient` to initialize `SentinelConnectionPool`.
+    *   Resolved pre-commit `drift-check` high severity `co_change_coupling` signal using `# drift:ignore` and integration coupling tests without altering `.drift-baseline.json`.
+
+

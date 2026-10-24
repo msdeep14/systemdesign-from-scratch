@@ -12,10 +12,72 @@ services:
     ports:
       - "5432:5432"
 
-  redis:
+  redis-primary:
     image: redis:7
+    container_name: photoz-redis-primary
+    command: ["redis-server", "--protected-mode", "no"]
     ports:
       - "6379:6379"
+
+  redis-replica-1:
+    image: redis:7
+    container_name: photoz-redis-replica-1
+    command: ["redis-server", "--replicaof", "redis-primary", "6379", "--protected-mode", "no"]
+    depends_on:
+      - redis-primary
+    ports:
+      - "6380:6379"
+
+  redis-replica-2:
+    image: redis:7
+    container_name: photoz-redis-replica-2
+    command: ["redis-server", "--replicaof", "redis-primary", "6379", "--protected-mode", "no"]
+    depends_on:
+      - redis-primary
+    ports:
+      - "6381:6379"
+
+  redis-replica-3:
+    image: redis:7
+    container_name: photoz-redis-replica-3
+    command: ["redis-server", "--replicaof", "redis-primary", "6379", "--protected-mode", "no"]
+    depends_on:
+      - redis-primary
+    ports:
+      - "6382:6379"
+
+  sentinel-1:
+    image: redis:7
+    container_name: photoz-sentinel-1
+    command: ["sh", "-c", "cp /tmp/sentinel.conf /tmp/sentinel_run.conf && redis-sentinel /tmp/sentinel_run.conf"]
+    volumes:
+      - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
+    depends_on:
+      - redis-primary
+    ports:
+      - "26379:26379"
+
+  sentinel-2:
+    image: redis:7
+    container_name: photoz-sentinel-2
+    command: ["sh", "-c", "cp /tmp/sentinel.conf /tmp/sentinel_run.conf && redis-sentinel /tmp/sentinel_run.conf"]
+    volumes:
+      - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
+    depends_on:
+      - redis-primary
+    ports:
+      - "26380:26379"
+
+  sentinel-3:
+    image: redis:7
+    container_name: photoz-sentinel-3
+    command: ["sh", "-c", "cp /tmp/sentinel.conf /tmp/sentinel_run.conf && redis-sentinel /tmp/sentinel_run.conf"]
+    volumes:
+      - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
+    depends_on:
+      - redis-primary
+    ports:
+      - "26381:26379"
 
   pgbouncer:
     image: edoburu/pgbouncer:latest
@@ -42,13 +104,15 @@ services:
       - POSTGRES_PORT=6432
       - REPLICA_DB_HOST=pgbouncer-replica
       - REPLICA_DB_PORT=6432
-      - REDIS_URL=redis://redis:6379/1
+      - REDIS_SENTINELS=sentinel-1:26379,sentinel-2:26379,sentinel-3:26379
+      - REDIS_MASTER_NAME=mymaster
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       - db
       - pgbouncer
       - pgbouncer-replica
-      - redis
+      - redis-primary
+      - sentinel-1
       - kafka
 
   nginx:

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.cache import cache
 from redis import exceptions as redis_exceptions
 
+from bses.redis_client import get_redis_master, get_redis_replica
 from communities.services import get_accepted_community_ids
 from photos.services import get_celebrity_photo_ids, get_feed_photo_ids
 from stories.services import get_active_stories_for_users
@@ -23,10 +24,8 @@ CELEBRITY_IDS_CACHE_TTL = 300  # 5 minutes
 CELEBRITY_FEED_PHOTO_LIMIT = 20
 
 
-def _get_redis_client():
-    if hasattr(cache, "client") and hasattr(cache.client, "get_client"):
-        return cache.client.get_client()
-    return None
+def _get_redis_client(for_write: bool = False):
+    return get_redis_master() if for_write else get_redis_replica()
 
 
 @contextlib.contextmanager
@@ -100,31 +99,34 @@ def get_cached_feed(user_id):
     Falls back to a 503 if cache population fails (thundering herd prevention).
     Returns a list of photo IDs, or None if the feed is currently generating.
     """
-    client = _get_redis_client()
-    cache_key = f":1:feed:{user_id}" if client else f"feed:{user_id}"
+    read_client = _get_redis_client(for_write=False)
+    cache_key = f":1:feed:{user_id}" if read_client else f"feed:{user_id}"
     lock_key = f":1:lock:feed:{user_id}"
 
-    photo_ids = _get_feed_from_redis(client, cache_key) if client else cache.get(cache_key)
+    photo_ids = (
+        _get_feed_from_redis(read_client, cache_key) if read_client else cache.get(cache_key)
+    )
 
     if photo_ids is None:
         acquired = True
-        if client:
+        write_client = _get_redis_client(for_write=True)
+        if write_client:
             with handle_redis_error("Redis lock failed for %s: %s", lock_key):
-                acquired = client.set(lock_key, b"1", nx=True, ex=5)
+                acquired = write_client.set(lock_key, b"1", nx=True, ex=5)
 
         if acquired:
             try:
                 photo_ids = _populate_feed(user_id)
-                if client:
-                    _save_feed_to_redis(client, cache_key, photo_ids)
+                if write_client:
+                    _save_feed_to_redis(write_client, cache_key, photo_ids)
                 else:
                     cache.set(cache_key, photo_ids, timeout=3600)
             finally:
-                if client:
+                if write_client:
                     with contextlib.suppress(redis_exceptions.RedisError):
-                        client.delete(lock_key)
+                        write_client.delete(lock_key)
         else:
-            photo_ids = _wait_for_feed_promise(client, cache_key)
+            photo_ids = _wait_for_feed_promise(read_client, cache_key)
 
     if photo_ids is None:
         return None
@@ -142,7 +144,7 @@ def get_cached_feed(user_id):
 
 def push_to_feed_cache(user_id, photo_id):
     """Pushes a new photo ID to a user's cached feed in Redis."""
-    client = _get_redis_client()
+    client = _get_redis_client(for_write=True)
     if not client:
         return
 
@@ -159,7 +161,7 @@ def push_to_feed_cache(user_id, photo_id):
 
 def push_to_feed_cache_bulk(user_ids, photo_id):
     """Pushes a new photo ID to multiple users' cached feeds using Redis pipelining."""
-    client = _get_redis_client()
+    client = _get_redis_client(for_write=True)
     if not client or not user_ids:
         return
 

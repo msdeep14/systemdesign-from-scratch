@@ -404,3 +404,48 @@ python chapter06/benchmarks/benchmark_chunking_e2e.py --host http://<lb-ip> --re
 We added `flower` to our development dependencies and updated `docker-compose.yml` to run a Flower server. You can visit `http://localhost:5555` to visually see the Orchestrator task spawning the chunks via Canvas!
 
 ---
+
+## Redis Sentinel High Availability (Local Deployment)
+
+Local environment topology consists of 1 Redis Primary, 3 Replicas, and 3 Sentinel nodes (quorum 2). Sentinel automatically monitors the primary, elects a new primary upon failure, and updates Django application nodes without downtime.
+
+### 1. Start Application with Sentinel
+```bash
+# Remove standalone Redis container if existing
+docker rm -f photoz-redis-1 2>/dev/null || true
+
+# Start application and Sentinel cluster
+docker compose up -d --remove-orphans
+```
+
+### 2. Verify Sentinel Cluster Status
+```bash
+# Check primary status
+docker exec photoz-sentinel-1 redis-cli -p 26379 sentinel master mymaster
+
+# List active replicas
+docker exec photoz-sentinel-1 redis-cli -p 26379 sentinel replicas mymaster
+
+# List peer sentinels
+docker exec photoz-sentinel-1 redis-cli -p 26379 sentinel sentinels mymaster
+```
+
+### 3. Run Automated Failover Test
+```bash
+# Run failover and auto-discovery script
+./photoz/scripts/test_sentinel_failover.sh
+```
+
+### 4. Switch to Standalone Redis
+```bash
+# Stop Sentinel cluster
+docker compose down
+
+# Start standalone Redis
+docker run -d --name photoz-redis-1 -p 6379:6379 redis:7
+
+# In photoz/.env set:
+# REDIS_SENTINELS=""
+# REDIS_URL=redis://localhost:6379/1
+```
+
