@@ -30,6 +30,12 @@ resource "aws_instance" "db_node" {
   vpc_security_group_ids = [local.db_sg_id]
   iam_instance_profile   = local.iam_instance_profile
 
+  root_block_device {
+    volume_size           = var.db_volume_size
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
   lifecycle {
     ignore_changes = [key_name]
   }
@@ -139,6 +145,12 @@ resource "aws_instance" "db_replica" {
   key_name               = var.db_key_name
   vpc_security_group_ids = [aws_security_group.db_replica[0].id]
   iam_instance_profile   = local.iam_instance_profile
+
+  root_block_device {
+    volume_size           = var.db_volume_size
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
 
   lifecycle {
     ignore_changes = [key_name]

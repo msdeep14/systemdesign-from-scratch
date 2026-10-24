@@ -130,6 +130,13 @@ variable "db_replica_instance_type" {
   description = "EC2 instance type for the Database Replica nodes"
 }
 
+variable "db_volume_size" {
+  type        = number
+  default     = 30
+  description = "EBS root volume size in GB for the Primary Database and Replica nodes"
+}
+
+
 variable "s3_bucket_name" {
   type        = string
   description = "Existing S3 Bucket Name for media storage"

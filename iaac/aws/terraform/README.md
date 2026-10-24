@@ -84,7 +84,9 @@ terraform -v
    app_max_size          = 6
    db_instance_type      = "t3.large"
    db_replica_count      = 1
+   db_volume_size        = 30
    seed_database         = true
+
 
    # Kafka Cluster Configuration
    create_kafka_cluster           = true

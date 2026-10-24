@@ -862,7 +862,7 @@
     *   Resolved `django_redis.client.sentinel.ImproperlyConfigured` exception by setting `CONNECTION_FACTORY` to `SentinelConnectionFactory`. Standard `django_redis` defaults to `ConnectionFactory`, which does not initialize `SentinelConnectionPool`.
     *   Suppressed false positive `co_change_coupling` in `bses/settings.py` using `# drift:ignore` and added integration contract tests in `photoz/tests/test_architectural_coupling.py`, enabling all pre-commit hooks to pass without modifying `.drift-baseline.json`.
 
-## Phase: Redis Sentinel AWS Infrastructure Automation (Date: 2026-10-24, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Redis Sentinel AWS Infrastructure Automation (Date: 2026-10-24, Commit: cc351d9, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Automate multi-AZ Redis Sentinel provisioning on AWS EC2 with Terraform IaC, configurable replica capacity (`redis_replica_count`) and instance types (`redis_replica_instance_type`), ensuring zero SPOF and isolated control/data plane networking.
 *   **Actions**:
     *   Updated `iaac/aws/terraform/variables.tf` declaring `redis_replica_count`, `redis_replica_instance_type`, and `redis_master_name`.
@@ -875,5 +875,15 @@
     *   Validated Terraform configuration syntax using `terraform validate`.
 *   **Notes/Edge Cases**:
     *   Anchor exactly 3 Sentinels across AZ 1, AZ 2, and AZ 3 regardless of whether replica count scales higher (e.g. 5 replicas), ensuring stable odd-numbered quorum and avoiding split-brain.
+
+## Phase: Database EBS Volume Scaling (Date: 2026-10-24, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Prevent PostgreSQL replica crash loops and PgBouncer `query_wait_timeout` failures by provisioning adequate root volume capacity (30 GB gp3) for high-volume benchmark seeding (3.5M rows) and WAL streaming replication.
+*   **Actions**:
+    *   Added `db_volume_size` variable (default 30 GB gp3) in `iaac/aws/terraform/variables.tf`.
+    *   Added `root_block_device` blocks to `aws_instance.db_node` and `aws_instance.db_replica` in `iaac/aws/terraform/main.tf`.
+    *   Updated `iaac/aws/terraform/terraform.tfvars`, `staging.tfvars`, and `README.md`.
+*   **Notes/Edge Cases**:
+    *   Default AWS AMI 8 GB root volumes leave only ~3.5 GB free space, insufficient for 3.5M row datasets with WAL replication checkpoints.
+
 
 

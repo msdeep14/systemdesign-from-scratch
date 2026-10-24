@@ -112,7 +112,7 @@
     *   Standard `django_redis` client requires explicit `SentinelConnectionFactory` when `CLIENT_CLASS` is `SentinelClient` to initialize `SentinelConnectionPool`.
     *   Resolved pre-commit `drift-check` high severity `co_change_coupling` signal using `# drift:ignore` and integration coupling tests without altering `.drift-baseline.json`.
 
-## Phase: Redis Sentinel AWS Terraform Deployment (Date: 2026-10-24, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Redis Sentinel AWS Terraform Deployment (Date: 2026-10-24, Commit: cc351d9, Model: Gemini 3.8 Flash High)
 *   **Analysis**: Extended Terraform IaC to provision multi-AZ Redis Sentinel on AWS EC2 with configurable replica count and instance types, routing data directly between App nodes and Redis nodes while keeping Sentinel as a dedicated control plane.
 *   **Actions**:
     *   Added variables `redis_replica_count`, `redis_replica_instance_type`, and `redis_master_name` in `iaac/aws/terraform/variables.tf`.
@@ -125,6 +125,16 @@
     *   Removed `aws_cloudwatch_dashboard.kafka_health` from `iaac/aws/terraform/kafka_monitoring.tf`.
 *   **Notes/Edge Cases**:
     *   Even when scaling beyond 3 replicas (e.g. 5 replicas), exactly 3 Sentinels run on the Primary and first 2 replicas to maintain stable quorum 2 and prevent split-brain without redundant Sentinel overhead.
+
+## Phase: Database EBS Volume Scaling (Date: 2026-10-24, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Analysis**: Seeding 3.5M celebrity followers and 100k photos on the primary generated substantial WAL streams, causing the DB replica's default 8 GB root disk to hit 100% capacity (`could not extend file: No space left on device`), crashing PostgreSQL and triggering PgBouncer `query_wait_timeout`.
+*   **Actions**:
+    *   Added `db_volume_size` variable (default 30 GB gp3) in `iaac/aws/terraform/variables.tf`.
+    *   Added `root_block_device` blocks to `aws_instance.db_node` and `aws_instance.db_replica` in `iaac/aws/terraform/main.tf`.
+    *   Updated `iaac/aws/terraform/terraform.tfvars`, `staging.tfvars`, and `README.md`.
+*   **Notes/Edge Cases**:
+    *   Seeded datasets and streaming replication require dedicated headroom for base tables, GIN/B-tree indexes, and WAL segments beyond base OS/Docker image requirements.
+
 
 
 

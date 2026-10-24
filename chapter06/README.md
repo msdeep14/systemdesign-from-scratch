@@ -487,15 +487,31 @@ redis-cli -p 26379 sentinel sentinels mymaster
 ```
 
 ### 4. Test Automated Failover on AWS
+Open Sentinel logs on a Replica node (Terminal 1)
+```bash
+sudo journalctl -u redis-sentinel -f
+```
+
 SSH into the Redis Primary node:
 ```bash
-# Simulate 30-second primary freeze
-redis-cli DEBUG sleep 30
+sudo systemctl stop redis-server
+
 ```
 From another terminal, query any Sentinel node:
 ```bash
 # Verify Sentinel promoted a replica to primary
 redis-cli -p 26379 sentinel master mymaster
+```
+
+See the log entries similar to 
+```bash
++try-failover master mymaster 10.0.0.X 6379
++vote-for-leader <sentinel-id> 1
++elected-leader master mymaster 10.0.0.X 6379
++failover-state-select-slave master mymaster 10.0.0.X 6379
++selected-slave slave 10.0.0.Y:6379
++failover-state-send-slaveof-noone slave 10.0.0.Y:6379
++switch-master mymaster 10.0.0.X 6379 10.0.0.Y 6379
 ```
 
 
