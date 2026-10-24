@@ -146,14 +146,33 @@ variable "db_replica_count" {
 variable "create_redis_node" {
   type        = bool
   default     = true
-  description = "Set to true to provision a standalone Redis node"
+  description = "Set to true to provision Redis nodes"
 }
 
 variable "redis_instance_type" {
   type        = string
   default     = "t3.micro"
-  description = "EC2 instance type for the Redis node"
+  description = "EC2 instance type for the Redis primary node"
 }
+
+variable "redis_replica_count" {
+  type        = number
+  default     = 3
+  description = "Number of Redis read replica nodes"
+}
+
+variable "redis_replica_instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for Redis replica nodes"
+}
+
+variable "redis_master_name" {
+  type        = string
+  default     = "mymaster"
+  description = "Redis Sentinel master monitor name"
+}
+
 
 
 

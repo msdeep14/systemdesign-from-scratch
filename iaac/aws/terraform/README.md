@@ -61,9 +61,15 @@ terraform -v
    ```bash
    terraform init
    ```
-2. Create a `terraform.tfvars` file to store your secrets (this file is ignored by Git):
+2. Create a `terraform.tfvars` file to store your configuration and secrets (this file is ignored by Git):
    ```hcl
-   key_name              = "your-existing-aws-ssh-key-name"
+   # SSH Keys
+   app_key_name          = "photoz-app-key"
+   db_key_name           = "photoz-db-key"
+   lb_key_name           = "photoz-lb-key"
+   kafka_key_name        = "photoz-kafka-key"
+
+   # Secrets and Storage
    db_password           = "your_secure_postgres_password"
    s3_bucket_name        = "your-existing-s3-bucket-name"
    aws_access_key_id     = "AKI..."
@@ -71,15 +77,30 @@ terraform -v
    github_token          = "ghp_..." # OPTIONAL
    django_secret_key     = "your-django-secret-key"
 
-   # --- Optional Instance Type Overrides ---
-   # Uncomment and change these if you want to scale up from the default t3.micro
-   # lb_instance_type  = "t3.small"
-   # app_instance_type = "t3.medium"
-   # db_instance_type  = "t3.medium"
+   # Compute & Capacity Overrides
+   app_instance_type     = "t3.large"
+   app_desired_capacity  = 2
+   app_min_size          = 2
+   app_max_size          = 6
+   db_instance_type      = "t3.large"
+   db_replica_count      = 1
+   seed_database         = true
+
+   # Kafka Cluster Configuration
+   create_kafka_cluster           = true
+   kafka_controller_instance_type = "t3.medium"
+   kafka_broker_instance_type     = "t3.medium"
+   kafka_ebs_volume_size          = 10
+
+   # Redis Sentinel Cluster Configuration
+   create_redis_node           = true
+   redis_instance_type         = "t3.micro"
+   redis_replica_count         = 3
+   redis_replica_instance_type = "t3.micro"
+   redis_master_name           = "mymaster"
 
    # --- Optional Existing Database Override ---
-   # If you used ./destroy.sh --skip-db to preserve a database node, you can 
-   # tell Terraform to reconnect to it instead of creating a new one.
+   # If you used ./destroy.sh --skip-db to preserve a database node:
    # create_db_node         = false
    # existing_db_private_ip = "10.0.X.Y"
    ```
@@ -150,3 +171,12 @@ chmod +x destroy.sh
 ./destroy.sh --skip-vpc --skip-sg --skip-iam
 ```
 This script safely untracks the base infrastructure from Terraform's state before executing `terraform destroy`.
+
+## Redis Sentinel High Availability Cluster
+
+The Terraform module provisions high-availability Redis Sentinel:
+- **Redis Primary Node**: 1 dedicated EC2 instance in Subnet 1 (AZ 1). Runs `redis-server` (port 6379) and Sentinel 1 (port 26379).
+- **Redis Replica Nodes**: Configurable via `redis_replica_count` (default 3) and `redis_replica_instance_type` (default `t3.micro`), distributed across Availability Zones.
+- **Sentinel Quorum**: Exactly 3 Sentinels run across 3 Availability Zones (Primary, Replica 1, Replica 2) with quorum 2. Additional replicas (Replica 3+) serve read traffic without running redundant Sentinel processes.
+- **Service Discovery**: App nodes receive `REDIS_SENTINELS` via `.env`, discovering the current master for writes and replicas for reads directly without proxy overhead.
+

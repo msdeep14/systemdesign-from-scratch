@@ -5,8 +5,24 @@ output "load_balancer_public_ip" {
 
 output "redis_public_ip" {
   value       = try(aws_instance.redis_node[0].public_ip, "N/A")
-  description = "The public IP address of the Redis Node."
+  description = "The public IP address of the Redis Primary Node."
 }
+
+output "redis_replica_public_ips" {
+  value       = aws_instance.redis_replica[*].public_ip
+  description = "The public IP addresses of the Redis Replica Nodes."
+}
+
+output "redis_replica_private_ips" {
+  value       = aws_instance.redis_replica[*].private_ip
+  description = "The private IP addresses of the Redis Replica Nodes."
+}
+
+output "redis_sentinel_endpoints" {
+  value       = local.redis_sentinels
+  description = "Redis Sentinel endpoints configured for App nodes."
+}
+
 
 output "app_server_asg_name" {
   value       = aws_autoscaling_group.app_nodes.name

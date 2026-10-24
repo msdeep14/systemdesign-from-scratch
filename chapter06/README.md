@@ -449,3 +449,53 @@ docker run -d --name photoz-redis-1 -p 6379:6379 redis:7
 # REDIS_URL=redis://localhost:6379/1
 ```
 
+---
+
+## Redis Sentinel High Availability (AWS Deployment)
+
+AWS deployment provisions a multi-AZ Redis Sentinel cluster:
+- 1 Redis Primary EC2 instance (Subnet 1 / AZ 1) running Redis (6379) and Sentinel 1 (26379).
+- Configurable replicas (`redis_replica_count`, default 3) and instance type (`redis_replica_instance_type`, default `t3.micro`) spread across AZs.
+- Exactly 3 Sentinels with quorum 2 anchored across 3 Availability Zones (Primary, Replica 1, Replica 2).
+
+### 1. Configure in `terraform.tfvars`
+```hcl
+create_redis_node           = true
+redis_instance_type         = "t3.micro"
+redis_replica_count         = 3
+redis_replica_instance_type = "t3.micro"
+redis_master_name           = "mymaster"
+```
+
+### 2. Deploy Infrastructure
+```bash
+cd iaac/aws/terraform
+terraform apply
+```
+
+### 3. Verify Sentinel Cluster on AWS
+SSH into the Redis Primary or any Sentinel node:
+```bash
+# Check primary status
+redis-cli -p 26379 sentinel master mymaster
+
+# List replicas
+redis-cli -p 26379 sentinel replicas mymaster
+
+# List peer sentinels
+redis-cli -p 26379 sentinel sentinels mymaster
+```
+
+### 4. Test Automated Failover on AWS
+SSH into the Redis Primary node:
+```bash
+# Simulate 30-second primary freeze
+redis-cli DEBUG sleep 30
+```
+From another terminal, query any Sentinel node:
+```bash
+# Verify Sentinel promoted a replica to primary
+redis-cli -p 26379 sentinel master mymaster
+```
+
+

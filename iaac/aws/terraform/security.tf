@@ -197,6 +197,30 @@ resource "aws_security_group" "redis" {
   }
 
   ingress {
+    description = "Redis Replication within VPC"
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
+    description     = "Redis Sentinel from App"
+    from_port       = 26379
+    to_port         = 26379
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app[0].id]
+  }
+
+  ingress {
+    description = "Redis Sentinel Gossip within VPC"
+    from_port   = 26379
+    to_port     = 26379
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  ingress {
     description = "SSH from my IP"
     from_port   = 22
     to_port     = 22

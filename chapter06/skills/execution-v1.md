@@ -102,7 +102,7 @@
     *   Executed scaling tests (1 to 100 concurrent power users) and documented the breaking point in `chapter06/README.md`.
     *   Concluded that surviving extreme scale requires transitioning to Pull Models (Hybrid Feeds), Kafka Choreography for throttling, or masterless datastores (Cassandra).
 
-## Phase: Redis Sentinel High Availability Deployment & Documentation (Date: 2026-10-24, Commit: 329f983, Model: Gemini 3.8 Flash High)
+## Phase: Redis Sentinel High Availability Deployment & Documentation (Date: 2026-10-24, Commit: 4f66f6507cb5970d70115922e85728798f2500f4, Model: Gemini 3.8 Flash High)
 *   **Analysis**: To eliminate single point of failure on the Redis cache layer and allow read traffic scaling, integrated a 7-node Redis Sentinel topology (1 Primary, 3 Replicas, 3 Sentinels with quorum 2).
 *   **Actions**:
     *   Added Redis Sentinel local startup, verification, failover testing, and standalone toggle commands to `chapter06/README.md`.
@@ -111,5 +111,20 @@
 *   **Notes/Edge Cases**:
     *   Standard `django_redis` client requires explicit `SentinelConnectionFactory` when `CLIENT_CLASS` is `SentinelClient` to initialize `SentinelConnectionPool`.
     *   Resolved pre-commit `drift-check` high severity `co_change_coupling` signal using `# drift:ignore` and integration coupling tests without altering `.drift-baseline.json`.
+
+## Phase: Redis Sentinel AWS Terraform Deployment (Date: 2026-10-24, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Analysis**: Extended Terraform IaC to provision multi-AZ Redis Sentinel on AWS EC2 with configurable replica count and instance types, routing data directly between App nodes and Redis nodes while keeping Sentinel as a dedicated control plane.
+*   **Actions**:
+    *   Added variables `redis_replica_count`, `redis_replica_instance_type`, and `redis_master_name` in `iaac/aws/terraform/variables.tf`.
+    *   Configured `aws_instance.redis_replica` with multi-AZ subnet distribution in `iaac/aws/terraform/main.tf`.
+    *   Configured `aws_instance.redis_node` and the first 2 replicas to run Sentinel on port 26379, establishing a 3-node Sentinel quorum across 3 Availability Zones.
+    *   Updated `aws_security_group.redis` in `iaac/aws/terraform/security.tf` to permit replication and Sentinel gossip traffic across the VPC CIDR (`10.0.0.0/16`).
+    *   Injected dynamic `REDIS_SENTINELS` into `app_node` launch template `.env`.
+    *   Added `redis_replica_public_ips`, `redis_replica_private_ips`, and `redis_sentinel_endpoints` in `iaac/aws/terraform/outputs.tf`.
+    *   Updated `terraform.tfvars`, `staging.tfvars`, `iaac/aws/terraform/README.md`, and `chapter06/README.md`.
+    *   Removed `aws_cloudwatch_dashboard.kafka_health` from `iaac/aws/terraform/kafka_monitoring.tf`.
+*   **Notes/Edge Cases**:
+    *   Even when scaling beyond 3 replicas (e.g. 5 replicas), exactly 3 Sentinels run on the Primary and first 2 replicas to maintain stable quorum 2 and prevent split-brain without redundant Sentinel overhead.
+
 
 

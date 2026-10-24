@@ -203,14 +203,97 @@ resource "aws_instance" "redis_node" {
 
   user_data = <<-EOF
 #!/bin/bash
-sudo apt-get update && sudo apt-get install -y redis-server
+set -e
+sudo apt-get update && sudo apt-get install -y redis-server redis-sentinel
+
+# Configure redis-server as Primary
 sudo sed -i 's/^bind 127.0.0.1 -::1/bind 0.0.0.0/' /etc/redis/redis.conf
 sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+sudo chown redis:redis /etc/redis/redis.conf
 sudo systemctl restart redis-server
 sudo systemctl enable redis-server
+
+%{ if var.redis_replica_count >= 2 ~}
+PRIMARY_IP=$(hostname -I | awk '{print $1}')
+cat <<SENTINEL > /etc/redis/sentinel.conf
+port 26379
+bind 0.0.0.0
+protected-mode no
+dir /var/lib/redis
+sentinel monitor ${var.redis_master_name} $PRIMARY_IP 6379 2
+sentinel down-after-milliseconds ${var.redis_master_name} 3000
+sentinel failover-timeout ${var.redis_master_name} 5000
+sentinel parallel-syncs ${var.redis_master_name} 1
+SENTINEL
+
+sudo chown redis:redis /etc/redis/sentinel.conf
+sudo systemctl restart redis-sentinel
+sudo systemctl enable redis-sentinel
+%{ endif ~}
 EOF
 
   tags = { Name = "photoz-redis-node${local.env_suffix}" }
+}
+
+resource "aws_instance" "redis_replica" {
+  count                  = var.create_redis_node ? var.redis_replica_count : 0
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.redis_replica_instance_type
+  subnet_id              = local.subnet_ids[(count.index + 1) % length(local.subnet_ids)]
+  key_name               = var.db_key_name
+  vpc_security_group_ids = [local.redis_sg_id]
+  iam_instance_profile   = local.iam_instance_profile
+
+  lifecycle {
+    ignore_changes = [key_name]
+  }
+  user_data_replace_on_change = true
+
+  user_data = <<-EOF
+#!/bin/bash
+set -e
+sudo apt-get update && sudo apt-get install -y redis-server redis-sentinel
+
+PRIMARY_IP="${aws_instance.redis_node[0].private_ip}"
+
+# Configure redis-server as Replica
+sudo sed -i 's/^bind 127.0.0.1 -::1/bind 0.0.0.0/' /etc/redis/redis.conf
+sudo sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
+echo "replicaof $PRIMARY_IP 6379" | sudo tee -a /etc/redis/redis.conf
+sudo chown redis:redis /etc/redis/redis.conf
+sudo systemctl restart redis-server
+sudo systemctl enable redis-server
+
+# First 2 replicas run Sentinel to form a 3-node Sentinel quorum with the Primary
+%{ if count.index < 2 ~}
+cat <<SENTINEL > /etc/redis/sentinel.conf
+port 26379
+bind 0.0.0.0
+protected-mode no
+dir /var/lib/redis
+sentinel monitor ${var.redis_master_name} $PRIMARY_IP 6379 2
+sentinel down-after-milliseconds ${var.redis_master_name} 3000
+sentinel failover-timeout ${var.redis_master_name} 5000
+sentinel parallel-syncs ${var.redis_master_name} 1
+SENTINEL
+
+sudo chown redis:redis /etc/redis/sentinel.conf
+sudo systemctl restart redis-sentinel
+sudo systemctl enable redis-sentinel
+%{ endif ~}
+EOF
+
+  tags = { Name = "photoz-redis-replica-${count.index + 1}${local.env_suffix}" }
+}
+
+locals {
+  redis_primary_ip  = try(aws_instance.redis_node[0].private_ip, "")
+  redis_replica_ips = var.create_redis_node ? aws_instance.redis_replica[*].private_ip : []
+  redis_sentinel_ips = var.create_redis_node && var.redis_replica_count >= 2 ? concat(
+    [local.redis_primary_ip],
+    [for i in range(min(2, var.redis_replica_count)) : local.redis_replica_ips[i]]
+  ) : []
+  redis_sentinels = join(",", [for ip in local.redis_sentinel_ips : "${ip}:26379"])
 }
 
 resource "aws_launch_template" "app_node" {
@@ -265,6 +348,8 @@ REPLICA_DB_PORT=6432
 ENV_SUFFIX=${local.env_suffix}
 CONSUL_SERVER_IP=${aws_instance.lb_node.private_ip}
 NODE_IP=$LOCAL_IP
+REDIS_SENTINELS=${local.redis_sentinels}
+REDIS_MASTER_NAME=${var.redis_master_name}
 REDIS_URL=${var.create_redis_node ? "redis://${aws_instance.redis_node[0].private_ip}:6379/1" : ""}
 KAFKA_BOOTSTRAP_SERVERS=${var.create_kafka_cluster ? local.kafka_bootstrap_servers : ""}
 AWS_S3_CUSTOM_DOMAIN=${aws_cloudfront_distribution.photoz_cdn.domain_name}
