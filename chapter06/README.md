@@ -405,6 +405,19 @@ We added `flower` to our development dependencies and updated `docker-compose.ym
 
 ---
 
+## Cache Scaling & Redis Sentinel High Availability
+
+For a comprehensive deep-dive into the caching bottlenecks (unbounded celebrity like sets, single points of failure, read/write asymmetry), consensus topology, and connection pool sizing, see the dedicated guide:
+- **[Cache Scaling & Redis Sentinel Architecture Deep-Dive](cache-scaling/README.md)**
+
+### Architecture Highlights
+- **User-Centric Liked Sets**: Inverted unbounded `photo:{id}:likers` sets to bounded `user:{user_id}:liked_photos` sets (up to 500 recent likes), eliminating multi-megabyte memory allocations on celebrity photos while maintaining exact counts with `photo:{id}:likes_count`.
+- **Read/Write Splitting**: Writes route to the Primary (`bses.redis_client.get_redis_master()`); reads route across Replicas (`get_redis_replica()`).
+- **Asymmetric Connection Pools**: Capped at 20 connections on the primary and 50 connections on replicas, backed by 500ms timeouts and 30-second TCP health checks.
+- **Automated Failover**: 3 Sentinel nodes (quorum 2) monitor the primary and perform zero-downtime failover in under 5 seconds.
+
+---
+
 ## Redis Sentinel High Availability (Local Deployment)
 
 Local environment topology consists of 1 Redis Primary, 3 Replicas, and 3 Sentinel nodes (quorum 2). Sentinel automatically monitors the primary, elects a new primary upon failure, and updates Django application nodes without downtime.

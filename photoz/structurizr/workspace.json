@@ -144,6 +144,12 @@
             "id" : "45",
             "sourceId" : "7",
             "tags" : "Relationship"
+          }, {
+            "description" : "Counters & Likes",
+            "destinationId" : "15",
+            "id" : "57",
+            "sourceId" : "7",
+            "tags" : "Relationship"
           } ],
           "tags" : "Element,Component",
           "technology" : "Django App"
@@ -174,7 +180,7 @@
           },
           "relationships" : [ {
             "description" : "Feeds",
-            "destinationId" : "15",
+            "destinationId" : "49",
             "id" : "38",
             "sourceId" : "9",
             "tags" : "Relationship"
@@ -238,9 +244,21 @@
           "sourceId" : "5",
           "tags" : "Relationship"
         }, {
-          "description" : "Caches/Reads",
+          "description" : "Discovers active master & topology",
+          "destinationId" : "50",
+          "id" : "54",
+          "sourceId" : "5",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Writes (counters, user likes, locks)",
           "destinationId" : "15",
           "id" : "28",
+          "sourceId" : "5",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Reads (newsfeeds, cached data)",
+          "destinationId" : "49",
+          "id" : "55",
           "sourceId" : "5",
           "tags" : "Relationship"
         }, {
@@ -283,6 +301,12 @@
           "description" : "Invalidates & updates caches",
           "destinationId" : "15",
           "id" : "34",
+          "sourceId" : "11",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Discovers master address",
+          "destinationId" : "50",
+          "id" : "56",
           "sourceId" : "11",
           "tags" : "Relationship"
         } ],
@@ -329,16 +353,58 @@
         "tags" : "Element,Container,Database",
         "technology" : "PostgreSQL"
       }, {
-        "description" : "In-memory cache for newsfeeds, rate limits, and like sets",
+        "description" : "In-memory cache master (writes, counters, locks)",
         "documentation" : { },
-        "group" : "Redis Node",
+        "group" : "Redis Sentinel Cluster",
         "id" : "15",
-        "name" : "Redis Cache",
+        "name" : "Redis Primary",
         "properties" : {
-          "structurizr.dsl.identifier" : "cache"
+          "structurizr.dsl.identifier" : "redisPrimary"
+        },
+        "relationships" : [ {
+          "description" : "Replicates data",
+          "destinationId" : "49",
+          "id" : "51",
+          "sourceId" : "15",
+          "tags" : "Relationship"
+        } ],
+        "tags" : "Element,Container,Cache",
+        "technology" : "Redis"
+      }, {
+        "description" : "In-memory cache replicas (reads, newsfeed queries)",
+        "documentation" : { },
+        "group" : "Redis Sentinel Cluster",
+        "id" : "49",
+        "name" : "Redis Replicas",
+        "properties" : {
+          "structurizr.dsl.identifier" : "redisReplica"
         },
         "tags" : "Element,Container,Cache",
         "technology" : "Redis"
+      }, {
+        "description" : "Distributed consensus monitoring and automated failover (quorum 2)",
+        "documentation" : { },
+        "group" : "Redis Sentinel Cluster",
+        "id" : "50",
+        "name" : "Redis Sentinels",
+        "properties" : {
+          "structurizr.dsl.identifier" : "redisSentinel"
+        },
+        "relationships" : [ {
+          "description" : "Monitors and triggers failover",
+          "destinationId" : "15",
+          "id" : "52",
+          "sourceId" : "50",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Monitors and reconfigures",
+          "destinationId" : "49",
+          "id" : "53",
+          "sourceId" : "50",
+          "tags" : "Relationship"
+        } ],
+        "tags" : "Element,Container,Cache",
+        "technology" : "Redis Sentinel"
       } ],
       "description" : "Core Platform",
       "documentation" : { },
@@ -437,6 +503,10 @@
         "x" : 0,
         "y" : 0
       }, {
+        "id" : "49",
+        "x" : 0,
+        "y" : 0
+      }, {
         "id" : "17",
         "x" : 0,
         "y" : 0
@@ -473,6 +543,8 @@
         "id" : "47"
       }, {
         "id" : "48"
+      }, {
+        "id" : "57"
       } ]
     } ],
     "configuration" : {
@@ -582,6 +654,14 @@
         "x" : 0,
         "y" : 0
       }, {
+        "id" : "49",
+        "x" : 0,
+        "y" : 0
+      }, {
+        "id" : "50",
+        "x" : 0,
+        "y" : 0
+      }, {
         "id" : "16",
         "x" : 0,
         "y" : 0
@@ -624,6 +704,18 @@
         "id" : "33"
       }, {
         "id" : "34"
+      }, {
+        "id" : "51"
+      }, {
+        "id" : "52"
+      }, {
+        "id" : "53"
+      }, {
+        "id" : "54"
+      }, {
+        "id" : "55"
+      }, {
+        "id" : "56"
       } ],
       "softwareSystemId" : "2"
     } ],

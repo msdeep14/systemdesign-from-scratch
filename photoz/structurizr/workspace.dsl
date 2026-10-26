@@ -33,8 +33,10 @@ workspace "Photoz" "A photo-sharing social network" {
                 databaseReplica = container "Read Replicas" "Core DB (Reads)" "PostgreSQL" "Database"
             }
             
-            group "Redis Node" {
-                cache = container "Redis Cache" "In-memory cache for newsfeeds, rate limits, and like sets" "Redis" "Cache"
+            group "Redis Sentinel Cluster" {
+                redisPrimary = container "Redis Primary" "In-memory cache master (writes, counters, locks)" "Redis" "Cache"
+                redisReplica = container "Redis Replicas" "In-memory cache replicas (reads, newsfeed queries)" "Redis" "Cache"
+                redisSentinel = container "Redis Sentinels" "Distributed consensus monitoring and automated failover (quorum 2)" "Redis Sentinel" "Cache"
             }
         }
 
@@ -53,19 +55,26 @@ workspace "Photoz" "A photo-sharing social network" {
         webApp -> databasePrimary "Writes"
         webApp -> databaseReplica "Reads"
         databasePrimary -> databaseReplica "Replicates"
-        webApp -> cache "Caches/Reads"
+        webApp -> redisSentinel "Discovers active master & topology"
+        webApp -> redisPrimary "Writes (counters, user likes, locks)"
+        webApp -> redisReplica "Reads (newsfeeds, cached data)"
+        redisPrimary -> redisReplica "Replicates data"
+        redisSentinel -> redisPrimary "Monitors and triggers failover"
+        redisSentinel -> redisReplica "Monitors and reconfigures"
         webApp -> s3 "Uploads"
         
         webApp -> kafkaCluster "Publishes events (likes, follows, uploads, notifications, deletions)"
         kafkaConsumers -> kafkaCluster "Consumes event batches"
         kafkaConsumers -> databasePrimary "Bulk writes & updates"
-        kafkaConsumers -> cache "Invalidates & updates caches"
+        kafkaConsumers -> redisPrimary "Invalidates & updates caches"
+        kafkaConsumers -> redisSentinel "Discovers master address"
 
         # Component Relationships (High-Level Intent)
         usersApp -> databasePrimary "User Data"
         photosApp -> databasePrimary "Photo Data"
+        photosApp -> redisPrimary "Counters & Likes"
         communitiesApp -> databasePrimary "Community Data"
-        newsfeedApp -> cache "Feeds"
+        newsfeedApp -> redisReplica "Feeds"
         notificationsApp -> databasePrimary "Notifications"
 
         loadBalancer -> usersApp "Routes"

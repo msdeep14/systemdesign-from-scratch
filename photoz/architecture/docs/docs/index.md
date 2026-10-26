@@ -39,13 +39,20 @@ classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
     node_end-user["Photoz User"]:::node
     primary-db["Primary PostgreSQL Database"]:::node
     replica-db["Read Replica PostgreSQL Database"]:::node
-    cache["Redis Cache"]:::node
+    redis-primary["Redis Primary Cache"]:::node
+    redis-replica["Redis Read Replicas"]:::node
+    redis-sentinel["Redis Sentinel Cluster"]:::node
 
     load-balancer -->|Routes dynamic traffic to| web-app
     web-app -->|Reads from and writes to| primary-db
     web-app -->|Reads from| replica-db
     primary-db -->|Replicates data to| replica-db
-    web-app -->|Reads from and writes to| cache
+    web-app -->|Discovers active master and topology from| redis-sentinel
+    web-app -->|Writes cache keys, like counters, and locks to| redis-primary
+    web-app -->|Reads newsfeed lists and cache keys from| redis-replica
+    redis-primary -->|Replicates in-memory data to| redis-replica
+    redis-sentinel -->|Monitors health and triggers failover for| redis-primary
+    redis-sentinel -->|Monitors and reconfigures| redis-replica
     web-app -->|Uploads photos| s3
     cdn -->|Fetches images from origin| s3
     node_end-user -->|Browses the site, manages profile, and uploads photos| load-balancer
@@ -53,7 +60,8 @@ classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
     web-app -->|Publishes asynchronous events to| kafka-cluster
     kafka-consumers -->|Consumes event batches from| kafka-cluster
     kafka-consumers -->|Bulk writes and updates| primary-db
-    kafka-consumers -->|Updates and invalidates cache keys in| cache
+    kafka-consumers -->|Updates and invalidates cache keys in| redis-primary
+    kafka-consumers -->|Discovers active master address from| redis-sentinel
 
 
 
@@ -65,7 +73,9 @@ classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
 - [Django App Servers](nodes/web-app)
 - [Primary PostgreSQL Database](nodes/primary-db)
 - [Read Replica PostgreSQL Database](nodes/replica-db)
-- [Redis Cache](nodes/cache)
+- [Redis Primary Cache](nodes/redis-primary)
+- [Redis Read Replicas](nodes/redis-replica)
+- [Redis Sentinel Cluster](nodes/redis-sentinel)
 - [CloudFront CDN](nodes/cdn)
 - [Amazon S3](nodes/s3)
 - [Kafka Cluster (KRaft)](nodes/kafka-cluster)
@@ -76,7 +86,12 @@ classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
 - [Webapp To Primarydb](relationships/webapp-to-primarydb)
 - [Webapp To Replicadb](relationships/webapp-to-replicadb)
 - [Primarydb To Replicadb](relationships/primarydb-to-replicadb)
-- [Webapp To Cache](relationships/webapp-to-cache)
+- [Webapp To Redis Sentinel](relationships/webapp-to-redis-sentinel)
+- [Webapp To Redis Primary](relationships/webapp-to-redis-primary)
+- [Webapp To Redis Replica](relationships/webapp-to-redis-replica)
+- [Primary To Replica Redis](relationships/primary-to-replica-redis)
+- [Sentinel To Redis Primary](relationships/sentinel-to-redis-primary)
+- [Sentinel To Redis Replica](relationships/sentinel-to-redis-replica)
 - [Webapp To S3](relationships/webapp-to-s3)
 - [Cdn To S3](relationships/cdn-to-s3)
 - [User To Lb](relationships/user-to-lb)
@@ -84,7 +99,8 @@ classDef highlight fill:#ffffff,stroke:#000000,stroke-width:1px,color:#000000;
 - [Webapp To Kafka](relationships/webapp-to-kafka)
 - [Consumers To Kafka](relationships/consumers-to-kafka)
 - [Consumers To Primarydb](relationships/consumers-to-primarydb)
-- [Consumers To Cache](relationships/consumers-to-cache)
+- [Consumers To Redis Primary](relationships/consumers-to-redis-primary)
+- [Consumers To Redis Sentinel](relationships/consumers-to-redis-sentinel)
 
 ## Flows
 _No flows defined._

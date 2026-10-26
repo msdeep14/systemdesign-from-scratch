@@ -35,10 +35,22 @@
       "description": "Read-only database replicas for scaling read queries."
     },
     {
-      "unique-id": "cache",
+      "unique-id": "redis-primary",
       "node-type": "service",
-      "name": "Redis Cache",
-      "description": "Caches newsfeeds and frequently accessed data."
+      "name": "Redis Primary Cache",
+      "description": "In-memory cache master handling all write operations, like counters, user like sets, and replication."
+    },
+    {
+      "unique-id": "redis-replica",
+      "node-type": "service",
+      "name": "Redis Read Replicas",
+      "description": "In-memory cache replicas for horizontally scaling read operations and feed queries."
+    },
+    {
+      "unique-id": "redis-sentinel",
+      "node-type": "service",
+      "name": "Redis Sentinel Cluster",
+      "description": "Distributed consensus monitoring nodes (quorum 2) providing automated health tracking and master failover."
     },
     {
       "unique-id": "cdn",
@@ -127,19 +139,49 @@
       "description": "Replicates data to"
     },
     {
-      "unique-id": "webapp-to-cache",
+      "unique-id": "webapp-to-redis-sentinel",
       "relationship-type": {
         "connects": {
           "source": {
             "node": "web-app"
           },
           "destination": {
-            "node": "cache"
+            "node": "redis-sentinel"
           }
         }
       },
       "protocol": "TCP",
-      "description": "Reads from and writes to"
+      "description": "Discovers active master and topology from"
+    },
+    {
+      "unique-id": "webapp-to-redis-primary",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "redis-primary"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Writes cache keys, like counters, and locks to"
+    },
+    {
+      "unique-id": "webapp-to-redis-replica",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "redis-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads newsfeed lists and cache keys from"
     },
     {
       "unique-id": "webapp-to-s3",
@@ -241,19 +283,79 @@
       "description": "Bulk writes and updates"
     },
     {
-      "unique-id": "consumers-to-cache",
+      "unique-id": "primary-to-replica-redis",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-primary"
+          },
+          "destination": {
+            "node": "redis-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Replicates in-memory data to"
+    },
+    {
+      "unique-id": "sentinel-to-redis-primary",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-sentinel"
+          },
+          "destination": {
+            "node": "redis-primary"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Monitors health and triggers failover for"
+    },
+    {
+      "unique-id": "sentinel-to-redis-replica",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-sentinel"
+          },
+          "destination": {
+            "node": "redis-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Monitors and reconfigures"
+    },
+    {
+      "unique-id": "consumers-to-redis-primary",
       "relationship-type": {
         "connects": {
           "source": {
             "node": "kafka-consumers"
           },
           "destination": {
-            "node": "cache"
+            "node": "redis-primary"
           }
         }
       },
       "protocol": "TCP",
       "description": "Updates and invalidates cache keys in"
+    },
+    {
+      "unique-id": "consumers-to-redis-sentinel",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "kafka-consumers"
+          },
+          "destination": {
+            "node": "redis-sentinel"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Discovers active master address from"
     }
   ]
 }

@@ -885,5 +885,13 @@
 *   **Notes/Edge Cases**:
     *   Default AWS AMI 8 GB root volumes leave only ~3.5 GB free space, insufficient for 3.5M row datasets with WAL replication checkpoints.
 
-
-
+## Phase: Redis Sentinel Architecture Models & Cache Scaling Documentation (Date: 2026-10-26, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Update C4 Structurizr diagrams and FINOS CALM architecture models to accurately reflect the distributed Redis Sentinel cluster topology (1 Primary, 3 Replicas, 3 Sentinels with quorum 2) instead of a monolithic Redis node. Document the cache scaling architecture, user-centric likes scalability optimizations, local testing procedures, and AWS production deployment in a dedicated chapter guide.
+*   **Actions**:
+    *   Updated Structurizr C4 model in `photoz/structurizr/workspace.dsl` and `photoz/structurizr/workspace.json`, decomposing `cache` into `redisPrimary`, `redisReplica`, and `redisSentinel` within the `Redis Sentinel Cluster` container group, and updating all read/write/monitoring relationships.
+    *   Updated FINOS CALM model in `photoz/architecture/photoz.calm.json` and documentation in `photoz/architecture/docs/docs/index.md`, adding `redis-primary`, `redis-replica`, and `redis-sentinel` services and validating with `calm validate` against `guardrails.pattern.json`.
+    *   Created dedicated deep-dive guide `chapter06/cache-scaling/README.md` covering the architectural motivation, user-centric liked sets, Docker Compose local testing, dynamic 4th replica scale-out, AWS multi-AZ quorum anchoring, and lazy master discovery.
+    *   Updated `chapter06/README.md` adding a prominent overview and link to `cache-scaling/README.md`.
+    *   Validated all 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) passing cleanly.
+*   **Notes/Edge Cases**:
+    *   Component views in Structurizr link `photosApp` to `redisPrimary` (for atomic counters and toggles) and `newsfeedApp` to `redisReplica` (for feed caching), maintaining clean separation of concerns across C4 container boundaries.
