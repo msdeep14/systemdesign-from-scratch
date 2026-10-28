@@ -146,7 +146,7 @@ likes = core_replica.get(f"photo:{photo_id}:likes_count")
 From repository root (virtual environment activated):
 ```bash
 source ./photoz/venv/bin/activate && cd photoz
-python manage.py test tests.test_cache_service
+python manage.py test tests.test_cache_service tests.test_celebrity_cache
 ```
 
 ### Running Quality Checks
@@ -154,10 +154,10 @@ python manage.py test tests.test_cache_service
 source ./photoz/venv/bin/activate && cd photoz
 ruff check .
 ruff format --check .
-pylint bses/cache.py bses/redis_client.py tests/test_cache_service.py
+pylint bses/cache.py bses/redis_client.py photos/services.py newsfeed/services.py tests/test_celebrity_cache.py
 lint-imports
 pre-commit run --all-files
 ```
 
 ### Container Setup
-For Task 1, no container changes are required; tests run against in-memory mocks and existing Redis configurations.
+For Task 1 and Task 2, no container changes are required; existing Redis core configuration and local in-process memory are used. Container changes (`redis-feeds`) are introduced in Task 3.

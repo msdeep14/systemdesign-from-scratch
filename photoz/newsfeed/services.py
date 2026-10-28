@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.cache import cache
 from redis import exceptions as redis_exceptions
 
+from bses.cache import cache_service
 from bses.redis_client import get_redis_master, get_redis_replica
 from communities.services import get_accepted_community_ids
 from photos.services import get_celebrity_photo_ids, get_feed_photo_ids
@@ -80,16 +81,20 @@ def _wait_for_feed_promise(client, cache_key):
 def get_celebrity_user_ids(user_id: int) -> list[int]:
     """
     Returns IDs of celebrity accounts (above follower threshold) that this user follows.
-    Result is cached in Redis per user with a short TTL.
+    Result is cached in multi-tier cache with a short local TTL and 5-minute Redis TTL.
     """
     cache_key = f"celebrity_ids:{user_id}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
 
-    celebrity_ids = get_celebrity_followed_ids(user_id, CELEBRITY_FOLLOWER_THRESHOLD)
-    cache.set(cache_key, celebrity_ids, timeout=CELEBRITY_IDS_CACHE_TTL)
-    return celebrity_ids
+    def fetch_celebrity_ids():
+        return get_celebrity_followed_ids(user_id, CELEBRITY_FOLLOWER_THRESHOLD)
+
+    return cache_service.get_or_set(
+        cache_key,
+        fetch_celebrity_ids,
+        local_timeout=5,
+        redis_timeout=CELEBRITY_IDS_CACHE_TTL,
+        tier="core",
+    )
 
 
 def get_cached_feed(user_id):

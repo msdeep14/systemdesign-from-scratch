@@ -6,6 +6,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q
 
+from bses.cache import cache_service
 from bses.redis_client import get_redis_master, get_redis_replica
 from photos.models import Like, Photo
 
@@ -42,11 +43,29 @@ def get_celebrity_photo_ids(celebrity_user_ids: list[int], limit: int = 20) -> l
     """
     Returns the most recent photo IDs from celebrity accounts.
     Only public photos (no community restriction) are included.
+    Cached via CacheService (5s local, 60s Redis) with stampede protection.
     """
-    return list(
-        Photo.objects.filter(user_id__in=celebrity_user_ids, community__isnull=True)
-        .order_by("-created_at")
-        .values_list("id", flat=True)[:limit]
+    if not celebrity_user_ids:
+        return []
+
+    sorted_ids = sorted(celebrity_user_ids)
+    ids_str = ",".join(str(cid) for cid in sorted_ids)
+    cache_key = f"celeb_photos:{ids_str}:{limit}"
+
+    def fetch_from_db():
+        return list(
+            Photo.objects.filter(user_id__in=sorted_ids, community__isnull=True)
+            .order_by("-created_at")
+            .values_list("id", flat=True)[:limit]
+        )
+
+    return cache_service.get_or_set(
+        cache_key,
+        fetch_from_db,
+        local_timeout=5,
+        redis_timeout=60,
+        tier="core",
+        stampede_protection=True,
     )
 
 

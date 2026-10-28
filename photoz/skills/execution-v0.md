@@ -901,7 +901,7 @@
     *   Created implementation plan in `docs/superpowers/plans/2026-10-26-multi-tier-multi-deployment-cache.md`.
     *   Updated `photoz/skills/implementation-v0.md` with Phase 10 architecture scope.
 
-## Phase: Multi-Tier Cache Abstraction Implementation (Date: 2026-10-26, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Multi-Tier Cache Abstraction Implementation (Date: 2026-10-26, Commit: caeb8d5, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Implement a unified cache abstraction decoupling domain services from low-level Redis connection mechanics, supporting in-process local memory (`tier="local"`, LocMemCache), multi-deployment Redis routing (`core`, `feeds`), two-tier fallback (L1 -> L2 -> DB), and thundering herd cache promise locks.
 *   **Actions**:
     *   Updated `bses/redis_client.py`: Enhanced `RedisClientManager` to accept deployment-specific connection parameters while maintaining default settings fallback.
@@ -912,6 +912,18 @@
 *   **Notes/Edge Cases**:
     *   Replaced `try...finally` lock cleanup with explicit `self.delete(lock_key, tier=tier)` and standardized error handling to match `bses/` canonical `["call", "return"]` logging pattern, ensuring `drift-check` passes cleanly without modifying baseline.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 21 unit tests passed cleanly.
+
+## Phase: Celebrity Feed Pull Multi-Tier Cache Migration (Date: 2026-10-28, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Querying PostgreSQL directly on every feed read for users following celebrities causes database read amplification during traffic spikes. Migrated celebrity photo IDs and followed celebrity IDs to multi-tier caching (5s L1 local in-process memory, 60s/300s L2 Redis core) with single-flight stampede protection.
+*   **Actions**:
+    *   Updated `photos/services.py:get_celebrity_photo_ids`: Migrated to `cache_service.get_or_set` with `local_timeout=5`, `redis_timeout=60`, and `stampede_protection=True`.
+    *   Updated `newsfeed/services.py:get_celebrity_user_ids`: Migrated to `cache_service.get_or_set` with `local_timeout=5` and `redis_timeout=300`.
+    *   Created `photoz/tests/test_celebrity_cache.py`: Added tests verifying cache hits prevent database queries, handling of empty inputs, and Redis key isolation.
+    *   Updated `chapter06/cache-abstraction/README.md` test and verification instructions.
+*   **Notes/Edge Cases**:
+    *   Added explicit Redis key deletion in test setUp and tearDown to prevent cross-test cache leaks in the test database.
+    *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) and all 24 unit tests passed cleanly.
+
 
 
 
