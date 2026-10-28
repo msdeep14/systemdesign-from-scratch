@@ -895,3 +895,25 @@
     *   Validated all 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) passing cleanly.
 *   **Notes/Edge Cases**:
     *   Component views in Structurizr link `photosApp` to `redisPrimary` (for atomic counters and toggles) and `newsfeedApp` to `redisReplica` (for feed caching), maintaining clean separation of concerns across C4 container boundaries.
+## Phase: Multi-Tier & Multi-Deployment Cache Architecture Planning (Date: 2026-10-26, Commit: 160884a, Model: Gemini 3.8 Flash High)
+*   **Rationale**: High-churn newsfeed timelines compete with critical likes counters and locks on the single Redis primary. Created an implementation plan to introduce a multi-tier cache abstraction (`bses.cache`), container in-process caching for hot celebrity reads (`LocMemCache`), and separate `core` vs `feeds` Redis deployments.
+*   **Actions**:
+    *   Created implementation plan in `docs/superpowers/plans/2026-10-26-multi-tier-multi-deployment-cache.md`.
+    *   Updated `photoz/skills/implementation-v0.md` with Phase 10 architecture scope.
+
+## Phase: Multi-Tier Cache Abstraction Implementation (Date: 2026-10-26, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Implement a unified cache abstraction decoupling domain services from low-level Redis connection mechanics, supporting in-process local memory (`tier="local"`, LocMemCache), multi-deployment Redis routing (`core`, `feeds`), two-tier fallback (L1 -> L2 -> DB), and thundering herd cache promise locks.
+*   **Actions**:
+    *   Updated `bses/redis_client.py`: Enhanced `RedisClientManager` to accept deployment-specific connection parameters while maintaining default settings fallback.
+    *   Updated `bses/settings.py`: Added `CACHES["local"]` (`LocMemCache` with 5s timeout and 1,000 max entries) and `REDIS_DEPLOYMENTS` mapping `core` and `feeds`.
+    *   Created `bses/cache.py`: Implemented `CacheService` providing `get`, `set`, `delete`, `get_or_set` (with single-flight distributed locking and cache promise polling), and deployment-aware `get_client`.
+    *   Created `photoz/tests/test_cache_service.py`: Added unit test suite covering local tier operations, two-tier backfill, cache miss fallback, lock acquisition, waiter promise polling, and deployment routing.
+    *   Created `chapter06/cache-abstraction/README.md` and updated `chapter06/README.md` and `photoz/README.md`.
+*   **Notes/Edge Cases**:
+    *   Replaced `try...finally` lock cleanup with explicit `self.delete(lock_key, tier=tier)` and standardized error handling to match `bses/` canonical `["call", "return"]` logging pattern, ensuring `drift-check` passes cleanly without modifying baseline.
+    *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 21 unit tests passed cleanly.
+
+
+
+
+

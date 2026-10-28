@@ -409,10 +409,12 @@ We added `flower` to our development dependencies and updated `docker-compose.ym
 
 For a comprehensive deep-dive into the caching bottlenecks (unbounded celebrity like sets, single points of failure, read/write asymmetry), consensus topology, and connection pool sizing, see the dedicated guide:
 - **[Cache Scaling & Redis Sentinel Architecture Deep-Dive](cache-scaling/README.md)**
+- **[Multi-Tier Cache Abstraction & Deployment Routing Guide](cache-abstraction/README.md)**
 
 ### Architecture Highlights
 - **User-Centric Liked Sets**: Inverted unbounded `photo:{id}:likers` sets to bounded `user:{user_id}:liked_photos` sets (up to 500 recent likes), eliminating multi-megabyte memory allocations on celebrity photos while maintaining exact counts with `photo:{id}:likes_count`.
 - **Read/Write Splitting**: Writes route to the Primary (`bses.redis_client.get_redis_master()`); reads route across Replicas (`get_redis_replica()`).
+- **Multi-Tier Cache Abstraction**: Unified `CacheService` managing in-process local memory (`tier="local"`, LocMemCache) and deployment-isolated Redis clusters (`tier="core"`, `tier="feeds"`).
 - **Asymmetric Connection Pools**: Capped at 20 connections on the primary and 50 connections on replicas, backed by 500ms timeouts and 30-second TCP health checks.
 - **Automated Failover**: 3 Sentinel nodes (quorum 2) monitor the primary and perform zero-downtime failover in under 5 seconds.
 

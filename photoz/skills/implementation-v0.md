@@ -90,3 +90,14 @@ Implement a scalable likes architecture and deploy a high-availability Redis Sen
 *   Create `bses.redis_client` with `get_redis_master()` and `get_redis_replica()` with singleton connection pooling, 500ms socket timeouts, 30s TCP health checks, and asymmetric pool limits (50 replica / 20 master) to eliminate connection exhaustion risks.
 *   Deploy 1 Primary, 3 Read Replicas, and 3 Sentinel nodes (quorum 2) with automated failover and dynamic replica scale-out.
 *   Implement Terraform IaC automation in `iaac/aws/terraform` with configurable replica counts (`redis_replica_count`) and instance types (`redis_replica_instance_type`) in `terraform.tfvars`, anchoring exactly 3 Sentinels across 3 distinct Availability Zones on the core nodes.
+
+## Phase: Multi-Tier & Multi-Deployment Cache Routing (Phase 10)
+### The Problem
+Mixing high-churn newsfeed timeline lists with critical application counters (likes) and distributed locks on a single Redis primary risks resource starvation, memory eviction conflicts, and large blast radius during failover. Furthermore, repeated reads for identical celebrity photos during read-time feed pull unnecessarily hammer PostgreSQL and Redis.
+### The Solution
+Implement a multi-tier cache abstraction with workload-isolated Redis deployments:
+*   Create `CacheService` in `bses.cache` providing uniform key-value methods across local in-process memory (`LocMemCache`) and Redis tiers, plus a client registry returning master/replica connections for data-structure operations.
+*   Cache hot celebrity photo IDs in local container memory (`tier="local"`) with a 5-second TTL to eliminate database read amplification.
+*   Isolate newsfeed timeline lists (`feed:*`) onto a dedicated `feeds` Redis deployment, leaving `core` Redis Sentinel for like counters, user sets, and locks.
+*   Provision a dedicated `redis_feeds_node` EC2 instance in Terraform with automated environment injection into App nodes.
+

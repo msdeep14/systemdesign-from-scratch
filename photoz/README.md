@@ -29,6 +29,7 @@ TrueCourse relies on explicit HTTP documentation to generate tests. Here are the
 - **Newsfeed**: Paginated global feed merging followed users' posts and community posts.
 - **Communities**: Create and join niche communities. Upload photos exclusively to a community context. Invite other members.
 - **Notifications**: Centralized alerts for community invites, photo likes, and comments.
+- **Multi-Tier Caching**: Unified cache abstraction (`bses.cache.CacheService`) providing in-process memory (`LocMemCache`) for hot read data, workload-isolated Redis deployments (`core` vs `feeds`), and thundering herd cache promise locks.
 
 ## Local Development Setup
 

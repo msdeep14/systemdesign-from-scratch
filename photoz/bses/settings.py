@@ -205,6 +205,32 @@ else:
         }
     }
 
+CACHES["local"] = {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "photoz-in-process-cache",
+    "TIMEOUT": 5,
+    "OPTIONS": {
+        "MAX_ENTRIES": 1000,
+    },
+}
+
+REDIS_FEEDS_URL = os.environ.get("REDIS_FEEDS_URL", "")
+
+REDIS_DEPLOYMENTS = {
+    "core": {
+        "SENTINELS": REDIS_SENTINELS if REDIS_SENTINELS_ENV else [],
+        "MASTER_NAME": REDIS_MASTER_NAME,
+        "URL": REDIS_URL if not REDIS_SENTINELS_ENV else "",
+        "SOCKET_TIMEOUT": REDIS_SOCKET_TIMEOUT,
+        "CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
+    },
+    "feeds": {
+        "URL": REDIS_FEEDS_URL or REDIS_URL or "redis://localhost:6379/2",
+        "SOCKET_TIMEOUT": 1.0,
+        "CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
+    },
+}
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

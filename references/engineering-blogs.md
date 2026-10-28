@@ -13,4 +13,7 @@ I've read many-many engineering blogs for research on this project. I'll try to 
 * [Scaling Instagram Infrastructure, InfoQ London 2017](https://www.youtube.com/watch?v=hnpzNAPiC0E)
 * [DoorDash RabbitMQ Celery migration to Apache Kafka](https://careersatdoordash.com/blog/eliminating-task-processing-outages-with-kafka/)
 * [Migrating Critical Traffic, Netflix Part 1](https://netflixtechblog.com/migrating-critical-traffic-at-scale-with-no-downtime-part-1-ba1c7a1c7835)
-* * [Migrating Critical Traffic, Netflix Part 2](https://netflixtechblog.com/migrating-critical-traffic-at-scale-with-no-downtime-part-2-4b1c8c7155c1)
+* [Migrating Critical Traffic, Netflix Part 2](https://netflixtechblog.com/migrating-critical-traffic-at-scale-with-no-downtime-part-2-4b1c8c7155c1)
+* [Pinterest Cache Infrastructure with Memcached and mcrouter](https://medium.com/pinterest-engineering/scaling-cache-infrastructure-at-pinterest-422d6d294ece)
+* [Caching for Global Netflix](https://netflixtechblog.com/caching-for-a-global-netflix-7bcc457012f1)
+* [Twitter Twemcache](https://dl.acm.org/doi/fullHtml/10.1145/3468521)
