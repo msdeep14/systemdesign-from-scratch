@@ -46,6 +46,13 @@ services:
     ports:
       - "6382:6379"
 
+  redis-feeds:
+    image: redis:7
+    container_name: photoz-redis-feeds
+    command: ["redis-server", "--protected-mode", "no"]
+    ports:
+      - "6383:6379"
+
   sentinel-1:
     image: redis:7
     container_name: photoz-sentinel-1
@@ -106,12 +113,14 @@ services:
       - REPLICA_DB_PORT=6432
       - REDIS_SENTINELS=sentinel-1:26379,sentinel-2:26379,sentinel-3:26379
       - REDIS_MASTER_NAME=mymaster
+      - REDIS_FEEDS_URL=redis://redis-feeds:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       - db
       - pgbouncer
       - pgbouncer-replica
       - redis-primary
+      - redis-feeds
       - sentinel-1
       - kafka
 

@@ -146,7 +146,7 @@ likes = core_replica.get(f"photo:{photo_id}:likes_count")
 From repository root (virtual environment activated):
 ```bash
 source ./photoz/venv/bin/activate && cd photoz
-python manage.py test tests.test_cache_service tests.test_celebrity_cache
+python manage.py test tests.test_cache_service tests.test_celebrity_cache tests.test_feeds_redis_routing
 ```
 
 ### Running Quality Checks
@@ -154,10 +154,16 @@ python manage.py test tests.test_cache_service tests.test_celebrity_cache
 source ./photoz/venv/bin/activate && cd photoz
 ruff check .
 ruff format --check .
-pylint bses/cache.py bses/redis_client.py photos/services.py newsfeed/services.py tests/test_celebrity_cache.py
+pylint bses/cache.py bses/redis_client.py photos/services.py newsfeed/services.py tests/test_celebrity_cache.py tests/test_feeds_redis_routing.py
 lint-imports
 pre-commit run --all-files
 ```
 
 ### Container Setup
-For Task 1 and Task 2, no container changes are required; existing Redis core configuration and local in-process memory are used. Container changes (`redis-feeds`) are introduced in Task 3.
+For Task 3, a dedicated standalone Redis container (`photoz-redis-feeds`) handles newsfeed list operations (`RPUSH`, `LPUSH`, `LRANGE`, `LTRIM`):
+```bash
+cd photoz
+docker compose up -d redis-feeds
+docker compose restart web
+```
+This starts `redis-feeds` on port 6383 (`redis://redis-feeds:6379/0` within the Docker network) and restarts the `web` container with `REDIS_FEEDS_URL` configured.

@@ -913,7 +913,7 @@
     *   Replaced `try...finally` lock cleanup with explicit `self.delete(lock_key, tier=tier)` and standardized error handling to match `bses/` canonical `["call", "return"]` logging pattern, ensuring `drift-check` passes cleanly without modifying baseline.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 21 unit tests passed cleanly.
 
-## Phase: Celebrity Feed Pull Multi-Tier Cache Migration (Date: 2026-10-28, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Celebrity Feed Pull Multi-Tier Cache Migration (Date: 2026-10-28, Commit: 72c6e14, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Querying PostgreSQL directly on every feed read for users following celebrities causes database read amplification during traffic spikes. Migrated celebrity photo IDs and followed celebrity IDs to multi-tier caching (5s L1 local in-process memory, 60s/300s L2 Redis core) with single-flight stampede protection.
 *   **Actions**:
     *   Updated `photos/services.py:get_celebrity_photo_ids`: Migrated to `cache_service.get_or_set` with `local_timeout=5`, `redis_timeout=60`, and `stampede_protection=True`.
@@ -923,6 +923,19 @@
 *   **Notes/Edge Cases**:
     *   Added explicit Redis key deletion in test setUp and tearDown to prevent cross-test cache leaks in the test database.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) and all 24 unit tests passed cleanly.
+
+## Phase: Local Redis Feeds Deployment & Newsfeed Migration (Date: 2026-10-28, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Isolate high-churn, large-footprint newsfeed timeline lists (`RPUSH`, `LPUSH`, `LRANGE`, `LTRIM`) from core Redis instance handling mutex locks and like counters to eliminate cross-workload eviction and head-of-line blocking.
+*   **Actions**:
+    *   Updated `docker-compose.yml`: Added standalone `redis-feeds` container on host port 6383 (`photoz-redis-feeds`), configured `web` service environment variable `REDIS_FEEDS_URL=redis://redis-feeds:6379/0`, and declared `depends_on: redis-feeds`.
+    *   Updated `newsfeed/services.py`: Migrated `_get_redis_client(for_write)` to return `cache_service.get_client("feeds", for_write=for_write)`, routing all timeline reads, locks, single/bulk pushes, and cache invalidation to the feeds deployment.
+    *   Created `photoz/tests/test_feeds_redis_routing.py`: Added 4 unit tests verifying single push, bulk pipelined push, cached feed reads, and cache invalidation interact exclusively with the `feeds` deployment client and avoid `core`.
+    *   Updated `photoz/tests/test_redis_routing.py`: Updated newsfeed test case to assert read/write client routing via `cache_service.get_client`.
+    *   Updated `chapter06/cache-abstraction/README.md` with test and container setup instructions.
+*   **Notes/Edge Cases**:
+    *   Updated `invalidate_feed_cache` to clean up both Django default cache and the specific `:1:feed:{user_id}` key on `feeds` client.
+    *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 28 unit tests passed cleanly.
+
 
 
 

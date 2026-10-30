@@ -7,7 +7,6 @@ from django.core.cache import cache
 from redis import exceptions as redis_exceptions
 
 from bses.cache import cache_service
-from bses.redis_client import get_redis_master, get_redis_replica
 from communities.services import get_accepted_community_ids
 from photos.services import get_celebrity_photo_ids, get_feed_photo_ids
 from stories.services import get_active_stories_for_users
@@ -26,7 +25,7 @@ CELEBRITY_FEED_PHOTO_LIMIT = 20
 
 
 def _get_redis_client(for_write: bool = False):
-    return get_redis_master() if for_write else get_redis_replica()
+    return cache_service.get_client("feeds", for_write=for_write)
 
 
 @contextlib.contextmanager
@@ -198,6 +197,11 @@ def push_to_feed_cache_bulk(user_ids, photo_id):
 def invalidate_feed_cache(user_id):
     """Invalidates the feed cache for a user."""
     cache.delete(f"feed:{user_id}")
+    client = _get_redis_client(for_write=True)
+    if client:
+        cache_key = f":1:feed:{user_id}"
+        with handle_redis_error("Failed to delete redis feed cache: %s", cache_key):
+            client.delete(cache_key)
 
 
 def get_feed_stories_grouped(user_id):

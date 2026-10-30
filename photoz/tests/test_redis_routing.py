@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
 
-from newsfeed.services import _get_feed_from_redis, _save_feed_to_redis
+from newsfeed.services import _get_feed_from_redis, _get_redis_client, _save_feed_to_redis
 from photos.services import get_photo_likes_count, update_like_count_redis
 from users.services import get_follower_count, increment_follower_count_redis
 
@@ -28,10 +28,13 @@ class RedisRoutingTestCase(TestCase):
         mock_master = MagicMock()
         mock_replica = MagicMock()
 
-        with (
-            patch("newsfeed.services.get_redis_master", return_value=mock_master),
-            patch("newsfeed.services.get_redis_replica", return_value=mock_replica),
-        ):
+        def mock_get_client(deployment="feeds", for_write=False):
+            return mock_master if for_write else mock_replica
+
+        with patch("newsfeed.services.cache_service.get_client", side_effect=mock_get_client):
+            self.assertEqual(_get_redis_client(for_write=True), mock_master)
+            self.assertEqual(_get_redis_client(for_write=False), mock_replica)
+
             mock_replica.type.return_value = b"list"
             mock_replica.lrange.return_value = ["101", "102"]
             feed = _get_feed_from_redis(mock_replica, ":1:feed:1")
