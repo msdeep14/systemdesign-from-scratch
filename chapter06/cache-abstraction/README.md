@@ -129,11 +129,15 @@ For operations requiring Redis lists, sets, or atomic increments:
 ```python
 from bses.cache import cache_service
 
-# Write to feeds Redis primary
+# 1. High-churn timeline lists (Feeds deployment)
 feeds_master = cache_service.get_client("feeds", for_write=True)
-feeds_master.rpush(f"feed:{user_id}", *photo_ids)
+feeds_master.rpush(f":1:feed:{user_id}", *photo_ids)
 
-# Read from core Redis replica
+# 2. Live counters & mutex locks (Core deployment master)
+core_master = cache_service.get_client("core", for_write=True)
+core_master.incr(f"photo:{photo_id}:likes_count")
+
+# 3. Read replicas for metadata & counters (Core deployment replica)
 core_replica = cache_service.get_client("core", for_write=False)
 likes = core_replica.get(f"photo:{photo_id}:likes_count")
 ```
@@ -146,7 +150,7 @@ likes = core_replica.get(f"photo:{photo_id}:likes_count")
 From repository root (virtual environment activated):
 ```bash
 source ./photoz/venv/bin/activate && cd photoz
-python manage.py test tests.test_cache_service tests.test_celebrity_cache tests.test_feeds_redis_routing
+python manage.py test tests.test_cache_service tests.test_celebrity_cache tests.test_feeds_redis_routing tests.test_redis_routing tests.test_likes_scalability
 ```
 
 ### Running Quality Checks
@@ -154,7 +158,7 @@ python manage.py test tests.test_cache_service tests.test_celebrity_cache tests.
 source ./photoz/venv/bin/activate && cd photoz
 ruff check .
 ruff format --check .
-pylint bses/cache.py bses/redis_client.py photos/services.py newsfeed/services.py tests/test_celebrity_cache.py tests/test_feeds_redis_routing.py
+pylint bses/cache.py bses/redis_client.py photos/services.py newsfeed/services.py users/services.py tests/test_redis_routing.py
 lint-imports
 pre-commit run --all-files
 ```

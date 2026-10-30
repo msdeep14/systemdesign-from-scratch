@@ -35,8 +35,12 @@ workspace "Photoz" "A photo-sharing social network" {
             
             group "Redis Sentinel Cluster" {
                 redisPrimary = container "Redis Primary" "In-memory cache master (writes, counters, locks)" "Redis" "Cache"
-                redisReplica = container "Redis Replicas" "In-memory cache replicas (reads, newsfeed queries)" "Redis" "Cache"
+                redisReplica = container "Redis Replicas" "In-memory cache replicas (reads, metadata queries)" "Redis" "Cache"
                 redisSentinel = container "Redis Sentinels" "Distributed consensus monitoring and automated failover (quorum 2)" "Redis Sentinel" "Cache"
+            }
+
+            group "Redis Feeds Node" {
+                redisFeeds = container "Redis Feeds Node" "Dedicated standalone in-memory cache for newsfeed timeline lists" "Redis" "Cache"
             }
         }
 
@@ -57,7 +61,8 @@ workspace "Photoz" "A photo-sharing social network" {
         databasePrimary -> databaseReplica "Replicates"
         webApp -> redisSentinel "Discovers active master & topology"
         webApp -> redisPrimary "Writes (counters, user likes, locks)"
-        webApp -> redisReplica "Reads (newsfeeds, cached data)"
+        webApp -> redisReplica "Reads (cached photos, user metadata)"
+        webApp -> redisFeeds "Reads and writes timeline lists"
         redisPrimary -> redisReplica "Replicates data"
         redisSentinel -> redisPrimary "Monitors and triggers failover"
         redisSentinel -> redisReplica "Monitors and reconfigures"
@@ -67,6 +72,7 @@ workspace "Photoz" "A photo-sharing social network" {
         kafkaConsumers -> kafkaCluster "Consumes event batches"
         kafkaConsumers -> databasePrimary "Bulk writes & updates"
         kafkaConsumers -> redisPrimary "Invalidates & updates caches"
+        kafkaConsumers -> redisFeeds "Fans out uploads and invalidates follower feeds"
         kafkaConsumers -> redisSentinel "Discovers master address"
 
         # Component Relationships (High-Level Intent)
@@ -74,7 +80,7 @@ workspace "Photoz" "A photo-sharing social network" {
         photosApp -> databasePrimary "Photo Data"
         photosApp -> redisPrimary "Counters & Likes"
         communitiesApp -> databasePrimary "Community Data"
-        newsfeedApp -> redisReplica "Feeds"
+        newsfeedApp -> redisFeeds "Timelines"
         notificationsApp -> databasePrimary "Notifications"
 
         loadBalancer -> usersApp "Routes"

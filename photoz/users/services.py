@@ -3,13 +3,17 @@ from collections import defaultdict
 from django.db import transaction
 from django.db.models import F, Q
 
-from bses.redis_client import get_redis_master, get_redis_replica
+from bses.cache import cache_service
 from users.models import Follow, UserProfile
+
+
+def _get_redis_client(for_write: bool = False):
+    return cache_service.get_client("core", for_write=for_write)
 
 
 def increment_follower_count_redis(user_id: int):
     """Increments the follower count for a user in Redis."""
-    master = get_redis_master()
+    master = _get_redis_client(for_write=True)
     key = f"user:{user_id}:follower_count"
     master.incr(key)
     master.sadd("users_with_pending_follower_counts", user_id)
@@ -17,7 +21,7 @@ def increment_follower_count_redis(user_id: int):
 
 def decrement_follower_count_redis(user_id: int):
     """Decrements the follower count for a user in Redis."""
-    master = get_redis_master()
+    master = _get_redis_client(for_write=True)
     key = f"user:{user_id}:follower_count"
     master.decr(key)
     master.sadd("users_with_pending_follower_counts", user_id)
@@ -26,7 +30,7 @@ def decrement_follower_count_redis(user_id: int):
 def get_follower_count(user_id: int, db_follower_count: int) -> int:
     """Gets the live follower count for a user (Redis delta + DB baseline)."""
     key = f"user:{user_id}:follower_count"
-    delta = get_redis_replica().get(key)
+    delta = _get_redis_client(for_write=False).get(key)
     if delta is not None:
         return db_follower_count + int(delta)
     return db_follower_count

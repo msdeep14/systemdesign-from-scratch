@@ -924,7 +924,7 @@
     *   Added explicit Redis key deletion in test setUp and tearDown to prevent cross-test cache leaks in the test database.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint`, `import-linter`, `drift-check`, `calm-validate`) and all 24 unit tests passed cleanly.
 
-## Phase: Local Redis Feeds Deployment & Newsfeed Migration (Date: 2026-10-28, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Local Redis Feeds Deployment & Newsfeed Migration (Date: 2026-10-28, Commit: be888be, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Isolate high-churn, large-footprint newsfeed timeline lists (`RPUSH`, `LPUSH`, `LRANGE`, `LTRIM`) from core Redis instance handling mutex locks and like counters to eliminate cross-workload eviction and head-of-line blocking.
 *   **Actions**:
     *   Updated `docker-compose.yml`: Added standalone `redis-feeds` container on host port 6383 (`photoz-redis-feeds`), configured `web` service environment variable `REDIS_FEEDS_URL=redis://redis-feeds:6379/0`, and declared `depends_on: redis-feeds`.
@@ -935,6 +935,20 @@
 *   **Notes/Edge Cases**:
     *   Updated `invalidate_feed_cache` to clean up both Django default cache and the specific `:1:feed:{user_id}` key on `feeds` client.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 28 unit tests passed cleanly.
+
+## Phase: Remaining Domain Services & Architecture Migration (Date: 2026-10-30, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: Complete the decoupling of domain services from low-level Redis connection functions by routing Like counters, user like sets, and follower count caches to `cache_service.get_client("core")`, ensuring clean separation between core state and feeds timelines, and update CALM and C4 architecture models to reflect the dedicated feeds deployment.
+*   **Actions**:
+    *   Updated `photos/services.py`: Replaced direct calls to `get_redis_master()` and `get_redis_replica()` with `_get_redis_client()` routing through `cache_service.get_client("core")`.
+    *   Updated `users/services.py`: Replaced direct calls to `get_redis_master()` and `get_redis_replica()` with `_get_redis_client()` routing through `cache_service.get_client("core")`.
+    *   Updated `photoz/tests/test_redis_routing.py`: Updated test cases for photos and users to verify client routing via `cache_service.get_client("core")`.
+    *   Updated `photoz/architecture/photoz.calm.json`: Added `redis-feeds` service node, `webapp-to-redis-feeds`, and `consumers-to-redis-feeds` relationships; updated replica relationship description.
+    *   Updated `photoz/structurizr/workspace.dsl` and `photoz/structurizr/workspace.json`: Added `redisFeeds` container and corresponding container/component relationships.
+    *   Updated `chapter06/cache-abstraction/README.md` with usage examples and quality check commands.
+*   **Notes/Edge Cases**:
+    *   Preserved `redis_client` test override hook in `photos/services.py` ensuring full backwards compatibility with existing mocked unit tests in `test_likes_scalability.py`.
+    *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 28 unit tests passed cleanly.
+
 
 
 

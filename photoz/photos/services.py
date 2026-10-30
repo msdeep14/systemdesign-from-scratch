@@ -7,11 +7,16 @@ from django.db import transaction
 from django.db.models import F, Q
 
 from bses.cache import cache_service
-from bses.redis_client import get_redis_master, get_redis_replica
 from photos.models import Like, Photo
 
 # Optional fallback client for backwards compatibility in existing tests
 redis_client: object | None = None  # pylint: disable=invalid-name
+
+
+def _get_redis_client(for_write: bool = False):
+    if redis_client:
+        return redis_client
+    return cache_service.get_client("core", for_write=for_write)
 
 
 def get_feed_photo_ids(user_id, followed_user_ids, community_ids):
@@ -72,12 +77,12 @@ def get_celebrity_photo_ids(celebrity_user_ids: list[int], limit: int = 20) -> l
 def get_photo_likes_count(photo_id: int, db_likes_count: int) -> int:
     """Gets the live like count for a photo using Full Count strategy."""
     key = f"photo:{photo_id}:likes_count"
-    read_client = redis_client or get_redis_replica()
+    read_client = _get_redis_client(for_write=False)
     count = read_client.get(key)
     if count is not None:
         return int(count)
 
-    write_client = redis_client or get_redis_master()
+    write_client = _get_redis_client(for_write=True)
     write_client.set(key, db_likes_count)
     return db_likes_count
 
@@ -85,7 +90,7 @@ def get_photo_likes_count(photo_id: int, db_likes_count: int) -> int:
 def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool = True):
     """Updates the like count for a photo in Redis."""
     key = f"photo:{photo_id}:likes_count"
-    master = redis_client or get_redis_master()
+    master = _get_redis_client(for_write=True)
 
     # Ensure baseline is set if it was evicted or not yet cached.
     # Uses caller's `db_likes_count` to avoid an extra DB lookup.
@@ -102,7 +107,7 @@ def update_like_count_redis(photo_id: int, db_likes_count: int, increment: bool 
 def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
     """Checks whether a user has liked a photo via user-centric Redis set with DB fallback."""
     user_key = f"user:{user_id}:liked_photos"
-    read_client = redis_client or get_redis_replica()
+    read_client = _get_redis_client(for_write=False)
     if read_client.exists(user_key):
         return bool(read_client.sismember(user_key, str(photo_id)))
 
@@ -112,7 +117,7 @@ def is_photo_liked_by_user(photo_id: int, user_id: int) -> bool:
         .order_by("-created_at")[:500]
         .values_list("photo_id", flat=True)
     )
-    write_client = redis_client or get_redis_master()
+    write_client = _get_redis_client(for_write=True)
     if liked_photo_ids:
         write_client.sadd(user_key, *[str(pid) for pid in liked_photo_ids])
     else:
@@ -126,7 +131,7 @@ def toggle_photo_like_redis(photo_id: int, user_id: int, db_likes_count: int) ->
     """Atomically toggle like state for user in Redis and return (has_liked, likes_count)."""
     count_key = f"photo:{photo_id}:likes_count"
     user_key = f"user:{user_id}:liked_photos"
-    master = redis_client or get_redis_master()
+    master = _get_redis_client(for_write=True)
 
     if not master.exists(count_key):
         master.set(count_key, db_likes_count)
@@ -169,14 +174,14 @@ def get_cached_photo(photo_id: int):
     using Redis Pub/Sub to prevent a Thundering Herd from hitting the database.
     """
     key = f"photo:{photo_id}:data"
-    read_client = redis_client or get_redis_replica()
+    read_client = _get_redis_client(for_write=False)
     cached = read_client.get(key)
     if cached:
         return json.loads(cached)
 
     lock_key = f"lock:photo:{photo_id}"
     channel = f"channel:photo:{photo_id}:populated"
-    write_client = redis_client or get_redis_master()
+    write_client = _get_redis_client(for_write=True)
 
     # Try to acquire lock
     if write_client.setnx(lock_key, "1"):
@@ -246,7 +251,7 @@ def bulk_record_likes(like_pairs: list[tuple[int, int]]) -> int:
 
     likes_to_create = [Like(photo_id=photo_id, user_id=user_id) for photo_id, user_id in new_pairs]
     photo_counts: dict[int, int] = defaultdict(int)
-    write_client = redis_client or get_redis_master()
+    write_client = _get_redis_client(for_write=True)
     for photo_id, user_id in new_pairs:
         photo_counts[photo_id] += 1
         user_key = f"user:{user_id}:liked_photos"

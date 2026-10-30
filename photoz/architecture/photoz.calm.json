@@ -53,6 +53,12 @@
       "description": "Distributed consensus monitoring nodes (quorum 2) providing automated health tracking and master failover."
     },
     {
+      "unique-id": "redis-feeds",
+      "node-type": "service",
+      "name": "Redis Feeds Deployment",
+      "description": "Dedicated standalone in-memory cache for newsfeed timeline lists (RPUSH, LPUSH, LRANGE, LTRIM), isolated from core counters and locks."
+    },
+    {
       "unique-id": "cdn",
       "node-type": "service",
       "name": "CloudFront CDN",
@@ -181,7 +187,22 @@
         }
       },
       "protocol": "TCP",
-      "description": "Reads newsfeed lists and cache keys from"
+      "description": "Reads cached photos, user metadata, and like counts from"
+    },
+    {
+      "unique-id": "webapp-to-redis-feeds",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "redis-feeds"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads and writes newsfeed timeline lists on"
     },
     {
       "unique-id": "webapp-to-s3",
@@ -356,6 +377,21 @@
       },
       "protocol": "TCP",
       "description": "Discovers active master address from"
+    },
+    {
+      "unique-id": "consumers-to-redis-feeds",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "kafka-consumers"
+          },
+          "destination": {
+            "node": "redis-feeds"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Fans out photo uploads and invalidates follower feeds on"
     }
   ]
 }
