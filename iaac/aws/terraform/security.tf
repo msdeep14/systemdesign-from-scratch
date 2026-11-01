@@ -183,10 +183,11 @@ locals {
 }
 
 resource "aws_security_group" "redis" {
-  count       = var.create_security_groups && var.create_redis_node ? 1 : 0
+  count       = var.create_security_groups && (var.create_redis_node || var.create_redis_sentinel_node) ? 1 : 0
   name        = "photoz-redis-sg${local.env_suffix}"
   description = "Allow Redis traffic from App"
   vpc_id      = local.vpc_id
+
 
   ingress {
     description     = "Redis from App"
@@ -237,7 +238,7 @@ resource "aws_security_group" "redis" {
 }
 
 locals {
-  redis_sg_id = var.create_security_groups && var.create_redis_node ? aws_security_group.redis[0].id : ""
+  redis_sg_id = var.create_security_groups && (var.create_redis_node || var.create_redis_sentinel_node) ? aws_security_group.redis[0].id : ""
 }
 
 resource "aws_security_group" "kafka_controller" {

@@ -8,6 +8,7 @@ from django.db.models import F, Q
 
 from bses.cache import cache_service
 from photos.models import Like, Photo
+from users.services import get_follower_count
 
 # Optional fallback client for backwards compatibility in existing tests
 redis_client: object | None = None  # pylint: disable=invalid-name
@@ -197,7 +198,8 @@ def get_cached_photo(photo_id: int):
         photo_data = _serialize_photo(photo)
 
         # Determine TTL based on celebrity status
-        is_celebrity = photo.user.profile.follower_count > settings.CELEBRITY_FOLLOWER_THRESHOLD
+        follower_count = get_follower_count(photo.user_id, photo.user.profile.follower_count)
+        is_celebrity = follower_count > settings.CELEBRITY_FOLLOWER_THRESHOLD
         ttl = (
             settings.CACHE_TTL_CELEBRITY_PHOTO if is_celebrity else settings.CACHE_TTL_NORMAL_PHOTO
         )

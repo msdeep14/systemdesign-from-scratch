@@ -936,7 +936,7 @@
     *   Updated `invalidate_feed_cache` to clean up both Django default cache and the specific `:1:feed:{user_id}` key on `feeds` client.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 28 unit tests passed cleanly.
 
-## Phase: Remaining Domain Services & Architecture Migration (Date: 2026-10-30, Commit: Pending, Model: Gemini 3.8 Flash High)
+## Phase: Remaining Domain Services & Architecture Migration (Date: 2026-10-30, Commit: 669dfc2, Model: Gemini 3.8 Flash High)
 *   **Rationale**: Complete the decoupling of domain services from low-level Redis connection functions by routing Like counters, user like sets, and follower count caches to `cache_service.get_client("core")`, ensuring clean separation between core state and feeds timelines, and update CALM and C4 architecture models to reflect the dedicated feeds deployment.
 *   **Actions**:
     *   Updated `photos/services.py`: Replaced direct calls to `get_redis_master()` and `get_redis_replica()` with `_get_redis_client()` routing through `cache_service.get_client("core")`.
@@ -948,6 +948,23 @@
 *   **Notes/Edge Cases**:
     *   Preserved `redis_client` test override hook in `photos/services.py` ensuring full backwards compatibility with existing mocked unit tests in `test_likes_scalability.py`.
     *   All 6 pre-commit hooks (`ruff`, `ruff-format`, `pylint` 10.00/10, `import-linter`, `drift-check`, `calm-validate`) and all 28 unit tests passed cleanly.
+
+## Phase: Redis Feeds High Availability Sentinel & AWS Terraform (Date: 2026-10-30, Commit: Pending, Model: Gemini 3.8 Flash High)
+*   **Rationale**: High-traffic newsfeed timeline caches require High Availability and automated failover matching the core cache cluster. In AWS production, to eliminate failure coupling between cache workloads, provision a dedicated 3-node Sentinel quorum using lightweight Amazon Linux 2023 Minimal (`t3.nano`) with swap configured to eliminate memory pressure, remove colocated Sentinels from Core Redis instances, and monitor both Core and Feeds master groups simultaneously.
+*   **Actions**:
+    *   Updated `photoz/bses/settings.py`: Added support for Sentinel-monitored feeds deployment via `REDIS_FEEDS_MASTER_NAME`, `REDIS_FEEDS_SENTINELS_ENV`, and `REDIS_DEPLOYMENTS["feeds"]` with fallback to `REDIS_FEEDS_URL`.
+    *   Updated `photoz/redis-sentinel/sentinel.conf`: Added Sentinel monitoring directives for `feeds-master` (`sentinel monitor feeds-master redis-feeds-primary 6379 2`, down-after-milliseconds 3000, failover-timeout 5000, parallel-syncs 1).
+    *   Updated `photoz/docker-compose.yml`: Replaced standalone feeds container with `redis-feeds-primary` (host port 6383:6379) and `redis-feeds-replica` (host port 6384:6379), added health checks, updated Sentinel dependencies, and injected `REDIS_FEEDS_MASTER_NAME=feeds-master` into `web`.
+    *   Updated AWS Terraform infrastructure (`iaac/aws/terraform/variables.tf`, `main.tf`, `security.tf`, `outputs.tf`, `terraform.tfvars`, `staging.tfvars`): Added `aws_instance.redis_sentinel_node` (3 nodes, `t3.nano`, AL2023 Minimal with 512MB swap), removed colocated Sentinel processes from `redis_node` and `redis_replica`, added `aws_instance.redis_feeds_node` and `aws_instance.redis_feeds_replica`, and updated Sentinel endpoints for app launch template.
+    *   Updated `photoz/architecture/photoz.calm.json`: Replaced standalone `redis-feeds` with `redis-feeds-primary` and `redis-feeds-replica` nodes, clarified dedicated Sentinel cluster description, added Sentinel monitoring, replication, and consumer fanout relationships.
+    *   Updated `photoz/structurizr/workspace.dsl` & `photoz/structurizr/workspace.json`: Added `Dedicated Redis Sentinel Cluster`, `Redis Core Cluster`, and `Redis Feeds Cluster` container groups with primary and replica containers, and regenerated workspace JSON.
+    *   Updated `photos/services.py` & `photoz/.importlinter`: Resolved hidden co-change coupling by importing `get_follower_count` for celebrity follower checks and configuring `ignore_imports`.
+    *   Updated `chapter06/cache-abstraction/README.md` with Sentinel HA setup instructions and AWS Terraform deployment documentation.
+*   **Notes/Edge Cases**:
+    *   Amazon Linux 2023 Minimal uses ~80 MB idle RAM (vs 350+ MB on Ubuntu standard). Adding 512 MB swap file ensures burst memory headroom during package installs and health checks on `t3.nano` instances.
+    *   Verified Terraform configuration syntax with `terraform validate`.
+    *   All quality checks (`ruff check`, `ruff format --check`, `pylint` 10.00/10, `import-linter`, `drift-analyzer`, `calm-validate`) and all 28 Django unit tests passed cleanly.
+
 
 
 

@@ -33,14 +33,18 @@ workspace "Photoz" "A photo-sharing social network" {
                 databaseReplica = container "Read Replicas" "Core DB (Reads)" "PostgreSQL" "Database"
             }
             
-            group "Redis Sentinel Cluster" {
+            group "Redis Core Cluster" {
                 redisPrimary = container "Redis Primary" "In-memory cache master (writes, counters, locks)" "Redis" "Cache"
                 redisReplica = container "Redis Replicas" "In-memory cache replicas (reads, metadata queries)" "Redis" "Cache"
-                redisSentinel = container "Redis Sentinels" "Distributed consensus monitoring and automated failover (quorum 2)" "Redis Sentinel" "Cache"
             }
 
-            group "Redis Feeds Node" {
-                redisFeeds = container "Redis Feeds Node" "Dedicated standalone in-memory cache for newsfeed timeline lists" "Redis" "Cache"
+            group "Dedicated Redis Sentinel Cluster" {
+                redisSentinel = container "Redis Sentinels" "Dedicated 3-node distributed consensus monitoring and automated failover (quorum 2)" "Redis Sentinel" "Cache"
+            }
+
+            group "Redis Feeds Cluster" {
+                redisFeedsPrimary = container "Redis Feeds Primary" "Dedicated in-memory cache master for newsfeed timeline lists" "Redis" "Cache"
+                redisFeedsReplica = container "Redis Feeds Replica" "Dedicated in-memory cache replica for newsfeed timeline lists" "Redis" "Cache"
             }
         }
 
@@ -62,7 +66,11 @@ workspace "Photoz" "A photo-sharing social network" {
         webApp -> redisSentinel "Discovers active master & topology"
         webApp -> redisPrimary "Writes (counters, user likes, locks)"
         webApp -> redisReplica "Reads (cached photos, user metadata)"
-        webApp -> redisFeeds "Reads and writes timeline lists"
+        webApp -> redisFeedsPrimary "Writes (timelines)"
+        webApp -> redisFeedsReplica "Reads (timelines)"
+        redisFeedsPrimary -> redisFeedsReplica "Replicates data"
+        redisSentinel -> redisFeedsPrimary "Monitors and triggers failover"
+        redisSentinel -> redisFeedsReplica "Monitors and reconfigures"
         redisPrimary -> redisReplica "Replicates data"
         redisSentinel -> redisPrimary "Monitors and triggers failover"
         redisSentinel -> redisReplica "Monitors and reconfigures"
@@ -72,7 +80,7 @@ workspace "Photoz" "A photo-sharing social network" {
         kafkaConsumers -> kafkaCluster "Consumes event batches"
         kafkaConsumers -> databasePrimary "Bulk writes & updates"
         kafkaConsumers -> redisPrimary "Invalidates & updates caches"
-        kafkaConsumers -> redisFeeds "Fans out uploads and invalidates follower feeds"
+        kafkaConsumers -> redisFeedsPrimary "Fans out uploads and updates follower feeds"
         kafkaConsumers -> redisSentinel "Discovers master address"
 
         # Component Relationships (High-Level Intent)
@@ -80,7 +88,8 @@ workspace "Photoz" "A photo-sharing social network" {
         photosApp -> databasePrimary "Photo Data"
         photosApp -> redisPrimary "Counters & Likes"
         communitiesApp -> databasePrimary "Community Data"
-        newsfeedApp -> redisFeeds "Timelines"
+        newsfeedApp -> redisFeedsPrimary "Timeline writes"
+        newsfeedApp -> redisFeedsReplica "Timeline reads"
         notificationsApp -> databasePrimary "Notifications"
 
         loadBalancer -> usersApp "Routes"

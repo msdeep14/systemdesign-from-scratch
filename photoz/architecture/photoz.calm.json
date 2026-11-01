@@ -50,13 +50,19 @@
       "unique-id": "redis-sentinel",
       "node-type": "service",
       "name": "Redis Sentinel Cluster",
-      "description": "Distributed consensus monitoring nodes (quorum 2) providing automated health tracking and master failover."
+      "description": "Dedicated 3-node distributed consensus monitoring cluster (quorum 2) providing automated health tracking and master failover for Core and Feeds Redis."
     },
     {
-      "unique-id": "redis-feeds",
+      "unique-id": "redis-feeds-primary",
       "node-type": "service",
-      "name": "Redis Feeds Deployment",
-      "description": "Dedicated standalone in-memory cache for newsfeed timeline lists (RPUSH, LPUSH, LRANGE, LTRIM), isolated from core counters and locks."
+      "name": "Redis Feeds Primary",
+      "description": "Dedicated in-memory cache primary for newsfeed timeline lists (RPUSH, LPUSH, LRANGE, LTRIM), isolated from core counters and monitored by Sentinels."
+    },
+    {
+      "unique-id": "redis-feeds-replica",
+      "node-type": "service",
+      "name": "Redis Feeds Read Replica",
+      "description": "Dedicated read replica for newsfeed timeline lists, replicating from feeds primary and monitored by Sentinels."
     },
     {
       "unique-id": "cdn",
@@ -190,19 +196,34 @@
       "description": "Reads cached photos, user metadata, and like counts from"
     },
     {
-      "unique-id": "webapp-to-redis-feeds",
+      "unique-id": "webapp-to-redis-feeds-primary",
       "relationship-type": {
         "connects": {
           "source": {
             "node": "web-app"
           },
           "destination": {
-            "node": "redis-feeds"
+            "node": "redis-feeds-primary"
           }
         }
       },
       "protocol": "TCP",
-      "description": "Reads and writes newsfeed timeline lists on"
+      "description": "Writes and reads newsfeed timeline lists on"
+    },
+    {
+      "unique-id": "webapp-to-redis-feeds-replica",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "web-app"
+          },
+          "destination": {
+            "node": "redis-feeds-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Reads newsfeed timeline lists from"
     },
     {
       "unique-id": "webapp-to-s3",
@@ -379,6 +400,51 @@
       "description": "Discovers active master address from"
     },
     {
+      "unique-id": "primary-to-replica-redis-feeds",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-feeds-primary"
+          },
+          "destination": {
+            "node": "redis-feeds-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Replicates feed timeline data to"
+    },
+    {
+      "unique-id": "sentinel-to-redis-feeds-primary",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-sentinel"
+          },
+          "destination": {
+            "node": "redis-feeds-primary"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Monitors health and triggers failover for feeds master on"
+    },
+    {
+      "unique-id": "sentinel-to-redis-feeds-replica",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "redis-sentinel"
+          },
+          "destination": {
+            "node": "redis-feeds-replica"
+          }
+        }
+      },
+      "protocol": "TCP",
+      "description": "Monitors and reconfigures feeds replica on"
+    },
+    {
       "unique-id": "consumers-to-redis-feeds",
       "relationship-type": {
         "connects": {
@@ -386,12 +452,12 @@
             "node": "kafka-consumers"
           },
           "destination": {
-            "node": "redis-feeds"
+            "node": "redis-feeds-primary"
           }
         }
       },
       "protocol": "TCP",
-      "description": "Fans out photo uploads and invalidates follower feeds on"
+      "description": "Fans out photo uploads and updates follower feeds on"
     }
   ]
 }

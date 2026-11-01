@@ -46,12 +46,21 @@ services:
     ports:
       - "6382:6379"
 
-  redis-feeds:
+  redis-feeds-primary:
     image: redis:7
-    container_name: photoz-redis-feeds
+    container_name: photoz-redis-feeds-primary
     command: ["redis-server", "--protected-mode", "no"]
     ports:
       - "6383:6379"
+
+  redis-feeds-replica:
+    image: redis:7
+    container_name: photoz-redis-feeds-replica
+    command: ["redis-server", "--replicaof", "redis-feeds-primary", "6379", "--protected-mode", "no"]
+    depends_on:
+      - redis-feeds-primary
+    ports:
+      - "6384:6379"
 
   sentinel-1:
     image: redis:7
@@ -61,6 +70,7 @@ services:
       - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
     depends_on:
       - redis-primary
+      - redis-feeds-primary
     ports:
       - "26379:26379"
 
@@ -72,6 +82,7 @@ services:
       - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
     depends_on:
       - redis-primary
+      - redis-feeds-primary
     ports:
       - "26380:26379"
 
@@ -83,6 +94,7 @@ services:
       - ./redis-sentinel/sentinel.conf:/tmp/sentinel.conf:ro
     depends_on:
       - redis-primary
+      - redis-feeds-primary
     ports:
       - "26381:26379"
 
@@ -113,14 +125,15 @@ services:
       - REPLICA_DB_PORT=6432
       - REDIS_SENTINELS=sentinel-1:26379,sentinel-2:26379,sentinel-3:26379
       - REDIS_MASTER_NAME=mymaster
-      - REDIS_FEEDS_URL=redis://redis-feeds:6379/0
+      - REDIS_FEEDS_MASTER_NAME=feeds-master
+      - REDIS_FEEDS_URL=redis://redis-feeds-primary:6379/0
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     depends_on:
       - db
       - pgbouncer
       - pgbouncer-replica
       - redis-primary
-      - redis-feeds
+      - redis-feeds-primary
       - sentinel-1
       - kafka
 

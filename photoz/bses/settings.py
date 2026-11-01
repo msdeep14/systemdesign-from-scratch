@@ -215,6 +215,18 @@ CACHES["local"] = {
 }
 
 REDIS_FEEDS_URL = os.environ.get("REDIS_FEEDS_URL", "")
+REDIS_FEEDS_MASTER_NAME = os.environ.get("REDIS_FEEDS_MASTER_NAME", "")
+REDIS_FEEDS_SENTINELS_ENV = os.environ.get("REDIS_FEEDS_SENTINELS", "")
+if REDIS_FEEDS_SENTINELS_ENV:
+    REDIS_FEEDS_SENTINELS = [
+        (s.split(":")[0], int(s.split(":")[1]) if ":" in s else 26379)
+        for s in REDIS_FEEDS_SENTINELS_ENV.split(",")
+        if s.strip()
+    ]
+else:
+    REDIS_FEEDS_SENTINELS = (
+        REDIS_SENTINELS if (REDIS_SENTINELS_ENV and REDIS_FEEDS_MASTER_NAME) else []
+    )
 
 REDIS_DEPLOYMENTS = {
     "core": {
@@ -225,7 +237,13 @@ REDIS_DEPLOYMENTS = {
         "CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
     },
     "feeds": {
-        "URL": REDIS_FEEDS_URL or REDIS_URL or "redis://localhost:6379/2",
+        "SENTINELS": REDIS_FEEDS_SENTINELS,
+        "MASTER_NAME": REDIS_FEEDS_MASTER_NAME or "feeds-master",
+        "URL": (
+            REDIS_FEEDS_URL or REDIS_URL or "redis://localhost:6379/2"
+            if not REDIS_FEEDS_SENTINELS
+            else ""
+        ),
         "SOCKET_TIMEOUT": 1.0,
         "CONNECT_TIMEOUT": REDIS_CONNECT_TIMEOUT,
     },

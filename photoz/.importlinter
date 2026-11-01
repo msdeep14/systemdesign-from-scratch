@@ -22,6 +22,7 @@ ignore_imports =
     communities.views -> users.services
     newsfeed.services -> users.services
     photos.views -> users.services
+    photos.services -> users.services
     stories.views -> users.services
     newsfeed.views -> photos.services
     newsfeed.services -> photos.services

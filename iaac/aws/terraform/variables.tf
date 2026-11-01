@@ -180,8 +180,53 @@ variable "redis_master_name" {
   description = "Redis Sentinel master monitor name"
 }
 
+variable "create_redis_feeds_node" {
+  type        = bool
+  default     = true
+  description = "Set to true to provision dedicated Redis newsfeed timeline nodes"
+}
 
+variable "redis_feeds_instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for the Redis feeds primary node"
+}
 
+variable "redis_feeds_replica_count" {
+  type        = number
+  default     = 1
+  description = "Number of Redis feeds read replica nodes"
+}
+
+variable "redis_feeds_replica_instance_type" {
+  type        = string
+  default     = "t3.micro"
+  description = "EC2 instance type for Redis feeds replica nodes"
+}
+
+variable "redis_feeds_master_name" {
+  type        = string
+  default     = "feeds-master"
+  description = "Redis Sentinel master monitor name for feeds cluster"
+}
+
+variable "create_redis_sentinel_node" {
+  type        = bool
+  default     = true
+  description = "Set to true to provision a dedicated Redis Sentinel cluster"
+}
+
+variable "redis_sentinel_count" {
+  type        = number
+  default     = 3
+  description = "Number of dedicated Redis Sentinel nodes for quorum"
+}
+
+variable "redis_sentinel_instance_type" {
+  type        = string
+  default     = "t3.nano"
+  description = "EC2 instance type for dedicated Redis Sentinel nodes (AL2023 Minimal)"
+}
 
 variable "enable_auto_schedule" {
   type        = bool

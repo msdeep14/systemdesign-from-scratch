@@ -164,10 +164,24 @@ pre-commit run --all-files
 ```
 
 ### Container Setup
-For Task 3, a dedicated standalone Redis container (`photoz-redis-feeds`) handles newsfeed list operations (`RPUSH`, `LPUSH`, `LRANGE`, `LTRIM`):
+For Task 3 and Task 5, a dedicated Redis Feeds cluster handles newsfeed list operations (`RPUSH`, `LPUSH`, `LRANGE`, `LTRIM`), monitored by Redis Sentinels for High Availability:
+- `redis-feeds-primary`: Primary Redis instance on port 6383 (`redis://redis-feeds-primary:6379/0`).
+- `redis-feeds-replica`: Read replica on port 6384 replicating from `redis-feeds-primary`.
+- `redis-sentinel` (sentinel-1, sentinel-2, sentinel-3): Monitor `feeds-master` with quorum 2.
+
+Start the feeds cluster:
 ```bash
 cd photoz
-docker compose up -d redis-feeds
-docker compose restart web
+docker compose up -d redis-feeds-primary redis-feeds-replica
+docker compose restart sentinel-1 sentinel-2 sentinel-3 web
 ```
-This starts `redis-feeds` on port 6383 (`redis://redis-feeds:6379/0` within the Docker network) and restarts the `web` container with `REDIS_FEEDS_URL` configured.
+
+### AWS Production Deployment (Terraform)
+The infrastructure in `iaac/aws/terraform/` deploys workload-isolated Redis clusters and a dedicated Sentinel quorum:
+- `aws_instance.redis_node` & `aws_instance.redis_replica`: Core primary and read replicas running only `redis-server`.
+- `aws_instance.redis_feeds_node` & `aws_instance.redis_feeds_replica`: Feeds primary and read replica running only `redis-server`.
+- `aws_instance.redis_sentinel_node`: Dedicated 3-node Sentinel cluster running on Amazon Linux 2023 Minimal (`t3.nano` by default, configured via `redis_sentinel_instance_type`). The lightweight base image uses ~80 MB RAM with 512 MB swap configured in user-data to prevent OOM errors.
+- The dedicated Sentinels monitor both `mymaster` (Core cluster) and `feeds-master` (Feeds cluster) simultaneously, eliminating failure coupling between cache clusters.
+- Application nodes (`app_node`) receive `REDIS_SENTINELS`, `REDIS_MASTER_NAME`, and `REDIS_FEEDS_MASTER_NAME` for dynamic topology discovery.
+
+

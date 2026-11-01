@@ -84,3 +84,19 @@ output "kafka_bootstrap_servers" {
   description = "Kafka Bootstrap Servers connection string for producers and consumers."
 }
 
+output "redis_feeds_primary_ip" {
+  value       = try(aws_instance.redis_feeds_node[0].private_ip, "N/A")
+  description = "The private IP address of the dedicated Redis Feeds Primary Node."
+}
+
+output "redis_feeds_replica_private_ips" {
+  value       = var.create_redis_feeds_node ? aws_instance.redis_feeds_replica[*].private_ip : []
+  description = "The private IP addresses of the Redis Feeds Replica Nodes."
+}
+
+output "redis_sentinel_private_ips" {
+  value       = var.create_redis_sentinel_node ? aws_instance.redis_sentinel_node[*].private_ip : []
+  description = "The private IP addresses of the dedicated Redis Sentinel Nodes."
+}
+
+
