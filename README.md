@@ -1,7 +1,7 @@
 # System Design From Scratch
 This repository is complementary material for O'Reilly book [System Design From Scratch](https://msdeepsingh.com/books/system-design-from-scratch/). It contains chapter-wise design & architectural decisions, trade-offs analysis, implementation plan, code and execution details.
 
-<img src="book-media/raw-cover-page-sdfs.jpg" alt="Book Cover Page" width="50%">
+<img src="book-media/sdfs-color-cover.jpg" alt="Book Cover Page" width="50%">
 
 ## About System Design From Scratch Book
 
